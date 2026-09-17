@@ -245,6 +245,22 @@ export const App: React.FC = () => {
           break;
         }
 
+        case 'map-deleted': {
+          setSession((prev) => {
+            if (!prev) return prev;
+            const remaining = prev.maps.filter((m) => m.id !== msg.mapId);
+            return {
+              ...prev,
+              maps: remaining,
+              activeMapId: msg.activeMapId || (remaining[0]?.id || ''),
+            };
+          });
+          if (gmPreviewMapId === msg.mapId && msg.activeMapId) {
+            setGmPreviewMapId(msg.activeMapId);
+          }
+          break;
+        }
+
         case 'fog-updated': {
           setSession((prev) => {
             if (!prev) return prev;
@@ -665,6 +681,27 @@ export const App: React.FC = () => {
     networkRef.current?.send({ type: 'map-update', id, updates });
   };
 
+  const handleDeleteMap = (id: string) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const remaining = prev.maps.filter((m) => m.id !== id);
+      const newActive = prev.activeMapId === id ? (remaining[0]?.id || '') : prev.activeMapId;
+      return {
+        ...prev,
+        maps: remaining,
+        activeMapId: newActive,
+      };
+    });
+    if (gmPreviewMapId === id) {
+      const remaining = session?.maps.filter((m) => m.id !== id);
+      if (remaining && remaining.length > 0) {
+        setGmPreviewMapId(remaining[0].id);
+      }
+    }
+    networkRef.current?.send({ type: 'map-delete', mapId: id });
+    showToast('Map deleted.');
+  };
+
   const currentMap =
     session?.maps.find((m) => m.id === (isGm && gmPreviewMapId ? gmPreviewMapId : session.activeMapId)) ||
     session?.maps[0];
@@ -859,6 +896,7 @@ export const App: React.FC = () => {
             networkRef.current?.send({ type: 'map-add', map: newMap });
           }}
           onUpdateMap={handleUpdateMap}
+          onDeleteMap={handleDeleteMap}
           onClose={() => setShowMapManager(false)}
         />
       )}

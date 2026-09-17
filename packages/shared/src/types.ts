@@ -34,6 +34,7 @@ export interface GameMap {
   gridOffsetY?: number;
   tilesX?: number;
   tilesY?: number;
+  backgroundColor?: string;
 }
 
 export interface Token {

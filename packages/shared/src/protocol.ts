@@ -22,6 +22,7 @@ export type ClientToServerMessage =
   | { type: 'token-transfer'; id: string; toMapId: string; x: number; y: number }
   | { type: 'map-add'; map: GameMap }
   | { type: 'map-update'; id: string; updates: Partial<GameMap> }
+  | { type: 'map-delete'; mapId: string }
   | { type: 'map-switch'; mapId: string }
   | { type: 'fog-update'; mapId: string; globalCovered?: boolean; newShape?: FogShape; clearShapes?: boolean }
   | { type: 'marker-add'; marker: ScreenMarker }
@@ -47,6 +48,7 @@ export type ServerToClientMessage =
   | { type: 'token-transferred'; id: string; toMapId: string; x: number; y: number }
   | { type: 'map-added'; map: GameMap }
   | { type: 'map-updated'; id: string; updates: Partial<GameMap> }
+  | { type: 'map-deleted'; mapId: string; activeMapId?: string }
   | { type: 'map-switched'; mapId: string }
   | { type: 'fog-updated'; mapId: string; globalCovered?: boolean; newShape?: FogShape; clearShapes?: boolean }
   | { type: 'marker-added'; marker: ScreenMarker }

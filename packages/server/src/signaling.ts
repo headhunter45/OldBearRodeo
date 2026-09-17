@@ -284,6 +284,29 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
       break;
     }
 
+    case 'map-delete': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        session.maps = session.maps.filter((m) => m.id !== msg.mapId);
+        delete session.fog[msg.mapId];
+        if (session.activeMapId === msg.mapId && session.maps.length > 0) {
+          session.activeMapId = session.maps[0].id;
+        }
+        updateSession(ws.roomId, {
+          maps: session.maps,
+          fog: session.fog,
+          activeMapId: session.activeMapId,
+        });
+        broadcastToRoom(ws.roomId, {
+          type: 'map-deleted',
+          mapId: msg.mapId,
+          activeMapId: session.activeMapId,
+        });
+      }
+      break;
+    }
+
     case 'map-switch': {
       if (!ws.roomId) return;
       updateSession(ws.roomId, { activeMapId: msg.mapId });

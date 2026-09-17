@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { GameMap, GridType } from '@oldbear/shared';
 import { Map, Plus, Upload, Check, Eye, Trash2, X, Settings, Sliders, Grid } from 'lucide-react';
 import { saveAsset } from '../storage/db.js';
+import { MapSettingsModal } from './MapSettingsModal.js';
 
 interface MapManagerModalProps {
   maps: GameMap[];
@@ -11,6 +12,7 @@ interface MapManagerModalProps {
   onSetActiveMapForPlayers: (mapId: string) => void;
   onAddMap: (map: GameMap) => void;
   onUpdateMap: (mapId: string, updates: Partial<GameMap>) => void;
+  onDeleteMap: (mapId: string) => void;
   onClose: () => void;
 }
 
@@ -22,6 +24,7 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
   onSetActiveMapForPlayers,
   onAddMap,
   onUpdateMap,
+  onDeleteMap,
   onClose,
 }) => {
   const [selectedMapForEdit, setSelectedMapForEdit] = useState<GameMap | null>(null);
@@ -133,232 +136,19 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
           </label>
         </div>
 
-        {/* Map Grid / Tile Settings Editor Modal View */}
-        {selectedMapForEdit ? (
-          <div
-            style={{
-              backgroundColor: 'var(--bg-surface-elevated)',
-              padding: '1.25rem',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-strong)',
-              marginBottom: '1.5rem',
+        {/* Map Settings Modal Dialog (Items 24, 25, 26, 27, 28, 34) */}
+        {selectedMapForEdit && (
+          <MapSettingsModal
+            map={selectedMapForEdit}
+            canDelete={maps.length > 1}
+            onSave={(updates) => handleUpdateEditMap(updates)}
+            onDelete={(mapId) => {
+              onDeleteMap(mapId);
+              setSelectedMapForEdit(null);
             }}
-          >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Sliders size={18} color="var(--accent-primary)" />
-                <h3 style={{ fontWeight: 700, fontSize: '1.1rem' }}>
-                  Configure Map & Grid: {selectedMapForEdit.name}
-                </h3>
-              </div>
-              <button className="btn btn-secondary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.75rem' }} onClick={() => setSelectedMapForEdit(null)}>
-                Back to Maps List
-              </button>
-            </div>
-
-            {/* Grid Visibility & Color Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
-              {/* Show Grid Overlay */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <input
-                  type="checkbox"
-                  id="showGridCheck"
-                  checked={selectedMapForEdit.showGrid !== false}
-                  onChange={(e) => handleUpdateEditMap({ showGrid: e.target.checked })}
-                  style={{ width: '18px', height: '18px', accentColor: 'var(--accent-primary)' }}
-                />
-                <label htmlFor="showGridCheck" style={{ fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>
-                  Show Grid on Map (under tokens)
-                </label>
-              </div>
-
-              {/* Grid Type */}
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>GRID TYPE</label>
-                <select
-                  value={selectedMapForEdit.gridType || 'square'}
-                  onChange={(e) => handleUpdateEditMap({ gridType: e.target.value as GridType })}
-                  style={{
-                    width: '100%',
-                    padding: '0.4rem',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'white',
-                    marginTop: '0.25rem',
-                  }}
-                >
-                  <option value="square">Square Grid</option>
-                  <option value="hex">Hexagonal Grid</option>
-                  <option value="none">No Grid</option>
-                </select>
-              </div>
-
-              {/* Grid Color */}
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>GRID COLOR</label>
-                <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
-                  {['#ffffff', '#000000', '#f59e0b', '#3b82f6', '#10b981'].map((c) => (
-                    <div
-                      key={c}
-                      onClick={() => handleUpdateEditMap({ gridColor: c })}
-                      style={{
-                        width: '26px',
-                        height: '26px',
-                        borderRadius: '4px',
-                        backgroundColor: c,
-                        border: selectedMapForEdit.gridColor === c ? '2px solid var(--accent-primary)' : '1px solid var(--border-strong)',
-                        cursor: 'pointer',
-                        transform: selectedMapForEdit.gridColor === c ? 'scale(1.1)' : 'none',
-                      }}
-                      title={c}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              {/* Grid Opacity */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                  <span>GRID OPACITY</span>
-                  <span>{Math.round((selectedMapForEdit.gridOpacity ?? 0.4) * 100)}%</span>
-                </div>
-                <input
-                  type="range"
-                  min="0.1"
-                  max="1.0"
-                  step="0.05"
-                  value={selectedMapForEdit.gridOpacity ?? 0.4}
-                  onChange={(e) => handleUpdateEditMap({ gridOpacity: parseFloat(e.target.value) })}
-                  style={{ width: '100%', accentColor: 'var(--accent-primary)', marginTop: '0.25rem' }}
-                />
-              </div>
-            </div>
-
-            {/* Tile Size & Grid Offset Sizing Row (Item 20) */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>TILES WIDE (X)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="500"
-                  value={selectedMapForEdit.tilesX || Math.round(selectedMapForEdit.width / selectedMapForEdit.gridSize)}
-                  onChange={(e) => {
-                    const tilesX = Math.max(1, parseInt(e.target.value, 10) || 1);
-                    const newGridSize = Math.round(selectedMapForEdit.width / tilesX);
-                    handleUpdateEditMap({ tilesX, gridSize: newGridSize });
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.4rem',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'white',
-                    marginTop: '0.25rem',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>TILES HIGH (Y)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="500"
-                  value={selectedMapForEdit.tilesY || Math.round(selectedMapForEdit.height / selectedMapForEdit.gridSize)}
-                  onChange={(e) => {
-                    const tilesY = Math.max(1, parseInt(e.target.value, 10) || 1);
-                    handleUpdateEditMap({ tilesY });
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.4rem',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'white',
-                    marginTop: '0.25rem',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>TILE SIZE (PX)</label>
-                <input
-                  type="number"
-                  min="10"
-                  max="500"
-                  value={selectedMapForEdit.gridSize}
-                  onChange={(e) => {
-                    const size = Math.max(10, parseInt(e.target.value, 10) || 50);
-                    handleUpdateEditMap({
-                      gridSize: size,
-                      tilesX: Math.round(selectedMapForEdit.width / size),
-                      tilesY: Math.round(selectedMapForEdit.height / size),
-                    });
-                  }}
-                  style={{
-                    width: '100%',
-                    padding: '0.4rem',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'white',
-                    marginTop: '0.25rem',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>GRID OFFSET X (PX)</label>
-                <input
-                  type="number"
-                  value={selectedMapForEdit.gridOffsetX || 0}
-                  onChange={(e) => handleUpdateEditMap({ gridOffsetX: parseInt(e.target.value, 10) || 0 })}
-                  style={{
-                    width: '100%',
-                    padding: '0.4rem',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'white',
-                    marginTop: '0.25rem',
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>GRID OFFSET Y (PX)</label>
-                <input
-                  type="number"
-                  value={selectedMapForEdit.gridOffsetY || 0}
-                  onChange={(e) => handleUpdateEditMap({ gridOffsetY: parseInt(e.target.value, 10) || 0 })}
-                  style={{
-                    width: '100%',
-                    padding: '0.4rem',
-                    borderRadius: 'var(--radius-sm)',
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-subtle)',
-                    color: 'white',
-                    marginTop: '0.25rem',
-                  }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-              <button
-                className="btn btn-primary"
-                style={{ padding: '0.4rem 1rem' }}
-                onClick={() => setSelectedMapForEdit(null)}
-              >
-                Save Settings
-              </button>
-            </div>
-          </div>
-        ) : null}
+            onClose={() => setSelectedMapForEdit(null)}
+          />
+        )}
 
         {/* Map Cards Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>

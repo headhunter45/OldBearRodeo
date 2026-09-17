@@ -113,14 +113,15 @@ export class CanvasEngine {
     const now = Date.now();
 
     // 1. Clear background
-    ctx.fillStyle = '#090d16';
+    const activeMap = this.session
+      ? this.session.maps.find((m) => m.id === this.currentMapId) || this.session.maps[0]
+      : null;
+    ctx.fillStyle = activeMap?.backgroundColor || '#090d16';
     ctx.fillRect(0, 0, width, height);
 
     if (!this.session) return;
 
-    const currentMap =
-      this.session.maps.find((m) => m.id === this.currentMapId) ||
-      this.session.maps[0];
+    const currentMap = activeMap;
     if (!currentMap) return;
 
     const isGm = this.localPlayer?.role === 'gm';
@@ -197,7 +198,7 @@ export class CanvasEngine {
       ctx.drawImage(img, 0, 0, map.width, map.height);
     } else {
       // Procedural fallback dungeon floor
-      ctx.fillStyle = '#1e293b';
+      ctx.fillStyle = map.backgroundColor || '#1e293b';
       ctx.fillRect(0, 0, map.width, map.height);
 
       // Subtle dungeon flagstone pattern
