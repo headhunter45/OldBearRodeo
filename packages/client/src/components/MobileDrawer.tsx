@@ -1,0 +1,226 @@
+import React, { useState } from 'react';
+import {
+  X,
+  User,
+  Dices,
+  Swords,
+  Map,
+  Volume2,
+  Settings,
+  Share2,
+  Check,
+} from 'lucide-react';
+import { Player } from '@oldbear/shared';
+
+interface MobileDrawerProps {
+  isOpen: boolean;
+  onClose: () => void;
+  localPlayer: Player | null;
+  onUpdatePlayerName: (name: string, color: string) => void;
+  onOpenDice: () => void;
+  onOpenInitiative: () => void;
+  onOpenCharacter: () => void;
+  onOpenMaps: () => void;
+  onOpenSoundboard: () => void;
+  isGm: boolean;
+}
+
+const PLAYER_COLORS = ['#6366f1', '#ef4444', '#10b981', '#f59e0b', '#0ea5e9', '#ec4899', '#8b5cf6'];
+
+export const MobileDrawer: React.FC<MobileDrawerProps> = ({
+  isOpen,
+  onClose,
+  localPlayer,
+  onUpdatePlayerName,
+  onOpenDice,
+  onOpenInitiative,
+  onOpenCharacter,
+  onOpenMaps,
+  onOpenSoundboard,
+  isGm,
+}) => {
+  const [name, setName] = useState(localPlayer?.name || 'Adventurer');
+  const [color, setColor] = useState(localPlayer?.color || '#6366f1');
+  const [copied, setCopied] = useState(false);
+
+  if (!isOpen) return null;
+
+  const handleSaveProfile = (e: React.FormEvent) => {
+    e.preventDefault();
+    onUpdatePlayerName(name, color);
+  };
+
+  const copyInvite = () => {
+    navigator.clipboard.writeText(window.location.href);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        backgroundColor: 'rgba(0,0,0,0.7)',
+        backdropFilter: 'blur(8px)',
+        zIndex: 50,
+        display: 'flex',
+        justifyContent: 'flex-end',
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="glass-panel-elevated animate-slide-right"
+        style={{
+          width: '100%',
+          maxWidth: '320px',
+          height: '100%',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '1.25rem',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1.3rem' }}>🐻</span>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.1rem' }}>
+              OldBear Menu
+            </h3>
+          </div>
+          <button className="btn-icon" onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Profile Customization Section */}
+        <form
+          onSubmit={handleSaveProfile}
+          style={{
+            background: 'var(--bg-surface-elevated)',
+            padding: '0.85rem',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-subtle)',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            CUSTOMIZE YOUR NICKNAME
+          </label>
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.4rem' }}>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '0.4rem 0.6rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-subtle)',
+                color: 'white',
+                fontSize: '0.85rem',
+              }}
+            />
+            <button type="submit" className="btn btn-primary" style={{ padding: '0.4rem 0.75rem' }}>
+              Save
+            </button>
+          </div>
+
+          <div style={{ marginTop: '0.75rem' }}>
+            <label style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Pointer & Token Color</label>
+            <div style={{ display: 'flex', gap: '0.4rem', marginTop: '0.3rem' }}>
+              {PLAYER_COLORS.map((c) => (
+                <div
+                  key={c}
+                  onClick={() => {
+                    setColor(c);
+                    onUpdatePlayerName(name, c);
+                  }}
+                  style={{
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '50%',
+                    backgroundColor: c,
+                    cursor: 'pointer',
+                    border: color === c ? '2px solid white' : 'none',
+                    transform: color === c ? 'scale(1.15)' : 'none',
+                  }}
+                />
+              ))}
+            </div>
+          </div>
+        </form>
+
+        {/* Quick Drawer Navigation Buttons */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.75rem' }}
+            onClick={() => {
+              onClose();
+              onOpenCharacter();
+            }}
+          >
+            <User size={18} color="var(--accent-primary)" /> Character Sheet & Spells
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.75rem' }}
+            onClick={() => {
+              onClose();
+              onOpenDice();
+            }}
+          >
+            <Dices size={18} color="var(--accent-primary)" /> Dice Roller
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.75rem' }}
+            onClick={() => {
+              onClose();
+              onOpenInitiative();
+            }}
+          >
+            <Swords size={18} color="var(--accent-gold)" /> Initiative Tracker
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.75rem' }}
+            onClick={() => {
+              onClose();
+              onOpenSoundboard();
+            }}
+          >
+            <Volume2 size={18} color="var(--accent-emerald)" /> Soundboard
+          </button>
+
+          {isGm && (
+            <button
+              className="btn btn-secondary"
+              style={{ justifyContent: 'flex-start', padding: '0.75rem' }}
+              onClick={() => {
+                onClose();
+                onOpenMaps();
+              }}
+            >
+              <Map size={18} color="#38bdf8" /> Maps & Scenes Manager
+            </button>
+          )}
+        </div>
+
+        {/* Footer: Share invite */}
+        <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
+          <button className="btn btn-primary" style={{ width: '100%' }} onClick={copyInvite}>
+            {copied ? <Check size={16} /> : <Share2 size={16} />}
+            {copied ? 'Invite Link Copied!' : 'Copy Session Invite Link'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};

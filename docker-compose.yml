@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: oldbear_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: oldbear
+      POSTGRES_PASSWORD: oldbear_secret_password
+      POSTGRES_DB: oldbear_vtt
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  server:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.server
+    container_name: oldbear_server
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      DATABASE_URL: postgres://oldbear:oldbear_secret_password@postgres:5432/oldbear_vtt
+    depends_on:
+      - postgres
+    ports:
+      - "3001:3001"
+
+  client:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.client
+    container_name: oldbear_client
+    restart: unless-stopped
+    depends_on:
+      - server
+
+  nginx:
+    image: nginx:alpine
+    container_name: oldbear_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./docker/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - client
+      - server
+
+volumes:
+  pgdata:

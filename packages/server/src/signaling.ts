@@ -1,0 +1,420 @@
+import { WebSocket, WebSocketServer } from 'ws';
+import crypto from 'node:crypto';
+import {
+  ClientToServerMessage,
+  ServerToClientMessage,
+  Player,
+} from '@oldbear/shared';
+import {
+  getSession,
+  getSessionGmKey,
+  createSession,
+  updateSession,
+} from './session.js';
+
+interface ClientSocket extends WebSocket {
+  roomId?: string;
+  playerId?: string;
+  isGm?: boolean;
+}
+
+const rooms = new Map<string, Set<ClientSocket>>();
+
+export function setupWebSocket(wss: WebSocketServer) {
+  wss.on('connection', (ws: ClientSocket) => {
+    ws.on('message', (data: string) => {
+      try {
+        const msg = JSON.parse(data.toString()) as ClientToServerMessage;
+        handleMessage(ws, msg);
+      } catch (err) {
+        console.error('[WS] Parse error:', err);
+      }
+    });
+
+    ws.on('close', () => {
+      handleDisconnect(ws);
+    });
+
+    ws.on('error', (err) => {
+      console.error('[WS] Socket error:', err);
+    });
+  });
+}
+
+function broadcastToRoom(roomId: string, message: ServerToClientMessage, excludeWs?: ClientSocket) {
+  const clients = rooms.get(roomId);
+  if (!clients) return;
+
+  const payload = JSON.stringify(message);
+  for (const client of clients) {
+    if (client !== excludeWs && client.readyState === WebSocket.OPEN) {
+      client.send(payload);
+    }
+  }
+}
+
+function sendToPeer(roomId: string, targetPeerId: string, message: ServerToClientMessage) {
+  const clients = rooms.get(roomId);
+  if (!clients) return;
+
+  const payload = JSON.stringify(message);
+  for (const client of clients) {
+    if (client.playerId === targetPeerId && client.readyState === WebSocket.OPEN) {
+      client.send(payload);
+      break;
+    }
+  }
+}
+
+function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
+  switch (msg.type) {
+    case 'join': {
+      const { roomId, playerName, playerColor, gmKey } = msg;
+      let session = getSession(roomId);
+      let sessionGmKey = getSessionGmKey(roomId);
+
+      // If room doesn't exist, create it automatically
+      if (!session) {
+        const created = createSession(roomId);
+        session = created.session;
+        sessionGmKey = created.gmKey;
+      }
+
+      const playerId = crypto.randomUUID();
+      const isGm = (gmKey && gmKey === sessionGmKey) || !session.gmId;
+
+      if (isGm && !session.gmId) {
+        session.gmId = playerId;
+      }
+
+      ws.roomId = roomId;
+      ws.playerId = playerId;
+      ws.isGm = isGm;
+
+      // Add to room client set
+      if (!rooms.has(roomId)) {
+        rooms.set(roomId, new Set());
+      }
+      rooms.get(roomId)!.add(ws);
+
+      const player: Player = {
+        id: playerId,
+        name: playerName || (isGm ? 'Game Master' : 'Player'),
+        role: isGm ? 'gm' : 'player',
+        color: playerColor || '#3b82f6',
+        connected: true,
+        assignedTokenIds: [],
+      };
+
+      session.players[playerId] = player;
+
+      // Ack join to sender
+      const ackMsg: ServerToClientMessage = {
+        type: 'join-ack',
+        player,
+        session,
+        isGm,
+        gmKey: isGm ? (sessionGmKey || undefined) : undefined,
+      };
+      ws.send(JSON.stringify(ackMsg));
+
+      // Notify others in room
+      broadcastToRoom(
+        roomId,
+        {
+          type: 'peer-joined',
+          peerId: playerId,
+          player,
+        },
+        ws
+      );
+      break;
+    }
+
+    case 'rtc-offer': {
+      if (!ws.roomId || !ws.playerId) return;
+      sendToPeer(ws.roomId, msg.toPeerId, {
+        type: 'rtc-offer',
+        fromPeerId: ws.playerId,
+        sdp: msg.sdp,
+      });
+      break;
+    }
+
+    case 'rtc-answer': {
+      if (!ws.roomId || !ws.playerId) return;
+      sendToPeer(ws.roomId, msg.toPeerId, {
+        type: 'rtc-answer',
+        fromPeerId: ws.playerId,
+        sdp: msg.sdp,
+      });
+      break;
+    }
+
+    case 'rtc-ice': {
+      if (!ws.roomId || !ws.playerId) return;
+      sendToPeer(ws.roomId, msg.toPeerId, {
+        type: 'rtc-ice',
+        fromPeerId: ws.playerId,
+        candidate: msg.candidate,
+      });
+      break;
+    }
+
+    case 'token-move': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session && session.tokens[msg.id]) {
+        session.tokens[msg.id].x = msg.x;
+        session.tokens[msg.id].y = msg.y;
+        if (msg.mapId) session.tokens[msg.id].mapId = msg.mapId;
+      }
+      broadcastToRoom(
+        ws.roomId,
+        {
+          type: 'token-moved',
+          id: msg.id,
+          x: msg.x,
+          y: msg.y,
+          mapId: msg.mapId,
+        },
+        ws
+      );
+      break;
+    }
+
+    case 'token-update': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session && session.tokens[msg.id]) {
+        Object.assign(session.tokens[msg.id], msg.updates);
+      }
+      broadcastToRoom(
+        ws.roomId,
+        {
+          type: 'token-updated',
+          id: msg.id,
+          updates: msg.updates,
+        },
+        ws
+      );
+      break;
+    }
+
+    case 'token-add': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        session.tokens[msg.token.id] = msg.token;
+      }
+      broadcastToRoom(ws.roomId, { type: 'token-added', token: msg.token }, ws);
+      break;
+    }
+
+    case 'token-delete': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        delete session.tokens[msg.id];
+      }
+      broadcastToRoom(ws.roomId, { type: 'token-deleted', id: msg.id }, ws);
+      break;
+    }
+
+    case 'token-transfer': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session && session.tokens[msg.id]) {
+        session.tokens[msg.id].mapId = msg.toMapId;
+        session.tokens[msg.id].x = msg.x;
+        session.tokens[msg.id].y = msg.y;
+      }
+      broadcastToRoom(
+        ws.roomId,
+        {
+          type: 'token-transferred',
+          id: msg.id,
+          toMapId: msg.toMapId,
+          x: msg.x,
+          y: msg.y,
+        },
+        ws
+      );
+      break;
+    }
+
+    case 'map-add': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        session.maps.push(msg.map);
+        if (!session.fog[msg.map.id]) {
+          session.fog[msg.map.id] = {
+            mapId: msg.map.id,
+            globalCovered: false,
+            shapes: [],
+          };
+        }
+      }
+      broadcastToRoom(ws.roomId, { type: 'map-added', map: msg.map }, ws);
+      break;
+    }
+
+    case 'map-update': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        const map = session.maps.find((m) => m.id === msg.id);
+        if (map) Object.assign(map, msg.updates);
+      }
+      broadcastToRoom(
+        ws.roomId,
+        {
+          type: 'map-updated',
+          id: msg.id,
+          updates: msg.updates,
+        },
+        ws
+      );
+      break;
+    }
+
+    case 'map-switch': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        session.activeMapId = msg.mapId;
+      }
+      broadcastToRoom(ws.roomId, { type: 'map-switched', mapId: msg.mapId }, ws);
+      break;
+    }
+
+    case 'fog-update': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        if (!session.fog[msg.mapId]) {
+          session.fog[msg.mapId] = {
+            mapId: msg.mapId,
+            globalCovered: false,
+            shapes: [],
+          };
+        }
+        const fog = session.fog[msg.mapId];
+        if (msg.globalCovered !== undefined) {
+          fog.globalCovered = msg.globalCovered;
+        }
+        if (msg.clearShapes) {
+          fog.shapes = [];
+        }
+        if (msg.newShape) {
+          fog.shapes.push(msg.newShape);
+        }
+      }
+      broadcastToRoom(
+        ws.roomId,
+        {
+          type: 'fog-updated',
+          mapId: msg.mapId,
+          globalCovered: msg.globalCovered,
+          newShape: msg.newShape,
+          clearShapes: msg.clearShapes,
+        },
+        ws
+      );
+      break;
+    }
+
+    case 'marker-add': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        session.markers.push(msg.marker);
+        // keep maximum 50 markers
+        if (session.markers.length > 50) session.markers.shift();
+      }
+      broadcastToRoom(ws.roomId, { type: 'marker-added', marker: msg.marker }, ws);
+      break;
+    }
+
+    case 'dice-roll': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        session.diceHistory.push(msg.roll);
+        if (session.diceHistory.length > 50) session.diceHistory.shift();
+      }
+      broadcastToRoom(ws.roomId, { type: 'dice-rolled', roll: msg.roll });
+      break;
+    }
+
+    case 'initiative-update': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        session.initiative = msg.initiative;
+      }
+      broadcastToRoom(
+        ws.roomId,
+        {
+          type: 'initiative-updated',
+          initiative: msg.initiative,
+        },
+        ws
+      );
+      break;
+    }
+
+    case 'player-update': {
+      if (!ws.roomId || !ws.playerId) return;
+      const session = getSession(ws.roomId);
+      if (session && session.players[ws.playerId]) {
+        Object.assign(session.players[ws.playerId], msg.updates);
+      }
+      broadcastToRoom(
+        ws.roomId,
+        {
+          type: 'player-updated',
+          playerId: ws.playerId,
+          updates: msg.updates,
+        },
+        ws
+      );
+      break;
+    }
+
+    case 'audio-action': {
+      if (!ws.roomId) return;
+      broadcastToRoom(ws.roomId, {
+        type: 'audio-action',
+        trackId: msg.trackId,
+        action: msg.action,
+        volume: msg.volume,
+        isLooping: msg.isLooping,
+      });
+      break;
+    }
+  }
+}
+
+function handleDisconnect(ws: ClientSocket) {
+  if (!ws.roomId || !ws.playerId) return;
+
+  const roomClients = rooms.get(ws.roomId);
+  if (roomClients) {
+    roomClients.delete(ws);
+    if (roomClients.size === 0) {
+      rooms.delete(ws.roomId);
+    }
+  }
+
+  const session = getSession(ws.roomId);
+  if (session && session.players[ws.playerId]) {
+    session.players[ws.playerId].connected = false;
+  }
+
+  broadcastToRoom(ws.roomId, {
+    type: 'peer-left',
+    peerId: ws.playerId,
+  });
+}

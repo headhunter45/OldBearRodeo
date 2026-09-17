@@ -1,0 +1,18 @@
+{
+  "name": "oldbearrodeo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A simple to use and easy to host Virtual Tabletop (VTT)",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm run dev -w @oldbear/server\" \"npm run dev -w @oldbear/client\"",
+    "build": "npm run build -w @oldbear/shared && npm run build -w @oldbear/server && npm run build -w @oldbear/client",
+    "test": "npm run test -w @oldbear/shared && npm run test -w @oldbear/server && npm run test -w @oldbear/client"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "typescript": "^5.8.2"
+  }
+}
