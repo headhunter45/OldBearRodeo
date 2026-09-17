@@ -5,6 +5,8 @@ export interface StoredAsset {
   name: string;
   type: 'map' | 'token' | 'prop' | 'audio';
   dataUrl: string; // Base64 data URL or Blob URL
+  fileSize?: number;
+  fileHash?: string;
   width?: number;
   height?: number;
   ringColor?: string;
@@ -48,9 +50,47 @@ export function getDB() {
   return dbPromise;
 }
 
+export function computeContentHash(content: string): string {
+  let h1 = 0xdeadbeef;
+  let h2 = 0x41c6ce57;
+  for (let i = 0; i < content.length; i++) {
+    const ch = content.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16);
+}
+
+export async function findDuplicateAsset(fileSize: number, hash: string): Promise<StoredAsset | null> {
+  const db = await getDB();
+  const all = await db.getAll('assets');
+  return (
+    all.find((a) => (a.fileSize === fileSize && a.fileHash === hash) || (a.fileHash && a.fileHash === hash)) ||
+    null
+  );
+}
+
+export async function getAllAssets(): Promise<StoredAsset[]> {
+  const db = await getDB();
+  return db.getAll('assets');
+}
+
 export async function saveAsset(asset: StoredAsset): Promise<void> {
   const db = await getDB();
+  if (!asset.fileHash && asset.dataUrl) {
+    asset.fileHash = computeContentHash(asset.dataUrl);
+  }
   await db.put('assets', asset);
+}
+
+export async function updateAsset(id: string, updates: Partial<StoredAsset>): Promise<void> {
+  const db = await getDB();
+  const existing = await db.get('assets', id);
+  if (existing) {
+    await db.put('assets', { ...existing, ...updates });
+  }
 }
 
 export async function getAssetsByType(type: 'map' | 'token' | 'prop' | 'audio'): Promise<StoredAsset[]> {
@@ -66,6 +106,15 @@ export async function getAsset(id: string): Promise<StoredAsset | undefined> {
 export async function deleteAsset(id: string): Promise<void> {
   const db = await getDB();
   await db.delete('assets', id);
+}
+
+export async function deleteMultipleAssets(ids: string[]): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction('assets', 'readwrite');
+  for (const id of ids) {
+    await tx.store.delete(id);
+  }
+  await tx.done;
 }
 
 export async function saveSetting(key: string, value: any): Promise<void> {

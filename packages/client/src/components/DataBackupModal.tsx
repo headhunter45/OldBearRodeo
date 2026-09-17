@@ -8,11 +8,28 @@ import {
   X,
   FileJson,
   RefreshCw,
-  HardDrive,
+  Trash2,
+  Edit2,
+  Check,
+  Play,
+  Pause,
+  Map,
+  User,
+  Music,
+  Plus,
 } from 'lucide-react';
 import { GameSession } from '@oldbear/shared';
 import { exportAllData, downloadBackupFile, importAllData } from '../storage/BackupManager.js';
-import { getDB } from '../storage/db.js';
+import {
+  StoredAsset,
+  getAllAssets,
+  saveAsset,
+  updateAsset,
+  deleteAsset,
+  deleteMultipleAssets,
+  computeContentHash,
+  findDuplicateAsset,
+} from '../storage/db.js';
 
 interface DataBackupModalProps {
   session?: GameSession | null;
@@ -21,46 +38,149 @@ interface DataBackupModalProps {
   onClose: () => void;
 }
 
+type AssetTab = 'maps' | 'tokens' | 'audio';
+
 export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   session,
   isGm,
   onRestoreSession,
   onClose,
 }) => {
-  const [stats, setStats] = useState<{ assetsCount: number; charCount: number }>({
-    assetsCount: 0,
-    charCount: 0,
-  });
+  const [activeTab, setActiveTab] = useState<AssetTab>('tokens');
+  const [assets, setAssets] = useState<StoredAsset[]>([]);
+  const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const audioPlayerRef = useRef<HTMLAudioElement | null>(null);
+
+  // Backup & Restore State
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [resultMessage, setResultMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const assetUploadRef = useRef<HTMLInputElement | null>(null);
+
+  const loadAssets = async () => {
+    try {
+      const all = await getAllAssets();
+      setAssets(all);
+    } catch (err) {
+      console.warn('Failed to load assets:', err);
+    }
+  };
 
   useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const db = await getDB();
-        const assets = await db.getAll('assets');
-        const charRaw = localStorage.getItem('oldbear_saved_characters');
-        const chars = charRaw ? JSON.parse(charRaw) : [];
-        if (mounted) {
-          setStats({
-            assetsCount: assets.length,
-            charCount: chars.length,
-          });
-        }
-      } catch (e) {
-        console.warn('Failed to load storage stats:', e);
-      }
-    })();
+    loadAssets();
     return () => {
-      mounted = false;
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+        audioPlayerRef.current = null;
+      }
     };
   }, []);
 
+  const filteredAssets = assets.filter((a) => {
+    if (activeTab === 'maps') return a.type === 'map';
+    if (activeTab === 'tokens') return a.type === 'token' || a.type === 'prop';
+    if (activeTab === 'audio') return a.type === 'audio';
+    return true;
+  });
+
+  // Multiselect toggles
+  const toggleSelect = (id: string) => {
+    setSelectedAssetIds((prev) =>
+      prev.includes(id) ? prev.filter((i) => i !== id) : [...prev, id]
+    );
+  };
+
+  const selectAll = () => {
+    setSelectedAssetIds(filteredAssets.map((a) => a.id));
+  };
+
+  const deselectAll = () => {
+    setSelectedAssetIds([]);
+  };
+
+  const handleDeleteSelected = async () => {
+    if (selectedAssetIds.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedAssetIds.length} asset(s)?`)) return;
+    await deleteMultipleAssets(selectedAssetIds);
+    setSelectedAssetIds([]);
+    await loadAssets();
+  };
+
+  const handleStartRename = (asset: StoredAsset) => {
+    setEditingId(asset.id);
+    setEditingName(asset.name);
+  };
+
+  const handleSaveRename = async (id: string) => {
+    if (editingName.trim()) {
+      await updateAsset(id, { name: editingName.trim() });
+      await loadAssets();
+    }
+    setEditingId(null);
+  };
+
+  // Upload Asset with Deduplication Check (Bug #30)
+  const handleAssetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    setDuplicateWarning(null);
+
+    for (const file of files) {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        const hash = computeContentHash(dataUrl);
+        const existing = await findDuplicateAsset(file.size, hash);
+
+        if (existing) {
+          setDuplicateWarning(`Asset already exists: "${existing.name}". Using existing asset without creating a duplicate.`);
+          return;
+        }
+
+        let assetType: 'map' | 'token' | 'audio' = 'token';
+        if (activeTab === 'maps' || file.name.includes('map')) assetType = 'map';
+        else if (activeTab === 'audio' || file.type.startsWith('audio/')) assetType = 'audio';
+
+        await saveAsset({
+          id: crypto.randomUUID(),
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          type: assetType,
+          dataUrl,
+          fileSize: file.size,
+          fileHash: hash,
+          createdAt: Date.now(),
+        });
+        await loadAssets();
+      };
+      reader.readAsDataURL(file);
+    }
+    e.target.value = '';
+  };
+
+  const togglePlayAudio = (asset: StoredAsset) => {
+    if (playingAudioId === asset.id) {
+      audioPlayerRef.current?.pause();
+      setPlayingAudioId(null);
+    } else {
+      if (audioPlayerRef.current) {
+        audioPlayerRef.current.pause();
+      }
+      const audio = new Audio(asset.dataUrl);
+      audio.onended = () => setPlayingAudioId(null);
+      audio.play();
+      audioPlayerRef.current = audio;
+      setPlayingAudioId(asset.id);
+    }
+  };
+
+  // Export / Import
   const handleExport = async () => {
     setExporting(true);
     setResultMessage(null);
@@ -101,14 +221,8 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
         type: 'success',
         text: `Import complete! Restored ${result.assetCount} asset(s) and character data.`,
       });
+      await loadAssets();
 
-      // Update displayed stats
-      setStats((prev) => ({
-        ...prev,
-        assetsCount: prev.assetsCount + result.assetCount,
-      }));
-
-      // If GM and session exists in backup, offer or apply restore
       if (isGm && result.session && onRestoreSession) {
         onRestoreSession(result.session);
       }
@@ -122,19 +236,12 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     }
   };
 
-  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      handleProcessFile(e.target.files[0]);
-      e.target.value = '';
-    }
-  };
-
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0,0,0,0.7)',
+        backgroundColor: 'rgba(0,0,0,0.75)',
         backdropFilter: 'blur(8px)',
         zIndex: 60,
         display: 'flex',
@@ -145,195 +252,416 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
       onClick={onClose}
     >
       <div
-        className="glass-panel-elevated animate-fade-in"
+        className="glass-panel-elevated animate-scale-up"
         style={{
           width: '100%',
-          maxWidth: '520px',
-          padding: '1.5rem',
+          maxWidth: '720px',
+          maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1.25rem',
+          borderRadius: 'var(--radius-lg)',
+          overflow: 'hidden',
+          boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div
+          style={{
+            padding: '1.25rem 1.5rem',
+            borderBottom: '1px solid var(--border-subtle)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            backgroundColor: 'var(--bg-surface)',
+          }}
+        >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <Database size={22} color="var(--accent-primary)" />
-            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.25rem' }}>
-              Backup & Transfer Data
-            </h2>
+            <div>
+              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.2rem', margin: 0 }}>
+                Asset Manager & Backup
+              </h2>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                Manage uploaded tokens, maps, sounds, and export/import data
+              </div>
+            </div>
           </div>
           <button className="btn-icon" onClick={onClose}>
             <X size={18} />
           </button>
         </div>
 
-        {/* Local Storage Stats */}
+        {/* Tabs */}
         <div
           style={{
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            padding: '0.75rem 1rem',
+            borderBottom: '1px solid var(--border-subtle)',
             backgroundColor: 'var(--bg-surface-elevated)',
-            borderRadius: 'var(--radius-sm)',
-            border: '1px solid var(--border-subtle)',
+            padding: '0 1rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <HardDrive size={18} color="var(--text-secondary)" />
-            <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Stored in this Browser:</span>
-          </div>
-          <div style={{ fontSize: '0.85rem', color: 'var(--accent-primary)', fontWeight: 700 }}>
-            {stats.assetsCount} Map/Audio/Token Assets • {stats.charCount} Characters
-          </div>
-        </div>
-
-        {/* Result Message */}
-        {resultMessage && (
-          <div
+          <button
+            className={`tab-btn ${activeTab === 'tokens' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('tokens');
+              setSelectedAssetIds([]);
+            }}
             style={{
-              padding: '0.75rem 1rem',
-              borderRadius: 'var(--radius-sm)',
+              padding: '0.75rem 1.25rem',
+              border: 'none',
+              background: 'none',
+              color: activeTab === 'tokens' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'tokens' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              fontWeight: 600,
+              cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
-              fontSize: '0.85rem',
-              backgroundColor:
-                resultMessage.type === 'success'
-                  ? 'rgba(16, 185, 129, 0.15)'
-                  : 'rgba(244, 63, 94, 0.15)',
-              border: `1px solid ${
-                resultMessage.type === 'success' ? 'var(--accent-emerald)' : 'var(--accent-rose)'
-              }`,
-              color: resultMessage.type === 'success' ? '#10b981' : '#f43f5e',
+              gap: '6px',
             }}
           >
-            {resultMessage.type === 'success' ? (
-              <CheckCircle size={16} />
-            ) : (
-              <AlertTriangle size={16} />
-            )}
-            <span>{resultMessage.text}</span>
+            <User size={16} /> Tokens ({assets.filter((a) => a.type === 'token' || a.type === 'prop').length})
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'maps' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('maps');
+              setSelectedAssetIds([]);
+            }}
+            style={{
+              padding: '0.75rem 1.25rem',
+              border: 'none',
+              background: 'none',
+              color: activeTab === 'maps' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'maps' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Map size={16} /> Maps ({assets.filter((a) => a.type === 'map').length})
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'audio' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('audio');
+              setSelectedAssetIds([]);
+            }}
+            style={{
+              padding: '0.75rem 1.25rem',
+              border: 'none',
+              background: 'none',
+              color: activeTab === 'audio' ? 'var(--accent-primary)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'audio' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Music size={16} /> Sounds ({assets.filter((a) => a.type === 'audio').length})
+          </button>
+        </div>
+
+        {/* Duplicate Warning */}
+        {duplicateWarning && (
+          <div
+            style={{
+              padding: '0.6rem 1.25rem',
+              backgroundColor: 'rgba(245, 158, 11, 0.15)',
+              borderBottom: '1px solid rgba(245, 158, 11, 0.3)',
+              color: '#f59e0b',
+              fontSize: '0.8rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>{duplicateWarning}</span>
+            <button
+              style={{ background: 'none', border: 'none', color: '#f59e0b', cursor: 'pointer' }}
+              onClick={() => setDuplicateWarning(null)}
+            >
+              ✕
+            </button>
           </div>
         )}
 
-        {/* Action Sections */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-          {/* Export Section */}
+        {/* Content Body: Asset Previews with Multiselect */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
+          {/* Asset Action Controls */}
           <div
             style={{
-              padding: '1rem',
-              backgroundColor: 'var(--bg-surface-elevated)',
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid var(--border-subtle)',
               display: 'flex',
-              flexDirection: 'column',
               justifyContent: 'space-between',
-              gap: '0.75rem',
+              alignItems: 'center',
+              marginBottom: '1rem',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
             }}
           >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.35rem' }}>
-                <Download size={16} color="#10b981" />
-                Export
-              </div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                Download all your maps, audio, tokens, characters, and current session as a single JSON file.
-              </p>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+              <label className="btn btn-primary" style={{ cursor: 'pointer', display: 'inline-flex', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                <Plus size={14} /> Upload {activeTab === 'maps' ? 'Map' : activeTab === 'audio' ? 'Sound' : 'Token'}...
+                <input
+                  ref={assetUploadRef}
+                  type="file"
+                  multiple
+                  accept={activeTab === 'audio' ? 'audio/*' : 'image/*'}
+                  style={{ display: 'none' }}
+                  onChange={handleAssetUpload}
+                />
+              </label>
+
+              {filteredAssets.length > 0 && (
+                <>
+                  <button className="btn btn-secondary" style={{ padding: '0.4rem 0.7rem', fontSize: '0.75rem' }} onClick={selectAll}>
+                    Select All
+                  </button>
+                  <button className="btn btn-secondary" style={{ padding: '0.4rem 0.7rem', fontSize: '0.75rem' }} onClick={deselectAll}>
+                    Clear
+                  </button>
+                </>
+              )}
             </div>
 
+            {selectedAssetIds.length > 0 && (
+              <button
+                className="btn"
+                style={{
+                  backgroundColor: 'rgba(244, 63, 94, 0.2)',
+                  color: '#f43f5e',
+                  border: '1px solid rgba(244, 63, 94, 0.4)',
+                  padding: '0.4rem 0.8rem',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                }}
+                onClick={handleDeleteSelected}
+              >
+                <Trash2 size={14} /> Delete Selected ({selectedAssetIds.length})
+              </button>
+            )}
+          </div>
+
+          {/* Assets Grid */}
+          {filteredAssets.length === 0 ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+              No {activeTab} uploaded yet. Click Upload above or drag files onto the board!
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: activeTab === 'audio' ? '1fr' : 'repeat(auto-fill, minmax(135px, 1fr))',
+                gap: '0.75rem',
+              }}
+            >
+              {filteredAssets.map((asset) => {
+                const isSelected = selectedAssetIds.includes(asset.id);
+                const isEditing = editingId === asset.id;
+
+                if (activeTab === 'audio') {
+                  return (
+                    <div
+                      key={asset.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.6rem 0.8rem',
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-surface-elevated)',
+                        border: isSelected ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(asset.id)}
+                          style={{ cursor: 'pointer' }}
+                        />
+                        <button
+                          className="btn-icon"
+                          onClick={() => togglePlayAudio(asset)}
+                          style={{ width: '32px', height: '32px' }}
+                        >
+                          {playingAudioId === asset.id ? <Pause size={16} /> : <Play size={16} />}
+                        </button>
+                        {isEditing ? (
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <input
+                              type="text"
+                              value={editingName}
+                              onChange={(e) => setEditingName(e.target.value)}
+                              style={{ padding: '2px 6px', fontSize: '0.8rem', background: '#000', color: '#fff', border: '1px solid var(--accent-primary)' }}
+                            />
+                            <button className="btn-icon" onClick={() => handleSaveRename(asset.id)}>
+                              <Check size={14} />
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{asset.name}</div>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <button className="btn-icon" onClick={() => handleStartRename(asset)} title="Rename">
+                          <Edit2 size={13} />
+                        </button>
+                        <button
+                          className="btn-icon"
+                          onClick={async () => {
+                            if (confirm(`Delete ${asset.name}?`)) {
+                              await deleteAsset(asset.id);
+                              await loadAssets();
+                            }
+                          }}
+                          title="Delete"
+                          style={{ color: '#f43f5e' }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
+
+                // Image Asset (Tokens & Maps)
+                return (
+                  <div
+                    key={asset.id}
+                    style={{
+                      borderRadius: 'var(--radius-md)',
+                      backgroundColor: 'var(--bg-surface-elevated)',
+                      border: isSelected ? '2px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                      overflow: 'hidden',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      position: 'relative',
+                      boxShadow: isSelected ? '0 0 10px rgba(99, 102, 241, 0.4)' : 'none',
+                    }}
+                  >
+                    {/* Checkbox badge */}
+                    <div style={{ position: 'absolute', top: 6, left: 6, zIndex: 2 }}>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelect(asset.id)}
+                        style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                      />
+                    </div>
+
+                    {/* Thumbnail Preview */}
+                    <div
+                      style={{
+                        height: '90px',
+                        backgroundImage: `url("${asset.dataUrl}")`,
+                        backgroundSize: activeTab === 'maps' ? 'cover' : 'contain',
+                        backgroundRepeat: 'no-repeat',
+                        backgroundPosition: 'center',
+                        backgroundColor: '#0f172a',
+                      }}
+                    />
+
+                    {/* Footer Info & Rename */}
+                    <div style={{ padding: '0.4rem 0.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      {isEditing ? (
+                        <div style={{ display: 'flex', gap: '2px', width: '100%' }}>
+                          <input
+                            type="text"
+                            value={editingName}
+                            onChange={(e) => setEditingName(e.target.value)}
+                            style={{ flex: 1, padding: '2px 4px', fontSize: '0.75rem', background: '#000', color: '#fff', border: '1px solid var(--accent-primary)', borderRadius: '2px' }}
+                          />
+                          <button className="btn-icon" style={{ width: '22px', height: '22px' }} onClick={() => handleSaveRename(asset.id)}>
+                            <Check size={12} />
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '85px' }} title={asset.name}>
+                            {asset.name}
+                          </span>
+                          <button className="btn-icon" style={{ width: '22px', height: '22px' }} onClick={() => handleStartRename(asset)} title="Rename">
+                            <Edit2 size={11} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Section: Export & Import under Asset Manager (Bug #31) */}
+        <div
+          style={{
+            padding: '1.25rem 1.5rem',
+            borderTop: '1px solid var(--border-subtle)',
+            backgroundColor: 'var(--bg-surface)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.85rem',
+          }}
+        >
+          {resultMessage && (
+            <div
+              style={{
+                padding: '0.6rem 0.9rem',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.8rem',
+                backgroundColor: resultMessage.type === 'success' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)',
+                color: resultMessage.type === 'success' ? '#10b981' : '#f43f5e',
+                border: `1px solid ${resultMessage.type === 'success' ? '#10b981' : '#f43f5e'}`,
+              }}
+            >
+              {resultMessage.text}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
             <button
               className="btn btn-primary"
-              style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}
+              style={{ padding: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.85rem' }}
               disabled={exporting}
               onClick={handleExport}
             >
-              {exporting ? <RefreshCw size={14} className="animate-spin" /> : <Download size={14} />}
-              {exporting ? 'Exporting...' : 'Export to File'}
+              {exporting ? <RefreshCw size={15} className="animate-spin" /> : <Download size={15} />}
+              {exporting ? 'Exporting...' : 'Export All Data to File'}
             </button>
-          </div>
 
-          {/* Import Section */}
-          <div
-            style={{
-              padding: '1rem',
-              backgroundColor: 'var(--bg-surface-elevated)',
-              borderRadius: 'var(--radius-sm)',
-              border: isDragging ? '1px dashed var(--accent-primary)' : '1px solid var(--border-subtle)',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'space-between',
-              gap: '0.75rem',
-            }}
-            onDragOver={(e) => {
-              e.preventDefault();
-              setIsDragging(true);
-            }}
-            onDragLeave={() => setIsDragging(false)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setIsDragging(false);
-              if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                handleProcessFile(e.dataTransfer.files[0]);
-              }
-            }}
-          >
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700, fontSize: '0.95rem', marginBottom: '0.35rem' }}>
-                <Upload size={16} color="#38bdf8" />
-                Import
-              </div>
-              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-                Restore a backup file to quickly switch to this computer or browser.
-              </p>
-            </div>
-
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '0.65rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', fontSize: '0.85rem' }}
+              disabled={importing}
+              onClick={() => fileInputRef.current?.click()}
+            >
+              {importing ? <RefreshCw size={15} className="animate-spin" /> : <Upload size={15} />}
+              {importing ? 'Importing...' : 'Import Data from File'}
+            </button>
             <input
               ref={fileInputRef}
               type="file"
               accept=".json"
               style={{ display: 'none' }}
-              onChange={handleFileInputChange}
+              onChange={(e) => {
+                if (e.target.files && e.target.files.length > 0) {
+                  handleProcessFile(e.target.files[0]);
+                  e.target.value = '';
+                }
+              }}
             />
-
-            <button
-              className="btn btn-secondary"
-              style={{ width: '100%', padding: '0.6rem', fontSize: '0.85rem' }}
-              disabled={importing}
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {importing ? <RefreshCw size={14} className="animate-spin" /> : <Upload size={14} />}
-              {importing ? 'Importing...' : 'Import from File'}
-            </button>
           </div>
-        </div>
-
-        {/* Drag & Drop Hint */}
-        <div
-          style={{
-            padding: '0.8rem',
-            border: '1px dashed var(--border-subtle)',
-            borderRadius: 'var(--radius-sm)',
-            textAlign: 'center',
-            fontSize: '0.75rem',
-            color: 'var(--text-muted)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          <FileJson size={16} />
-          <span>Tip: You can also drag and drop a backup .json file anywhere onto the board at any time!</span>
-        </div>
-
-        {/* Footer */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '0.5rem' }}>
-          <button className="btn btn-secondary" onClick={onClose}>
-            Close
-          </button>
         </div>
       </div>
     </div>
