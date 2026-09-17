@@ -1,8 +1,34 @@
 import crypto from 'node:crypto';
 import { GameSession, GameMap, Token, FogState } from '@oldbear/shared';
+import {
+  saveSessionToDb,
+  loadSessionFromDb,
+  loadAllSessionsFromDb,
+  deleteSessionFromDb,
+  isDbConnected,
+} from './db.js';
 
-// In-memory store for sessions (fallback/dev mode)
+// In-memory store for sessions (high-speed cache for real-time WebSocket sync)
 const sessions = new Map<string, { session: GameSession; gmKey: string }>();
+
+// Debounce timer map for database updates
+const dbSyncTimers = new Map<string, NodeJS.Timeout>();
+
+function scheduleDbSync(id: string, delayMs = 500) {
+  if (!isDbConnected()) return;
+  const existingTimer = dbSyncTimers.get(id);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
+  const timer = setTimeout(() => {
+    dbSyncTimers.delete(id);
+    const entry = sessions.get(id);
+    if (entry) {
+      saveSessionToDb(entry.session, entry.gmKey);
+    }
+  }, delayMs);
+  dbSyncTimers.set(id, timer);
+}
 
 // Simple readable room slug generator (e.g., owl-bear-42)
 const ADJECTIVES = ['daring', 'brave', 'mystic', 'ancient', 'wild', 'shadow', 'golden', 'frost', 'ember', 'arcane'];
@@ -113,12 +139,43 @@ export function createSession(name?: string, requestedId?: string): { session: G
   };
 
   sessions.set(id, { session, gmKey });
+
+  // Asynchronously persist to database if available
+  if (isDbConnected()) {
+    saveSessionToDb(session, gmKey);
+  }
+
   return { session, gmKey };
+}
+
+export async function initSessionsFromDb(): Promise<void> {
+  if (!isDbConnected()) return;
+  const dbSessions = await loadAllSessionsFromDb();
+  for (const [id, entry] of dbSessions) {
+    if (!sessions.has(id)) {
+      sessions.set(id, entry);
+    }
+  }
 }
 
 export function getSession(id: string): GameSession | null {
   const entry = sessions.get(id);
   return entry ? entry.session : null;
+}
+
+export async function getOrLoadSession(id: string): Promise<GameSession | null> {
+  const existing = getSession(id);
+  if (existing) return existing;
+
+  if (isDbConnected()) {
+    const loaded = await loadSessionFromDb(id);
+    if (loaded) {
+      sessions.set(id, loaded);
+      return loaded.session;
+    }
+  }
+
+  return null;
 }
 
 export function getSessionGmKey(id: string): string | null {
@@ -131,9 +188,28 @@ export function updateSession(id: string, updates: Partial<GameSession>): GameSe
   if (!entry) return null;
 
   Object.assign(entry.session, updates);
+  scheduleDbSync(id);
   return entry.session;
 }
 
 export function removeSession(id: string): boolean {
+  const timer = dbSyncTimers.get(id);
+  if (timer) {
+    clearTimeout(timer);
+    dbSyncTimers.delete(id);
+  }
+
+  if (isDbConnected()) {
+    deleteSessionFromDb(id);
+  }
+
   return sessions.delete(id);
+}
+
+export function getAllSessions(): { id: string; name: string; createdAt: number }[] {
+  return Array.from(sessions.values()).map((s) => ({
+    id: s.session.id,
+    name: s.session.name,
+    createdAt: s.session.createdAt,
+  }));
 }

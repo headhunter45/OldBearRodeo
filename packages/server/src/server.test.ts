@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { createSession, getSession } from './session.js';
+import { createSession, getSession, updateSession, getAllSessions, removeSession } from './session.js';
 import { fetchDnDCharacter } from './dndbeyond.js';
 
-describe('Session Management', () => {
+describe('Session Management & In-Memory Fallback', () => {
   it('creates a session with default map and tokens', () => {
     const { session, gmKey } = createSession('Test Room');
     assert.ok(session.id, 'Session has an ID');
@@ -15,6 +15,20 @@ describe('Session Management', () => {
 
     const fetched = getSession(session.id);
     assert.deepStrictEqual(fetched, session);
+  });
+
+  it('updates and lists sessions in in-memory mode without errors', () => {
+    const { session } = createSession('Updated Room');
+    const updated = updateSession(session.id, { name: 'Renamed Room' });
+    assert.strictEqual(updated?.name, 'Renamed Room');
+    assert.strictEqual(getSession(session.id)?.name, 'Renamed Room');
+
+    const all = getAllSessions();
+    assert.ok(all.some((s) => s.id === session.id && s.name === 'Renamed Room'));
+
+    const removed = removeSession(session.id);
+    assert.strictEqual(removed, true);
+    assert.strictEqual(getSession(session.id), null);
   });
 });
 

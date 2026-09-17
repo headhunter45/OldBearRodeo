@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -9,6 +7,11 @@ services:
       POSTGRES_USER: oldbear
       POSTGRES_PASSWORD: oldbear_secret_password
       POSTGRES_DB: oldbear_vtt
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U oldbear -d oldbear_vtt"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
     volumes:
       - pgdata:/var/lib/postgresql/data
     ports:
@@ -24,7 +27,8 @@ services:
       PORT: 3001
       DATABASE_URL: postgres://oldbear:oldbear_secret_password@postgres:5432/oldbear_vtt
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     ports:
       - "3001:3001"
 
