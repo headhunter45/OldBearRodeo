@@ -14,6 +14,7 @@ import {
   Headphones,
   Radio,
   Database,
+  MessageSquare,
 } from 'lucide-react';
 import { Player } from '@oldbear/shared';
 import { VoiceState } from '../network/VoiceManager.js';
@@ -31,6 +32,7 @@ interface MobileDrawerProps {
   onOpenMaps: () => void;
   onOpenSoundboard: () => void;
   onOpenBackup?: () => void;
+  onToggleChat?: () => void;
   voiceState?: VoiceState;
   onToggleMute?: () => void;
   onToggleDeafen?: () => void;
@@ -51,6 +53,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   onOpenMaps,
   onOpenSoundboard,
   onOpenBackup,
+  onToggleChat,
   voiceState,
   onToggleMute,
   onToggleDeafen,
@@ -283,6 +286,19 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           >
             <User size={18} color="var(--accent-primary)" /> Character Sheet & Spells
           </button>
+
+          {onToggleChat && (
+            <button
+              className="btn btn-secondary"
+              style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+              onClick={() => {
+                onClose();
+                onToggleChat();
+              }}
+            >
+              <MessageSquare size={18} color="var(--accent-primary)" /> Chat & Dice Commands
+            </button>
+          )}
 
           <button
             className="btn btn-secondary"

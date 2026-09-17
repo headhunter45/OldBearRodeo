@@ -17,8 +17,9 @@ import {
   User,
   Music,
   Plus,
+  Layers,
 } from 'lucide-react';
-import { GameSession } from '@oldbear/shared';
+import { GameSession, GameMap } from '@oldbear/shared';
 import { exportAllData, downloadBackupFile, importAllData } from '../storage/BackupManager.js';
 import {
   StoredAsset,
@@ -35,6 +36,7 @@ interface DataBackupModalProps {
   session?: GameSession | null;
   isGm: boolean;
   onRestoreSession?: (session: GameSession) => void;
+  onAddMap?: (map: GameMap) => void;
   onClose: () => void;
 }
 
@@ -44,6 +46,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   session,
   isGm,
   onRestoreSession,
+  onAddMap,
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<AssetTab>('tokens');
@@ -596,6 +599,46 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                         </>
                       )}
                     </div>
+
+                    {activeTab === 'maps' && isGm && onAddMap && (
+                      <button
+                        className="btn btn-secondary"
+                        style={{
+                          fontSize: '0.68rem',
+                          padding: '3px 6px',
+                          margin: '0 5px 5px 5px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                        }}
+                        onClick={() => {
+                          const newScene: GameMap = {
+                            id: `map-${crypto.randomUUID()}`,
+                            name: `${asset.name} Scene`,
+                            imageUrl: asset.dataUrl,
+                            gridSize: 50,
+                            gridType: 'square',
+                            gridColor: '#ffffff',
+                            gridOpacity: 0.4,
+                            width: asset.width || 2000,
+                            height: asset.height || 1500,
+                            scaleFtPerCell: 5,
+                            showGrid: true,
+                            baseMapId: asset.id,
+                            baseMapName: asset.name,
+                          };
+                          onAddMap(newScene);
+                          setResultMessage({
+                            type: 'success',
+                            text: `Created new scene "${newScene.name}" from map asset.`,
+                          });
+                        }}
+                        title="Create a new Scene in this session using this map image"
+                      >
+                        <Layers size={11} /> + Create Scene
+                      </button>
+                    )}
                   </div>
                 );
               })}

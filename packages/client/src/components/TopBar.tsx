@@ -15,6 +15,7 @@ import {
   Headphones,
   Radio,
   Database,
+  MessageSquare,
 } from 'lucide-react';
 import { Player, GameMap } from '@oldbear/shared';
 import { VoiceState } from '../network/VoiceManager.js';
@@ -29,6 +30,9 @@ interface TopBarProps {
   onToggleMute?: () => void;
   onToggleDeafen?: () => void;
   onOpenVoiceSettings?: () => void;
+  onToggleChat?: () => void;
+  isChatOpen?: boolean;
+  unreadChatCount?: number;
   onOpenDice: () => void;
   onOpenInitiative: () => void;
   onOpenCharacter: () => void;
@@ -49,6 +53,9 @@ export const TopBar: React.FC<TopBarProps> = ({
   onToggleMute,
   onToggleDeafen,
   onOpenVoiceSettings,
+  onToggleChat,
+  isChatOpen,
+  unreadChatCount,
   onOpenDice,
   onOpenInitiative,
   onOpenCharacter,
@@ -286,6 +293,40 @@ export const TopBar: React.FC<TopBarProps> = ({
         >
           <Radio size={18} />
         </button>
+
+        {/* Chat & Dice Commands Toggle (Bug #45) */}
+        {onToggleChat && (
+          <button
+            className="btn-icon topbar-desktop-only"
+            onClick={onToggleChat}
+            title="Chat & Dice Commands (/roll, /attack, /skill)"
+            style={{
+              position: 'relative',
+              backgroundColor: isChatOpen ? 'var(--accent-primary)' : undefined,
+              color: isChatOpen ? '#ffffff' : undefined,
+            }}
+          >
+            <MessageSquare size={18} />
+            {unreadChatCount && unreadChatCount > 0 ? (
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '-4px',
+                  right: '-4px',
+                  backgroundColor: 'var(--accent-rose)',
+                  color: '#fff',
+                  borderRadius: '10px',
+                  fontSize: '0.65rem',
+                  padding: '1px 5px',
+                  fontWeight: 800,
+                  lineHeight: '1',
+                }}
+              >
+                {unreadChatCount}
+              </span>
+            ) : null}
+          </button>
+        )}
 
         {/* Dice Roller Toggle */}
         <button className="btn-icon topbar-desktop-only" onClick={onOpenDice} title="Dice Roller">

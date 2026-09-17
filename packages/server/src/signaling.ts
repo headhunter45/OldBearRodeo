@@ -370,6 +370,15 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
       break;
     }
 
+    case 'chat-send': {
+      if (!ws.roomId) return;
+      broadcastToRoom(ws.roomId, {
+        type: 'chat-message',
+        message: msg.message,
+      });
+      break;
+    }
+
     case 'initiative-update': {
       if (!ws.roomId) return;
       const session = getSession(ws.roomId);

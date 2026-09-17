@@ -30,7 +30,19 @@ export type ClientToServerMessage =
   | { type: 'initiative-update'; initiative: InitiativeState }
   | { type: 'player-update'; updates: Partial<Player> }
   | { type: 'voice-force-mute'; targetPlayerId: string }
-  | { type: 'audio-action'; trackId: string; action: 'play' | 'pause' | 'stop' | 'volume'; volume?: number; isLooping?: boolean };
+  | { type: 'audio-action'; trackId: string; action: 'play' | 'pause' | 'stop' | 'volume'; volume?: number; isLooping?: boolean }
+  | { type: 'chat-send'; message: ChatMessage };
+
+export interface ChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderColor: string;
+  text: string;
+  timestamp: number;
+  roll?: DiceRollResult;
+  isCommand?: boolean;
+}
 
 export type ServerToClientMessage =
   | { type: 'join-ack'; player: Player; session: GameSession; isGm: boolean; gmKey?: string }
@@ -56,4 +68,5 @@ export type ServerToClientMessage =
   | { type: 'initiative-updated'; initiative: InitiativeState }
   | { type: 'player-updated'; playerId: string; updates: Partial<Player> }
   | { type: 'voice-force-mute'; targetPlayerId: string }
-  | { type: 'audio-action'; trackId: string; action: 'play' | 'pause' | 'stop' | 'volume'; volume?: number; isLooping?: boolean };
+  | { type: 'audio-action'; trackId: string; action: 'play' | 'pause' | 'stop' | 'volume'; volume?: number; isLooping?: boolean }
+  | { type: 'chat-message'; message: ChatMessage };

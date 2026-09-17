@@ -8,6 +8,7 @@ import {
   InitiativeState,
   DnDCharacter,
   ScreenMarker,
+  ChatMessage,
 } from '@oldbear/shared';
 import { CanvasEngine, ActiveTool } from './engine/CanvasEngine.js';
 import { NetworkClient } from './network/NetworkClient.js';
@@ -28,6 +29,8 @@ import { GlobalDropOverlay } from './components/GlobalDropOverlay.js';
 import { TokenPickerModal } from './components/TokenPickerModal.js';
 import { BatchTokenTransferModal } from './components/BatchTokenTransferModal.js';
 import { PlayerTokenPickerModal } from './components/PlayerTokenPickerModal.js';
+import { RollAnnouncementBanner } from './components/RollAnnouncementBanner.js';
+import { ChatPanel } from './components/ChatPanel.js';
 import { Mic, Radio, Compass, Check } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -89,6 +92,12 @@ export const App: React.FC = () => {
   const [showBatchTransferModal, setShowBatchTransferModal] = useState(false);
   const [showPlayerTokenPickerModal, setShowPlayerTokenPickerModal] = useState(false);
   const [availablePlayerTokens, setAvailablePlayerTokens] = useState<Token[]>([]);
+
+  // Chat & Dice Announcement State (Bugs #43, #45)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [activeRollAnnouncement, setActiveRollAnnouncement] = useState<DiceRollResult | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(false);
+  const [unreadChatCount, setUnreadChatCount] = useState(0);
 
   // GM Preview Map vs Player Active Map
   const [gmPreviewMapId, setGmPreviewMapId] = useState<string>('');
@@ -319,6 +328,7 @@ export const App: React.FC = () => {
         }
 
         case 'dice-rolled': {
+          setActiveRollAnnouncement(msg.roll);
           setSession((prev) => {
             if (!prev) return prev;
             return {
@@ -326,6 +336,17 @@ export const App: React.FC = () => {
               diceHistory: [...prev.diceHistory, msg.roll],
             };
           });
+          break;
+        }
+
+        case 'chat-message': {
+          setChatMessages((prev) => [...prev, msg.message]);
+          if (!isChatOpen) {
+            setUnreadChatCount((c) => c + 1);
+          }
+          if (msg.message.roll) {
+            setActiveRollAnnouncement(msg.message.roll);
+          }
           break;
         }
 
@@ -864,6 +885,12 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleAddMap = (newMap: GameMap) => {
+    setSession((prev) => (prev ? { ...prev, maps: [...prev.maps, newMap] } : prev));
+    setGmPreviewMapId(newMap.id);
+    networkRef.current?.send({ type: 'map-add', map: newMap });
+  };
+
   const handleUpdateMap = (id: string, updates: Partial<GameMap>) => {
     setSession((prev) => {
       if (!prev) return prev;
@@ -1073,6 +1100,14 @@ export const App: React.FC = () => {
           onToggleMute={handleToggleMute}
           onToggleDeafen={handleToggleDeafen}
           onOpenVoiceSettings={() => setShowVoiceSettings(true)}
+          onToggleChat={() => {
+            setIsChatOpen((v) => {
+              if (!v) setUnreadChatCount(0);
+              return !v;
+            });
+          }}
+          isChatOpen={isChatOpen}
+          unreadChatCount={unreadChatCount}
           onOpenDice={() => setShowDiceRoller((v) => !v)}
           onOpenInitiative={() => setShowInitiative((v) => !v)}
           onOpenCharacter={() => setShowCharacterFlyout((v) => !v)}
@@ -1081,6 +1116,33 @@ export const App: React.FC = () => {
           onOpenBackup={() => setShowBackupModal(true)}
           onAddNewToken={() => setShowTokenPickerModal(true)}
           onToggleMobileDrawer={() => setShowMobileDrawer((v) => !v)}
+        />
+      )}
+
+      {/* Animated Roll Announcement Banner (Bug #43) */}
+      <RollAnnouncementBanner
+        roll={activeRollAnnouncement}
+        onDismiss={() => setActiveRollAnnouncement(null)}
+      />
+
+      {/* Chat & Commands Panel (Bug #45) */}
+      {localPlayer && (
+        <ChatPanel
+          player={localPlayer}
+          character={localPlayer.dndBeyondCharacter}
+          messages={chatMessages}
+          onSendMessage={(m) => networkRef.current?.send({ type: 'chat-send', message: m })}
+          onBroadcastRoll={(r) => {
+            networkRef.current?.send({ type: 'dice-roll', roll: r });
+            setActiveRollAnnouncement(r);
+          }}
+          isOpen={isChatOpen}
+          onToggleOpen={() => {
+            setIsChatOpen((v) => {
+              if (!v) setUnreadChatCount(0);
+              return !v;
+            });
+          }}
         />
       )}
 
@@ -1129,7 +1191,10 @@ export const App: React.FC = () => {
             userName={localPlayer.name}
             userColor={localPlayer.color}
             userId={localPlayer.id}
-            onRoll={(roll) => networkRef.current?.send({ type: 'dice-roll', roll })}
+            onRoll={(roll) => {
+              networkRef.current?.send({ type: 'dice-roll', roll });
+              setActiveRollAnnouncement(roll);
+            }}
             rollHistory={session.diceHistory}
             onClose={() => setShowDiceRoller(false)}
           />
@@ -1274,6 +1339,7 @@ export const App: React.FC = () => {
         <DataBackupModal
           session={session}
           isGm={isGm}
+          onAddMap={handleAddMap}
           onRestoreSession={(restoredSession) => {
             setSession(restoredSession);
             if (networkRef.current && isGm) {
@@ -1297,11 +1363,7 @@ export const App: React.FC = () => {
         isGm={isGm}
         activeMapId={currentMap?.id || session?.activeMapId || ''}
         gridSize={currentMap?.gridSize || 50}
-        onAddMap={(newMap) => {
-          setSession((prev) => (prev ? { ...prev, maps: [...prev.maps, newMap] } : prev));
-          setGmPreviewMapId(newMap.id);
-          networkRef.current?.send({ type: 'map-add', map: newMap });
-        }}
+        onAddMap={handleAddMap}
         onAddToken={(newToken) => {
           setSession((prev) => {
             if (!prev) return prev;
@@ -1386,6 +1448,12 @@ export const App: React.FC = () => {
         onOpenMaps={() => setShowMapManager(true)}
         onOpenSoundboard={() => setShowSoundboard(true)}
         onOpenBackup={() => setShowBackupModal(true)}
+        onToggleChat={() => {
+          setIsChatOpen((v) => {
+            if (!v) setUnreadChatCount(0);
+            return !v;
+          });
+        }}
         voiceState={voiceState}
         onToggleMute={handleToggleMute}
         onToggleDeafen={handleToggleDeafen}

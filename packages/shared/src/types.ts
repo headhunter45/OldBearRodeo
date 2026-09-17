@@ -35,6 +35,29 @@ export interface GameMap {
   tilesX?: number;
   tilesY?: number;
   backgroundColor?: string;
+  baseMapId?: string; // ID of the underlying map asset/image when used across multiple scenes
+  baseMapName?: string; // Display name of base map asset
+}
+
+export interface Scene extends GameMap {
+  baseMapId?: string;
+  baseMapName?: string;
+}
+
+export interface MapAsset {
+  id: string;
+  name: string;
+  imageUrl: string;
+  width: number;
+  height: number;
+  gridSize: number;
+  gridType: GridType;
+  gridColor: string;
+  gridOpacity: number;
+  scaleFtPerCell: number;
+  backgroundColor?: string;
+  tilesX?: number;
+  tilesY?: number;
 }
 
 export interface Token {
@@ -159,6 +182,13 @@ export interface CharacterSkill {
   proficiency: 'none' | 'proficient' | 'expertise';
 }
 
+export interface DnDAction {
+  name: string;
+  type?: string;
+  toHitModifier?: number;
+  damageDice?: string;
+}
+
 export interface DnDCharacter {
   id: string;
   name: string;
@@ -183,6 +213,7 @@ export interface DnDCharacter {
   };
   skills?: CharacterSkill[];
   spells: DnDSpell[];
+  actions?: DnDAction[];
 }
 
 export interface SoundTrack {
