@@ -7,8 +7,49 @@ export function snapToGrid(
   gridSize: number,
   tokenSize = 1,
   offsetX = 0,
-  offsetY = 0
+  offsetY = 0,
+  gridType: 'square' | 'hex' | 'none' = 'square'
 ): { x: number; y: number } {
+  if (gridType === 'none' || gridSize <= 0) {
+    return { x, y };
+  }
+
+  if (gridType === 'hex') {
+    const hexRadius = gridSize / Math.sqrt(3);
+    const hexHeight = gridSize;
+    const horizDist = hexRadius * 1.5;
+    const vertDist = hexHeight;
+
+    const tokRadius = (tokenSize * gridSize) / 2;
+    const centerX = x + tokRadius;
+    const centerY = y + tokRadius;
+
+    const baseCol = Math.round((centerX - offsetX) / horizDist);
+    let bestCx = centerX;
+    let bestCy = centerY;
+    let minDiffSq = Infinity;
+
+    for (let c = baseCol - 2; c <= baseCol + 2; c++) {
+      const colOffset = Math.abs(c) % 2 === 1 ? hexHeight / 2 : 0;
+      const baseRow = Math.round((centerY - offsetY - colOffset) / vertDist);
+      for (let r = baseRow - 2; r <= baseRow + 2; r++) {
+        const cx = c * horizDist + offsetX;
+        const cy = r * vertDist + colOffset + offsetY;
+        const diffSq = (centerX - cx) ** 2 + (centerY - cy) ** 2;
+        if (diffSq < minDiffSq) {
+          minDiffSq = diffSq;
+          bestCx = cx;
+          bestCy = cy;
+        }
+      }
+    }
+
+    return {
+      x: Math.round(bestCx - tokRadius),
+      y: Math.round(bestCy - tokRadius),
+    };
+  }
+
   const offX = ((offsetX % gridSize) + gridSize) % gridSize;
   const offY = ((offsetY % gridSize) + gridSize) % gridSize;
   const halfGrid = gridSize / 2;

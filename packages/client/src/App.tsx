@@ -272,7 +272,12 @@ export const App: React.FC = () => {
             const updatedFog = { ...fog };
             if (msg.globalCovered !== undefined) updatedFog.globalCovered = msg.globalCovered;
             if (msg.clearShapes) updatedFog.shapes = [];
-            if (msg.newShape) updatedFog.shapes = [...updatedFog.shapes, msg.newShape];
+            if (msg.newShape) {
+              const exists = updatedFog.shapes.some((s) => s.id === msg.newShape?.id);
+              if (!exists) {
+                updatedFog.shapes = [...updatedFog.shapes, msg.newShape];
+              }
+            }
 
             return {
               ...prev,
@@ -476,9 +481,28 @@ export const App: React.FC = () => {
         });
       },
       onFogUpdate: (newShape) => {
+        const targetMapId = engine.currentMapId;
+        setSession((prev) => {
+          if (!prev) return prev;
+          const fog = prev.fog[targetMapId] || {
+            mapId: targetMapId,
+            globalCovered: false,
+            shapes: [],
+          };
+          return {
+            ...prev,
+            fog: {
+              ...prev.fog,
+              [targetMapId]: {
+                ...fog,
+                shapes: [...fog.shapes, newShape],
+              },
+            },
+          };
+        });
         networkRef.current?.send({
           type: 'fog-update',
-          mapId: engine.currentMapId,
+          mapId: targetMapId,
           newShape,
         });
       },
@@ -712,18 +736,130 @@ export const App: React.FC = () => {
     handleUpdateMap(currentMap.id, { showGrid: newShowGrid });
   };
 
+  const handleCoverAllFog = () => {
+    const mapId = isGm && gmPreviewMapId ? gmPreviewMapId : session?.activeMapId;
+    if (!mapId) return;
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        fog: {
+          ...prev.fog,
+          [mapId]: {
+            mapId,
+            globalCovered: true,
+            shapes: [],
+          },
+        },
+      };
+    });
+    networkRef.current?.send({
+      type: 'fog-update',
+      mapId,
+      globalCovered: true,
+      clearShapes: true,
+    });
+    setToastMessage('Covered entire map with fog');
+  };
+
+  const handleClearAllFog = () => {
+    const mapId = isGm && gmPreviewMapId ? gmPreviewMapId : session?.activeMapId;
+    if (!mapId) return;
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        fog: {
+          ...prev.fog,
+          [mapId]: {
+            mapId,
+            globalCovered: false,
+            shapes: [],
+          },
+        },
+      };
+    });
+    networkRef.current?.send({
+      type: 'fog-update',
+      mapId,
+      globalCovered: false,
+      clearShapes: true,
+    });
+    setToastMessage('Cleared all fog from map');
+  };
+
   const assignedToken = localPlayer
     ? Object.values(session?.tokens || {}).find((t) => t.ownerId === localPlayer.id)
     : null;
 
-  // Keyboard shortcut: Ctrl+D / Cmd+D to duplicate selected token
+  // Keyboard shortcuts (Bugs #16, #39):
+  // 1-5: Ephemeral highlight tools (laser, arrow, crosshair, circle, rectangle)
+  // h: Pan viewport
+  // v: Select & move tool
+  // f: Fog hide (GM only)
+  // r: Fog reveal (GM only)
+  // d / Ctrl+D / Cmd+D: Duplicate selected token
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
-        const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
-        if (tag === 'input' || tag === 'textarea' || (e.target as HTMLElement)?.isContentEditable) {
-          return;
+      const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || (e.target as HTMLElement)?.isContentEditable) {
+        return;
+      }
+
+      // Highlight controls (1-5)
+      if (e.key === '1') {
+        e.preventDefault();
+        setActiveTool('laser');
+        return;
+      }
+      if (e.key === '2') {
+        e.preventDefault();
+        setActiveTool('arrow');
+        return;
+      }
+      if (e.key === '3') {
+        e.preventDefault();
+        setActiveTool('crosshair');
+        return;
+      }
+      if (e.key === '4') {
+        e.preventDefault();
+        setActiveTool('circle');
+        return;
+      }
+      if (e.key === '5') {
+        e.preventDefault();
+        setActiveTool('rectangle');
+        return;
+      }
+
+      const key = e.key.toLowerCase();
+      if (key === 'h') {
+        e.preventDefault();
+        setActiveTool('pan');
+        return;
+      }
+      if (key === 'v') {
+        e.preventDefault();
+        setActiveTool('select');
+        return;
+      }
+      if (key === 'f') {
+        if (isGm) {
+          e.preventDefault();
+          setActiveTool('fog-hide');
         }
+        return;
+      }
+      if (key === 'r') {
+        if (isGm) {
+          e.preventDefault();
+          setActiveTool('fog-reveal');
+        }
+        return;
+      }
+
+      if (key === 'd' || ((e.ctrlKey || e.metaKey) && key === 'd')) {
         if (selectedToken) {
           e.preventDefault();
           handleDuplicateToken(selectedToken);
@@ -732,7 +868,7 @@ export const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedToken, session, localPlayer, currentMap]);
+  }, [selectedToken, session, localPlayer, currentMap, isGm]);
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
@@ -787,6 +923,8 @@ export const App: React.FC = () => {
         onToggleSnap={() => setSnapEnabled((v) => !v)}
         showGrid={currentMap?.showGrid !== false}
         onToggleGrid={handleToggleGrid}
+        onCoverAllFog={handleCoverAllFog}
+        onClearAllFog={handleClearAllFog}
         userColor={localPlayer?.color || '#6366f1'}
         onChangeColor={(c) => handleUpdateProfile(localPlayer?.name || 'Player', c)}
       />

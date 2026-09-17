@@ -368,14 +368,31 @@ export class CanvasEngine {
 
     // Multi-touch pinch zoom & two finger pan
     if (this.activePointers.size === 2) {
-      const pts = Array.from(this.activePointers.values());
-      const currentDist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y);
+      const ptsBefore = Array.from(this.activePointers.values());
+      this.activePointers.set(e.pointerId, currentScreen);
+      const ptsAfter = Array.from(this.activePointers.values());
+
+      // 1. Calculate pan delta from midpoint movement
+      const prevMidX = (ptsBefore[0].x + ptsBefore[1].x) / 2;
+      const prevMidY = (ptsBefore[0].y + ptsBefore[1].y) / 2;
+      const currentMidX = (ptsAfter[0].x + ptsAfter[1].x) / 2;
+      const currentMidY = (ptsAfter[0].y + ptsAfter[1].y) / 2;
+
+      const panDeltaX = currentMidX - prevMidX;
+      const panDeltaY = currentMidY - prevMidY;
+      if (Math.abs(panDeltaX) > 0 || Math.abs(panDeltaY) > 0) {
+        this.viewport.pan(panDeltaX, panDeltaY);
+      }
+
+      // 2. Pinch zoom with threshold to prevent scroll jitter from zooming
+      const currentDist = Math.hypot(ptsAfter[0].x - ptsAfter[1].x, ptsAfter[0].y - ptsAfter[1].y);
       if (this.initialPinchDist > 0) {
-        const factor = currentDist / this.initialPinchDist;
-        const centerX = (pts[0].x + pts[1].x) / 2;
-        const centerY = (pts[0].y + pts[1].y) / 2;
-        this.viewport.zoomAt(centerX, centerY, factor);
-        this.initialPinchDist = currentDist;
+        const distRatio = currentDist / this.initialPinchDist;
+        if (Math.abs(distRatio - 1.0) > 0.03 || Math.abs(currentDist - this.initialPinchDist) > 8) {
+          const factor = currentDist / this.initialPinchDist;
+          this.viewport.zoomAt(currentMidX, currentMidY, factor);
+          this.initialPinchDist = currentDist;
+        }
       }
       return;
     }
@@ -401,7 +418,15 @@ export class CanvasEngine {
       let newY = worldPos.y - radius;
 
       if (this.snapEnabled) {
-        const snapped = snapToGrid(newX, newY, currentMap.gridSize, this.draggingToken.size);
+        const snapped = snapToGrid(
+          newX,
+          newY,
+          currentMap.gridSize,
+          this.draggingToken.size,
+          currentMap.gridOffsetX || 0,
+          currentMap.gridOffsetY || 0,
+          currentMap.gridType || 'square'
+        );
         newX = snapped.x;
         newY = snapped.y;
       }
@@ -442,6 +467,9 @@ export class CanvasEngine {
 
   private onPointerUp = (e: PointerEvent) => {
     this.activePointers.delete(e.pointerId);
+    if (this.activePointers.size < 2) {
+      this.initialPinchDist = 0;
+    }
 
     // Finish Token Drag
     if (this.draggingToken && this.dragStartPos) {

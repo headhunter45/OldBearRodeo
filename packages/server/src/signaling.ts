@@ -335,18 +335,15 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
         if (msg.newShape) {
           fog.shapes.push(msg.newShape);
         }
+        updateSession(ws.roomId, { fog: session.fog });
       }
-      broadcastToRoom(
-        ws.roomId,
-        {
-          type: 'fog-updated',
-          mapId: msg.mapId,
-          globalCovered: msg.globalCovered,
-          newShape: msg.newShape,
-          clearShapes: msg.clearShapes,
-        },
-        ws
-      );
+      broadcastToRoom(ws.roomId, {
+        type: 'fog-updated',
+        mapId: msg.mapId,
+        globalCovered: msg.globalCovered,
+        newShape: msg.newShape,
+        clearShapes: msg.clearShapes,
+      });
       break;
     }
 

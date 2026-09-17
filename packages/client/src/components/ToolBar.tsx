@@ -9,6 +9,8 @@ import {
   Square,
   Eye,
   EyeOff,
+  CloudFog,
+  CloudOff,
   Grid,
 } from 'lucide-react';
 import { ActiveTool } from '../engine/CanvasEngine.js';
@@ -25,6 +27,8 @@ interface ToolBarProps {
   onChangeColor: (color: string) => void;
   showGrid?: boolean;
   onToggleGrid?: () => void;
+  onCoverAllFog?: () => void;
+  onClearAllFog?: () => void;
 }
 
 const COLORS = COLOR_VALUES;
@@ -39,6 +43,8 @@ export const ToolBar: React.FC<ToolBarProps> = ({
   onChangeColor,
   showGrid,
   onToggleGrid,
+  onCoverAllFog,
+  onClearAllFog,
 }) => {
   return (
     <div
@@ -55,7 +61,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       <button
         className={`btn-icon ${activeTool === 'select' ? 'active' : ''}`}
         onClick={() => onSelectTool('select')}
-        title="Select & Move Token"
+        title="Select & Move Token (V)"
       >
         <MousePointer size={18} />
       </button>
@@ -63,7 +69,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       <button
         className={`btn-icon ${activeTool === 'pan' ? 'active' : ''}`}
         onClick={() => onSelectTool('pan')}
-        title="Pan Viewport"
+        title="Pan Viewport (H)"
       >
         <Hand size={18} />
       </button>
@@ -74,7 +80,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       <button
         className={`btn-icon ${activeTool === 'laser' ? 'active' : ''}`}
         onClick={() => onSelectTool('laser')}
-        title="Laser Pointer (Click and drag cursor)"
+        title="Laser Pointer (1)"
       >
         <Sparkles size={18} />
       </button>
@@ -82,7 +88,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       <button
         className={`btn-icon ${activeTool === 'arrow' ? 'active' : ''}`}
         onClick={() => onSelectTool('arrow')}
-        title="Arrow Marker (Drag to point)"
+        title="Arrow Marker (2)"
       >
         <ArrowUpRight size={18} />
       </button>
@@ -90,7 +96,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       <button
         className={`btn-icon ${activeTool === 'crosshair' ? 'active' : ''}`}
         onClick={() => onSelectTool('crosshair')}
-        title="Crosshair Ping"
+        title="Crosshair Ping (3)"
       >
         <Crosshair size={18} />
       </button>
@@ -98,7 +104,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       <button
         className={`btn-icon ${activeTool === 'circle' ? 'active' : ''}`}
         onClick={() => onSelectTool('circle')}
-        title="Circle Radius Area (Center & drag outward)"
+        title="Circle Radius Area (4)"
       >
         <Circle size={18} />
       </button>
@@ -106,7 +112,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       <button
         className={`btn-icon ${activeTool === 'rectangle' ? 'active' : ''}`}
         onClick={() => onSelectTool('rectangle')}
-        title="Rectangle Zone"
+        title="Rectangle Zone (5)"
       >
         <Square size={18} />
       </button>
@@ -118,7 +124,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
           <button
             className={`btn-icon ${activeTool === 'fog-reveal' ? 'active' : ''}`}
             onClick={() => onSelectTool('fog-reveal')}
-            title="Fog Reveal (Drag rectangle to clear fog)"
+            title="Fog Reveal - Drag rectangle to clear fog (R)"
             style={{ color: '#10b981' }}
           >
             <Eye size={18} />
@@ -126,10 +132,26 @@ export const ToolBar: React.FC<ToolBarProps> = ({
           <button
             className={`btn-icon ${activeTool === 'fog-hide' ? 'active' : ''}`}
             onClick={() => onSelectTool('fog-hide')}
-            title="Fog Hide (Drag rectangle to obscure fog)"
+            title="Fog Hide - Drag rectangle to obscure fog (F)"
             style={{ color: '#f43f5e' }}
           >
             <EyeOff size={18} />
+          </button>
+          <button
+            className="btn-icon"
+            onClick={onCoverAllFog}
+            title="Cover Entire Map with Fog"
+            style={{ color: '#94a3b8' }}
+          >
+            <CloudFog size={18} />
+          </button>
+          <button
+            className="btn-icon"
+            onClick={onClearAllFog}
+            title="Clear All Fog from Map (Reveal All)"
+            style={{ color: '#38bdf8' }}
+          >
+            <CloudOff size={18} />
           </button>
         </>
       )}
