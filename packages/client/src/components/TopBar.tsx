@@ -99,16 +99,16 @@ export const TopBar: React.FC<TopBarProps> = ({
           </span>
         </div>
 
-        <div style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }} />
+        <div className="topbar-map-label" style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem' }}>
+        <div className="topbar-map-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem' }}>
           <span style={{ color: 'var(--text-muted)' }}>Map:</span>
           <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{activeMapName}</span>
         </div>
       </div>
 
       {/* Center Online Player Indicators */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+      <div className="topbar-players-list" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         {players.map((p) => (
           <div
             key={p.id}
@@ -141,43 +141,43 @@ export const TopBar: React.FC<TopBarProps> = ({
           onClick={copyInviteLink}
         >
           {copied ? <Check size={14} color="#10b981" /> : <Share2 size={14} />}
-          <span>{copied ? 'Link Copied!' : 'Invite'}</span>
+          <span className="topbar-map-label">{copied ? 'Link Copied!' : 'Invite'}</span>
         </button>
 
         {/* Dice Roller Toggle */}
-        <button className="btn-icon" onClick={onOpenDice} title="Dice Roller">
+        <button className="btn-icon topbar-desktop-only" onClick={onOpenDice} title="Dice Roller">
           <Dices size={18} />
         </button>
 
         {/* Initiative Tracker Toggle */}
-        <button className="btn-icon" onClick={onOpenInitiative} title="Initiative Tracker">
+        <button className="btn-icon topbar-desktop-only" onClick={onOpenInitiative} title="Initiative Tracker">
           <Swords size={18} />
         </button>
 
         {/* Character Sheet Toggle */}
-        <button className="btn-icon" onClick={onOpenCharacter} title="Character Sheet">
+        <button className="btn-icon topbar-desktop-only" onClick={onOpenCharacter} title="Character Sheet">
           <User size={18} />
         </button>
 
         {/* GM Features */}
         {isGm && (
           <>
-            <button className="btn-icon" onClick={onOpenMaps} title="Manage Maps & Scenes">
+            <button className="btn-icon topbar-desktop-only" onClick={onOpenMaps} title="Manage Maps & Scenes">
               <Map size={18} />
             </button>
-            <button className="btn-icon" onClick={onAddNewToken} title="Create / Deploy New Token">
+            <button className="btn-icon topbar-desktop-only" onClick={onAddNewToken} title="Create / Deploy New Token">
               <Plus size={18} />
             </button>
           </>
         )}
 
         {/* Soundboard Toggle */}
-        <button className="btn-icon" onClick={onOpenSoundboard} title="Soundboard & Audio">
+        <button className="btn-icon topbar-desktop-only" onClick={onOpenSoundboard} title="Soundboard & Audio">
           <Volume2 size={18} />
         </button>
 
-        {/* Mobile Hamburger Menu */}
-        <button className="btn-icon" onClick={onToggleMobileDrawer} title="Menu">
+        {/* Mobile Hamburger Menu (visible always, primary on portrait) */}
+        <button className="btn-icon" onClick={onToggleMobileDrawer} title="Menu" style={{ backgroundColor: 'var(--accent-primary)', color: '#ffffff' }}>
           <Menu size={18} />
         </button>
       </div>

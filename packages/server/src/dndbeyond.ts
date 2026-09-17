@@ -14,7 +14,7 @@ export async function fetchDnDCharacter(characterIdOrUrl: string): Promise<DnDCh
     return getDemoCharacter();
   }
 
-  const endpoint = `https://character-service.dndbeyond.com/character/v2/character/${characterId}`;
+  const endpoint = `https://character-service.dndbeyond.com/character/v5/character/${characterId}`;
 
   try {
     const controller = new AbortController();
@@ -23,7 +23,7 @@ export async function fetchDnDCharacter(characterIdOrUrl: string): Promise<DnDCh
     const res = await fetch(endpoint, {
       signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko)',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         Accept: 'application/json',
       },
     });
@@ -45,8 +45,6 @@ export async function fetchDnDCharacter(characterIdOrUrl: string): Promise<DnDCh
     return parseDnDData(characterId, data);
   } catch (err: any) {
     console.error(`[DnDBeyond] Failed to fetch character ${characterId}:`, err.message);
-    // If external fetch fails (e.g. offline, firewalled, or D&D Beyond private character),
-    // throw descriptive error
     throw err;
   }
 }
@@ -90,10 +88,11 @@ function parseDnDData(characterId: string, data: any): DnDCharacter {
   };
 
   // 4. Speed
-  // In D&D Beyond, speed is in data.weightSpeeds.normal.walk or data.race.weightSpeeds or custom
   let speed = 30;
   if (data.weightSpeeds?.normal?.walk) {
     speed = data.weightSpeeds.normal.walk;
+  } else if (data.race?.weightSpeeds?.normal?.walk) {
+    speed = data.race.weightSpeeds.normal.walk;
   } else if (data.customSpeeds) {
     const walkCustom = data.customSpeeds.find((s: any) => s.movementId === 1);
     if (walkCustom) speed = walkCustom.distance;
@@ -132,8 +131,8 @@ function parseDnDData(characterId: string, data: any): DnDCharacter {
 
   return {
     id: characterId,
-    name: data.name || 'Hero',
-    avatarUrl: data.avatarUrl || data.decorations?.avatarUrl || undefined,
+    name: (data.name || 'Hero').replace(/^["']|["']$/g, '').trim(),
+    avatarUrl: data.avatarUrl || data.decorations?.avatarUrl || data.avatar?.avatarUrl || undefined,
     level,
     classes: classNames,
     race,

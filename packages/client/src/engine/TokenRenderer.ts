@@ -188,20 +188,55 @@ function renderTokenLabel(ctx: CanvasRenderingContext2D, name: string, cx: numbe
   ctx.restore();
 }
 
+const CONDITION_STYLES: Record<string, { bg: string; text: string; code: string }> = {
+  Poisoned: { bg: '#16a34a', text: '#ffffff', code: 'Po' },
+  Stunned: { bg: '#ca8a04', text: '#ffffff', code: 'St' },
+  Blinded: { bg: '#9333ea', text: '#ffffff', code: 'Bl' },
+  Charmed: { bg: '#db2777', text: '#ffffff', code: 'Ch' },
+  Prone: { bg: '#ea580c', text: '#ffffff', code: 'Pr' },
+  Concentrating: { bg: '#0284c7', text: '#ffffff', code: 'Co' },
+  Invisible: { bg: '#0d9488', text: '#ffffff', code: 'In' },
+  Paralyzed: { bg: '#dc2626', text: '#ffffff', code: 'Pa' },
+  Frightened: { bg: '#e11d48', text: '#ffffff', code: 'Fr' },
+  Unconscious: { bg: '#7f1d1d', text: '#ffffff', code: 'Un' },
+  Exhaustion: { bg: '#475569', text: '#ffffff', code: 'Ex' },
+  Deafened: { bg: '#7c3aed', text: '#ffffff', code: 'De' },
+  Grappled: { bg: '#c2410c', text: '#ffffff', code: 'Gr' },
+  Restrained: { bg: '#b91c1c', text: '#ffffff', code: 'Re' },
+  Petrified: { bg: '#52525b', text: '#ffffff', code: 'Pe' },
+  Incapacitated: { bg: '#991b1b', text: '#ffffff', code: 'Ic' },
+};
+
 function renderConditionBadges(ctx: CanvasRenderingContext2D, conditions: string[], radius: number) {
-  const badgeRadius = 6;
-  const offsetAngle = Math.PI / 4; // top right
-  for (let i = 0; i < Math.min(conditions.length, 4); i++) {
-    const angle = offsetAngle + (i * Math.PI) / 8;
+  const badgeRadius = Math.max(9, radius * 0.22);
+  const startAngle = Math.PI / 5; // top right
+  const angleStep = Math.PI / 6;
+
+  conditions.forEach((cond, i) => {
+    const style = CONDITION_STYLES[cond] || {
+      bg: '#6366f1',
+      text: '#ffffff',
+      code: cond.slice(0, 2).toUpperCase(),
+    };
+
+    const angle = startAngle + i * angleStep;
     const bx = Math.cos(angle) * (radius - 2);
     const by = -Math.sin(angle) * (radius - 2);
 
+    ctx.save();
     ctx.beginPath();
     ctx.arc(bx, by, badgeRadius, 0, Math.PI * 2);
-    ctx.fillStyle = '#f43f5e';
-    ctx.strokeStyle = '#ffffff';
-    ctx.lineWidth = 1.5;
+    ctx.fillStyle = style.bg;
     ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = '#ffffff';
     ctx.stroke();
-  }
+
+    ctx.fillStyle = style.text;
+    ctx.font = `bold ${Math.max(9, badgeRadius * 0.95)}px Inter, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(style.code, bx, by);
+    ctx.restore();
+  });
 }

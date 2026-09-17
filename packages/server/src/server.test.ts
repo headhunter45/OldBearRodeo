@@ -29,4 +29,13 @@ describe('D&D Beyond Integration', () => {
     assert.strictEqual(char.stats.str, 18);
     assert.ok(char.spells.length >= 2, 'Spells parsed');
   });
+
+  it('parses real D&D Beyond character URL for 49074997', async () => {
+    const char = await fetchDnDCharacter('https://www.dndbeyond.com/characters/49074997');
+    assert.ok(char, 'Character retrieved');
+    assert.strictEqual(char.name, 'Joy');
+    assert.strictEqual(char.level, 5);
+    assert.strictEqual(char.speed, 30);
+    assert.ok(char.maxHp >= 28);
+  });
 });

@@ -36,7 +36,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
 }) => {
   return (
     <div
-      className="floating-hud glass-panel"
+      className="floating-hud floating-hud-toolbar glass-panel"
       style={{
         left: '1rem',
         top: '5rem',

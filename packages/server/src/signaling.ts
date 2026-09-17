@@ -73,15 +73,17 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
       let session = getSession(roomId);
       let sessionGmKey = getSessionGmKey(roomId);
 
-      // If room doesn't exist, create it automatically
+      const isNewRoom = !session;
+      // If room doesn't exist, create it with this exact roomId
       if (!session) {
-        const created = createSession(roomId);
+        const created = createSession(`Session ${roomId}`, roomId);
         session = created.session;
         sessionGmKey = created.gmKey;
       }
 
       const playerId = crypto.randomUUID();
-      const isGm = (gmKey && gmKey === sessionGmKey) || !session.gmId;
+      // Only room creator or clients with matching secret gmKey are GM
+      const isGm = isNewRoom || Boolean(gmKey && sessionGmKey && gmKey === sessionGmKey);
 
       if (isGm && !session.gmId) {
         session.gmId = playerId;

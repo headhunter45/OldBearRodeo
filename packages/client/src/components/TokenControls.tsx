@@ -13,7 +13,11 @@ interface TokenControlsProps {
   maps: GameMap[];
 }
 
-const COMMON_CONDITIONS = ['Blinded', 'Charmed', 'Poisoned', 'Stunned', 'Prone', 'Concentrating'];
+const ALL_CONDITIONS = [
+  'Blinded', 'Charmed', 'Deafened', 'Frightened', 'Grappled', 'Incapacitated',
+  'Invisible', 'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Restrained',
+  'Stunned', 'Unconscious', 'Concentrating', 'Exhaustion'
+];
 
 export const TokenControls: React.FC<TokenControlsProps> = ({
   token,
@@ -153,29 +157,71 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
 
       <div style={{ width: '1px', height: '32px', background: 'var(--border-subtle)' }} />
 
-      {/* Quick Condition Badges */}
-      <div style={{ display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-        {COMMON_CONDITIONS.slice(0, 3).map((cond) => {
-          const isActive = (token.conditions || []).includes(cond);
-          return (
+      {/* Active Condition Tags & Add Selector */}
+      <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexWrap: 'wrap' }}>
+        {(token.conditions || []).map((cond) => (
+          <span
+            key={cond}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '4px',
+              fontSize: '0.72rem',
+              fontWeight: 600,
+              padding: '2px 7px',
+              borderRadius: '9999px',
+              border: '1px solid #f43f5e',
+              backgroundColor: 'rgba(244, 63, 94, 0.2)',
+              color: '#f43f5e',
+            }}
+          >
+            {cond}
             <button
-              key={cond}
               onClick={() => toggleCondition(cond)}
               style={{
-                fontSize: '0.7rem',
-                padding: '3px 7px',
-                borderRadius: '9999px',
-                border: '1px solid',
-                borderColor: isActive ? '#f43f5e' : 'var(--border-subtle)',
-                backgroundColor: isActive ? 'rgba(244, 63, 94, 0.2)' : 'transparent',
-                color: isActive ? '#f43f5e' : 'var(--text-secondary)',
+                background: 'none',
+                border: 'none',
+                color: '#f43f5e',
                 cursor: 'pointer',
+                fontSize: '11px',
+                padding: '0 2px',
+                display: 'inline-flex',
+                alignItems: 'center',
               }}
+              title={`Remove ${cond}`}
             >
-              {cond}
+              ✕
             </button>
-          );
-        })}
+          </span>
+        ))}
+
+        <select
+          style={{
+            background: 'var(--bg-surface-elevated)',
+            color: 'var(--text-secondary)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '3px 6px',
+            fontSize: '0.72rem',
+            cursor: 'pointer',
+            outline: 'none',
+          }}
+          value=""
+          onChange={(e) => {
+            if (e.target.value) {
+              toggleCondition(e.target.value);
+            }
+          }}
+        >
+          <option value="" disabled>
+            + Add Status...
+          </option>
+          {ALL_CONDITIONS.filter((c) => !(token.conditions || []).includes(c)).map((c) => (
+            <option key={c} value={c}>
+              {c}
+            </option>
+          ))}
+        </select>
       </div>
 
       {/* Move/Copy Token to Another Map (GM Feature) */}

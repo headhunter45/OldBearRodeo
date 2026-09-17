@@ -54,8 +54,12 @@ export const App: React.FC = () => {
     const params = new URLSearchParams(window.location.search);
     let roomId = params.get('room');
     if (!roomId) {
-      roomId = 'daring-owlbear-1';
-      // Update URL without reloading
+      const ADJECTIVES = ['daring', 'brave', 'mystic', 'ancient', 'wild', 'shadow', 'golden', 'frost', 'ember', 'arcane'];
+      const NOUNS = ['owlbear', 'dragon', 'beholder', 'griffin', 'goblin', 'ranger', 'wizard', 'dungeon', 'cavern', 'tavern'];
+      const adj = ADJECTIVES[Math.floor(Math.random() * ADJECTIVES.length)];
+      const noun = NOUNS[Math.floor(Math.random() * NOUNS.length)];
+      const num = Math.floor(Math.random() * 90 + 10);
+      roomId = `${adj}-${noun}-${num}`;
       const newUrl = `${window.location.pathname}?room=${roomId}`;
       window.history.replaceState({}, '', newUrl);
     }
@@ -339,8 +343,19 @@ export const App: React.FC = () => {
     engineRef.current.snapEnabled = snapEnabled;
   }, [session, localPlayer, isGm, gmPreviewMapId, activeTool, snapEnabled]);
 
-  // Token Actions
+  // Token Actions with Optimistic Local Updates
   const handleUpdateToken = (id: string, updates: Partial<Token>) => {
+    setSession((prev) => {
+      if (!prev || !prev.tokens[id]) return prev;
+      return {
+        ...prev,
+        tokens: {
+          ...prev.tokens,
+          [id]: { ...prev.tokens[id], ...updates },
+        },
+      };
+    });
+    setSelectedToken((prev) => (prev?.id === id ? { ...prev, ...updates } : prev));
     networkRef.current?.send({
       type: 'token-update',
       id,
@@ -349,6 +364,13 @@ export const App: React.FC = () => {
   };
 
   const handleDeleteToken = (id: string) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const copy = { ...prev.tokens };
+      delete copy[id];
+      return { ...prev, tokens: copy };
+    });
+    setSelectedToken((prev) => (prev?.id === id ? null : prev));
     networkRef.current?.send({
       type: 'token-delete',
       id,
@@ -356,6 +378,16 @@ export const App: React.FC = () => {
   };
 
   const handleTransferToken = (id: string, toMapId: string) => {
+    setSession((prev) => {
+      if (!prev || !prev.tokens[id]) return prev;
+      return {
+        ...prev,
+        tokens: {
+          ...prev.tokens,
+          [id]: { ...prev.tokens[id], mapId: toMapId, x: 350, y: 350 },
+        },
+      };
+    });
     networkRef.current?.send({
       type: 'token-transfer',
       id,
@@ -391,12 +423,19 @@ export const App: React.FC = () => {
       layer: 'token',
     };
 
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tokens: { ...prev.tokens, [newToken.id]: newToken },
+      };
+    });
+    setSelectedToken(newToken);
+
     networkRef.current?.send({
       type: 'token-add',
       token: newToken,
     });
-
-    setSelectedToken(newToken);
   };
 
   // Profile Update
@@ -488,9 +527,9 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Floating Dice Roller Panel */}
+      {/* Floating / Mobile Modal Dice Roller Panel */}
       {showDiceRoller && session && localPlayer && (
-        <div className="floating-hud" style={{ right: '1rem', top: '4.5rem' }}>
+        <div className="hud-panel-container">
           <DiceRoller
             userName={localPlayer.name}
             userColor={localPlayer.color}
@@ -502,14 +541,15 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Floating Initiative Tracker Panel */}
+      {/* Floating / Mobile Modal Initiative Tracker Panel */}
       {showInitiative && session && (
-        <div className="floating-hud" style={{ right: showDiceRoller ? '22rem' : '1rem', top: '4.5rem' }}>
+        <div className="hud-panel-container" style={{ right: showDiceRoller ? '22rem' : '1rem' }}>
           <InitiativeTracker
             initiative={session.initiative}
-            onUpdateInitiative={(initiative) =>
-              networkRef.current?.send({ type: 'initiative-update', initiative })
-            }
+            onUpdateInitiative={(initiative) => {
+              setSession((prev) => (prev ? { ...prev, initiative } : prev));
+              networkRef.current?.send({ type: 'initiative-update', initiative });
+            }}
             tokens={session.tokens}
             selectedToken={selectedToken}
             isGm={isGm}

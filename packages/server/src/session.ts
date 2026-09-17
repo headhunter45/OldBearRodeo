@@ -78,8 +78,8 @@ export function createDefaultTokens(mapId: string): Record<string, Token> {
   };
 }
 
-export function createSession(name?: string): { session: GameSession; gmKey: string } {
-  const id = generateRoomId();
+export function createSession(name?: string, requestedId?: string): { session: GameSession; gmKey: string } {
+  const id = requestedId || generateRoomId();
   const gmKey = crypto.randomUUID();
   const defaultMap = createDefaultMap();
 
