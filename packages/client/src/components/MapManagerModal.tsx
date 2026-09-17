@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GameMap, GridType } from '@oldbear/shared';
-import { Map, Plus, Upload, Check, Eye, Trash2, X, Settings, Sliders, Grid } from 'lucide-react';
+import { Map, Plus, Upload, Check, Eye, Trash2, X, Settings, Sliders, Grid, ArrowRightLeft } from 'lucide-react';
 import { saveAsset } from '../storage/db.js';
 import { MapSettingsModal } from './MapSettingsModal.js';
 
@@ -10,6 +10,8 @@ interface MapManagerModalProps {
   currentGmPreviewMapId: string; // The map GM is currently looking at
   onSelectGmPreviewMap: (mapId: string) => void;
   onSetActiveMapForPlayers: (mapId: string) => void;
+  onSendPlayersWithTokens?: (mapId: string) => void;
+  onOpenBatchTokenTransfer?: () => void;
   onAddMap: (map: GameMap) => void;
   onUpdateMap: (mapId: string, updates: Partial<GameMap>) => void;
   onDeleteMap: (mapId: string) => void;
@@ -22,6 +24,8 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
   currentGmPreviewMapId,
   onSelectGmPreviewMap,
   onSetActiveMapForPlayers,
+  onSendPlayersWithTokens,
+  onOpenBatchTokenTransfer,
   onAddMap,
   onUpdateMap,
   onDeleteMap,
@@ -134,6 +138,17 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
             <Upload size={16} /> Upload Maps (Select Multiple)
             <input type="file" accept="image/*" multiple style={{ display: 'none' }} onChange={handleFileUpload} />
           </label>
+
+          {onOpenBatchTokenTransfer && (
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={onOpenBatchTokenTransfer}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <ArrowRightLeft size={16} /> Batch Move Tokens...
+            </button>
+          )}
         </div>
 
         {/* Map Settings Modal Dialog (Items 24, 25, 26, 27, 28, 34) */}
@@ -271,17 +286,32 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
                         <Check size={13} /> Active for Players
                       </div>
                     ) : (
-                      <button
-                        className="btn btn-primary"
-                        style={{ flex: 1, fontSize: '0.75rem', padding: '0.35rem' }}
-                        onClick={() => {
-                          onSelectGmPreviewMap(map.id);
-                          onSetActiveMapForPlayers(map.id);
-                        }}
-                        title="Send all players to this map"
-                      >
-                        <Check size={13} /> Send Players
-                      </button>
+                      <div style={{ display: 'flex', gap: '4px', flex: 1 }}>
+                        <button
+                          className="btn btn-primary"
+                          style={{ flex: 1, fontSize: '0.75rem', padding: '0.35rem 0.2rem' }}
+                          onClick={() => {
+                            onSelectGmPreviewMap(map.id);
+                            onSetActiveMapForPlayers(map.id);
+                          }}
+                          title="Send all players to this map"
+                        >
+                          <Check size={13} /> Send Players
+                        </button>
+                        {onSendPlayersWithTokens && (
+                          <button
+                            className="btn btn-secondary"
+                            style={{ fontSize: '0.75rem', padding: '0.35rem 0.5rem' }}
+                            onClick={() => {
+                              onSelectGmPreviewMap(map.id);
+                              onSendPlayersWithTokens(map.id);
+                            }}
+                            title="Send all players and move all player tokens to this map"
+                          >
+                            + Tokens
+                          </button>
+                        )}
+                      </div>
                     )}
                   </div>
                 </div>

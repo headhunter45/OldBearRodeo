@@ -49,6 +49,12 @@ export interface Token {
   ringColor: string; // border ring color
   fillColor: string; // background color for clipped token
   clipCircle: boolean;
+  clipShape?: 'circle' | 'square' | 'rounded' | 'hexagon' | 'octagon';
+  clipZoom?: number; // 0.5 to 3.0 (default 1.0)
+  clipPanX?: number; // -100 to 100 percentage offset
+  clipPanY?: number; // -100 to 100 percentage offset
+  borderWidth?: number; // pixel width
+  isPlayerToken?: boolean; // marks token as an assignable/claimable player token
   currentHp: number;
   maxHp: number;
   tempHp: number;

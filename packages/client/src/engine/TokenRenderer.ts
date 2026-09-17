@@ -14,6 +14,50 @@ export function getCachedImage(url?: string): HTMLImageElement | null {
   return img.complete && img.naturalWidth > 0 ? img : null;
 }
 
+function traceTokenShape(
+  ctx: CanvasRenderingContext2D,
+  shape: 'circle' | 'square' | 'rounded' | 'hexagon' | 'octagon',
+  radius: number
+) {
+  ctx.beginPath();
+  switch (shape) {
+    case 'square':
+      ctx.rect(-radius, -radius, radius * 2, radius * 2);
+      break;
+    case 'rounded':
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(-radius, -radius, radius * 2, radius * 2, radius * 0.28);
+      } else {
+        ctx.rect(-radius, -radius, radius * 2, radius * 2);
+      }
+      break;
+    case 'hexagon':
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i;
+        const x = radius * Math.cos(angle);
+        const y = radius * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      break;
+    case 'octagon':
+      for (let i = 0; i < 8; i++) {
+        const angle = (Math.PI / 4) * i + Math.PI / 8;
+        const x = radius * Math.cos(angle);
+        const y = radius * Math.sin(angle);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      break;
+    case 'circle':
+    default:
+      ctx.arc(0, 0, radius, 0, Math.PI * 2);
+      break;
+  }
+}
+
 export function renderToken(
   ctx: CanvasRenderingContext2D,
   token: Token,
@@ -26,6 +70,8 @@ export function renderToken(
   const radius = tokenDiameter / 2;
   const cx = token.x + radius;
   const cy = token.y + radius;
+  const shape = token.clipShape || (token.clipCircle === false ? 'square' : 'circle');
+  const bWidth = token.borderWidth || Math.max(3, tokenDiameter * 0.05);
 
   ctx.save();
   ctx.translate(cx, cy);
@@ -35,8 +81,7 @@ export function renderToken(
 
   // 1. Selection Glow
   if (isSelected) {
-    ctx.beginPath();
-    ctx.arc(0, 0, radius + 4, 0, Math.PI * 2);
+    traceTokenShape(ctx, shape, radius + 4);
     ctx.strokeStyle = '#6366f1';
     ctx.lineWidth = 3;
     ctx.shadowColor = '#6366f1';
@@ -46,20 +91,24 @@ export function renderToken(
   }
 
   // 2. Token Base Background Fill
-  ctx.beginPath();
-  ctx.arc(0, 0, radius, 0, Math.PI * 2);
+  traceTokenShape(ctx, shape, radius);
   ctx.fillStyle = token.fillColor || '#1e293b';
   ctx.fill();
 
   // 3. Clipped Image (or initials)
   const img = getCachedImage(token.imageUrl);
   ctx.save();
-  ctx.beginPath();
-  ctx.arc(0, 0, radius - 2, 0, Math.PI * 2);
+  traceTokenShape(ctx, shape, radius - bWidth / 2);
   ctx.clip();
 
   if (img) {
-    ctx.drawImage(img, -radius, -radius, tokenDiameter, tokenDiameter);
+    const zoom = token.clipZoom || 1.0;
+    const panX = ((token.clipPanX || 0) / 100) * radius;
+    const panY = ((token.clipPanY || 0) / 100) * radius;
+    const drawSize = tokenDiameter * zoom;
+    const drawX = -drawSize / 2 + panX;
+    const drawY = -drawSize / 2 + panY;
+    ctx.drawImage(img, drawX, drawY, drawSize, drawSize);
   } else {
     // Elegant fallback avatar with initials
     ctx.fillStyle = token.fillColor || '#334155';
@@ -80,10 +129,9 @@ export function renderToken(
   ctx.restore();
 
   // 4. Outer Ring
-  ctx.beginPath();
-  ctx.arc(0, 0, radius - 1.5, 0, Math.PI * 2);
+  traceTokenShape(ctx, shape, radius - bWidth / 2);
   ctx.strokeStyle = token.ringColor || '#64748b';
-  ctx.lineWidth = Math.max(3, tokenDiameter * 0.05);
+  ctx.lineWidth = bWidth;
   ctx.stroke();
 
   // 5. Conditions / Statuses

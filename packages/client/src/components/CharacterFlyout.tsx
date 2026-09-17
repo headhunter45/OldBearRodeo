@@ -17,7 +17,9 @@ import {
 interface CharacterFlyoutProps {
   player: Player;
   targetToken?: Token | null;
+  ownedTokens?: Token[];
   onSyncToken?: (tokenId: string, updates: Partial<Token>) => void;
+  onCreateTokenForCharacter?: (char: DnDCharacter) => void;
   onUpdatePlayerChar?: (char: DnDCharacter) => void;
   onClose: () => void;
   isGm?: boolean;
@@ -83,7 +85,9 @@ export function saveCharacterToStorage(char: DnDCharacter, isGm: boolean) {
 export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
   player,
   targetToken,
+  ownedTokens = [],
   onSyncToken,
+  onCreateTokenForCharacter,
   onUpdatePlayerChar,
   onClose,
   isGm = false,
@@ -91,6 +95,9 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
   const [charInput, setCharInput] = useState(player.dndBeyondCharacterId || '');
   const [character, setCharacter] = useState<DnDCharacter | null>(
     player.dndBeyondCharacter || null
+  );
+  const [syncTokenId, setSyncTokenId] = useState<string>(
+    targetToken?.id || (ownedTokens.length > 0 ? ownedTokens[0].id : 'create_new')
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,8 +115,9 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
     setSavedCharacters(getSavedCharacters(isGm));
   };
 
-  const syncToToken = (char: DnDCharacter) => {
-    if (!targetToken || !onSyncToken) return;
+  const syncToToken = (char: DnDCharacter, tokenId?: string) => {
+    const id = tokenId || targetToken?.id;
+    if (!id || !onSyncToken) return;
     const updates: Partial<Token> = {
       name: char.name,
       currentHp: char.currentHp,
@@ -119,7 +127,20 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
     if (char.avatarUrl) {
       updates.imageUrl = char.avatarUrl;
     }
-    onSyncToken(targetToken.id, updates);
+    onSyncToken(id, updates);
+  };
+
+  const applyCharacterToBoard = (char: DnDCharacter) => {
+    if (syncTokenId === 'create_new' || (!syncTokenId && !targetToken)) {
+      onCreateTokenForCharacter?.(char);
+    } else {
+      const tokenIdToSync = syncTokenId === 'create_new' ? undefined : (syncTokenId || targetToken?.id);
+      if (tokenIdToSync) {
+        syncToToken(char, tokenIdToSync);
+      } else {
+        onCreateTokenForCharacter?.(char);
+      }
+    }
   };
 
   const handleSelectSavedCharacter = (selectedId: string) => {
@@ -129,10 +150,7 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
 
     setCharacter(found.charData);
     onUpdatePlayerChar?.(found.charData);
-    if (targetToken && onSyncToken) {
-      syncToToken(found.charData);
-    }
-    // Refresh storage timestamp
+    applyCharacterToBoard(found.charData);
     saveCharacterToStorage(found.charData, isGm);
     refreshSavedCharacters();
   };
@@ -150,14 +168,10 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
       setCharacter(data);
       onUpdatePlayerChar?.(data);
 
-      // Save to localStorage for both player and GM
       saveCharacterToStorage(data, isGm);
       refreshSavedCharacters();
 
-      // Automatically sync name, image, HP & Speed with target token
-      if (targetToken && onSyncToken) {
-        syncToToken(data);
-      }
+      applyCharacterToBoard(data);
     } catch (err: any) {
       setError(err.message || 'Could not fetch character.');
     } finally {
@@ -303,6 +317,39 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
           </button>
         </div>
 
+        {/* Board Token Assignment (Bug #41) */}
+        <div style={{ marginTop: '0.6rem', marginBottom: '0.4rem' }}>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem', fontWeight: 600 }}>
+            BOARD TOKEN ASSIGNMENT
+          </div>
+          <select
+            style={{
+              width: '100%',
+              padding: '0.45rem',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-subtle)',
+              color: 'white',
+              fontSize: '0.8rem',
+              cursor: 'pointer',
+            }}
+            value={syncTokenId}
+            onChange={(e) => setSyncTokenId(e.target.value)}
+          >
+            <option value="create_new">➕ Create New Token (Place at bottom of map)</option>
+            {targetToken && (
+              <option value={targetToken.id}>🎯 Currently Selected: {targetToken.name}</option>
+            )}
+            {ownedTokens
+              .filter((t) => t.id !== targetToken?.id)
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  👤 Owned Token: {t.name}
+                </option>
+              ))}
+          </select>
+        </div>
+
         {/* Quick Demo Button */}
         {!character && (
           <button
@@ -335,6 +382,73 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
 
       {/* Sheet Content */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '1rem' }}>
+        {/* Saved Characters Cards (Bug #44) */}
+        {!character && savedCharacters.length > 0 && (
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              SELECT FROM SAVED CHARACTERS ({savedCharacters.length})
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              {savedCharacters.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => handleSelectSavedCharacter(c.id)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.75rem 0.9rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    cursor: 'pointer',
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-subtle)';
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    <img
+                      src={
+                        c.avatarUrl ||
+                        'https://images.unsplash.com/photo-1579783900882-c0d3dad7b119?w=100&auto=format&fit=crop&q=80'
+                      }
+                      alt={c.name}
+                      style={{
+                        width: '38px',
+                        height: '38px',
+                        borderRadius: '50%',
+                        objectFit: 'cover',
+                        border: '2px solid var(--border-subtle)',
+                      }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{c.name}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {c.classes || 'Adventurer'}
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    className="btn btn-primary"
+                    style={{ fontSize: '0.75rem', padding: '0.35rem 0.75rem' }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleSelectSavedCharacter(c.id);
+                    }}
+                  >
+                    Select
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {character ? (
           <div>
             {/* Profile Overview */}

@@ -25,6 +25,9 @@ import { VoiceManager, VoiceState } from './network/VoiceManager.js';
 import { VoiceSettingsModal } from './components/VoiceSettingsModal.js';
 import { DataBackupModal } from './components/DataBackupModal.js';
 import { GlobalDropOverlay } from './components/GlobalDropOverlay.js';
+import { TokenPickerModal } from './components/TokenPickerModal.js';
+import { BatchTokenTransferModal } from './components/BatchTokenTransferModal.js';
+import { PlayerTokenPickerModal } from './components/PlayerTokenPickerModal.js';
 import { Mic, Radio, Compass, Check } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -82,6 +85,10 @@ export const App: React.FC = () => {
   const [showSoundboard, setShowSoundboard] = useState(false);
   const [showBackupModal, setShowBackupModal] = useState(false);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
+  const [showTokenPickerModal, setShowTokenPickerModal] = useState(false);
+  const [showBatchTransferModal, setShowBatchTransferModal] = useState(false);
+  const [showPlayerTokenPickerModal, setShowPlayerTokenPickerModal] = useState(false);
+  const [availablePlayerTokens, setAvailablePlayerTokens] = useState<Token[]>([]);
 
   // GM Preview Map vs Player Active Map
   const [gmPreviewMapId, setGmPreviewMapId] = useState<string>('');
@@ -119,6 +126,19 @@ export const App: React.FC = () => {
 
           if (msg.gmKey) {
             localStorage.setItem(`oldbear_gmkey_${roomId}`, msg.gmKey);
+          }
+
+          // Player token claiming prompt on join (Bug #42)
+          if (!msg.isGm) {
+            const allTokens = Object.values(msg.session.tokens);
+            const unclaimed = allTokens.filter(
+              (t) => (t.isPlayerToken || t.ownerId === 'unassigned') && t.ownerId !== msg.player.id
+            );
+            const hasAssigned = allTokens.some((t) => t.ownerId === msg.player.id);
+            if (!hasAssigned && unclaimed.length > 0) {
+              setAvailablePlayerTokens(unclaimed);
+              setShowPlayerTokenPickerModal(true);
+            }
           }
           break;
         }
@@ -639,10 +659,160 @@ export const App: React.FC = () => {
     setSelectedToken(newToken);
     engineRef.current?.selectToken(newToken.id);
 
+  };
+
+  const handleCreateNewTokenFromPicker = (data: { name: string; imageUrl?: string; size: number }) => {
+    if (!session || !localPlayer) return;
+    const currentMapId = isGm && gmPreviewMapId ? gmPreviewMapId : session.activeMapId;
+    const gridSize = currentMap?.gridSize || 50;
+    const pos = findUnoccupiedPosition(currentMapId, 400, 400, gridSize);
+
+    const newToken: Token = {
+      id: `token-${crypto.randomUUID()}`,
+      mapId: currentMapId,
+      name: data.name,
+      imageUrl: data.imageUrl || '',
+      x: pos.x,
+      y: pos.y,
+      size: data.size || 1,
+      rotation: 0,
+      ringColor: localPlayer.color || '#3b82f6',
+      fillColor: '#1e293b',
+      clipCircle: true,
+      clipShape: 'circle',
+      currentHp: 20,
+      maxHp: 20,
+      tempHp: 0,
+      speed: 30,
+      ownerId: isGm ? undefined : localPlayer.id,
+      isPlayerToken: !isGm,
+      conditions: [],
+      isProp: false,
+      layer: 'token',
+    };
+
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tokens: { ...prev.tokens, [newToken.id]: newToken },
+      };
+    });
+    setSelectedToken(newToken);
+    engineRef.current?.selectToken(newToken.id);
+
     networkRef.current?.send({
       type: 'token-add',
       token: newToken,
     });
+  };
+
+  const handleCreateTokenForCharacter = (char: DnDCharacter) => {
+    if (!session || !localPlayer) return;
+    const currentMapId = isGm && gmPreviewMapId ? gmPreviewMapId : session.activeMapId;
+    const activeMap = session.maps.find((m) => m.id === currentMapId) || session.maps[0];
+    const mapW = activeMap?.width || 2000;
+    const mapH = activeMap?.height || 1500;
+
+    const newToken: Token = {
+      id: `token-${crypto.randomUUID()}`,
+      mapId: currentMapId,
+      name: char.name,
+      imageUrl: char.avatarUrl || '',
+      x: Math.round(mapW / 2 - 25),
+      y: mapH + 20, // Just off the map near bottom (Bug #41)
+      size: 1,
+      rotation: 0,
+      ringColor: localPlayer.color || '#3b82f6',
+      fillColor: '#1e293b',
+      clipCircle: true,
+      clipShape: 'circle',
+      currentHp: char.currentHp,
+      maxHp: char.maxHp,
+      tempHp: 0,
+      speed: char.speed,
+      ownerId: localPlayer.id,
+      isPlayerToken: true,
+      conditions: [],
+      isProp: false,
+      layer: 'token',
+    };
+
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tokens: { ...prev.tokens, [newToken.id]: newToken },
+      };
+    });
+    setSelectedToken(newToken);
+    engineRef.current?.selectToken(newToken.id);
+    networkRef.current?.send({
+      type: 'token-add',
+      token: newToken,
+    });
+    showToast(`Created token for ${char.name} just off the bottom of the map`);
+  };
+
+  const handleClaimPlayerToken = (token: Token) => {
+    if (!localPlayer) return;
+    handleUpdateToken(token.id, {
+      ownerId: localPlayer.id,
+      isPlayerToken: true,
+    });
+    handleUpdateProfile(localPlayer.name, localPlayer.color);
+    setSelectedToken(token);
+    engineRef.current?.selectToken(token.id);
+    showToast(`Claimed control of ${token.name}`);
+  };
+
+  const handleBatchTransferTokens = (tokenIds: string[], targetMapId: string) => {
+    if (!session) return;
+    const targetMap = session.maps.find((m) => m.id === targetMapId);
+    const gSize = targetMap?.gridSize || 50;
+
+    setSession((prev) => {
+      if (!prev) return prev;
+      const updatedTokens = { ...prev.tokens };
+      tokenIds.forEach((id, idx) => {
+        if (updatedTokens[id]) {
+          const newX = 200 + (idx % 5) * (gSize * 1.5);
+          const newY = 200 + Math.floor(idx / 5) * (gSize * 1.5);
+          updatedTokens[id] = {
+            ...updatedTokens[id],
+            mapId: targetMapId,
+            x: newX,
+            y: newY,
+          };
+          networkRef.current?.send({
+            type: 'token-update',
+            id,
+            updates: { mapId: targetMapId, x: newX, y: newY },
+          });
+        }
+      });
+      return { ...prev, tokens: updatedTokens };
+    });
+    showToast(`Moved ${tokenIds.length} tokens to ${targetMap?.name || 'map'}`);
+  };
+
+  const handleSetActiveMapForPlayers = (mapId: string) => {
+    setSession((prev) => (prev ? { ...prev, activeMapId: mapId } : prev));
+    setGmPreviewMapId(mapId);
+    networkRef.current?.send({ type: 'map-switch', mapId });
+    const targetMap = session?.maps.find((m) => m.id === mapId);
+    showToast(`Sent all players to ${targetMap?.name || 'map'}`);
+  };
+
+  const handleSendPlayersWithTokens = (targetMapId: string) => {
+    handleSetActiveMapForPlayers(targetMapId);
+    if (!session) return;
+    const playerTokenIds = Object.values(session.tokens)
+      .filter((t) => t.ownerId || t.isPlayerToken)
+      .map((t) => t.id);
+    if (playerTokenIds.length > 0) {
+      handleBatchTransferTokens(playerTokenIds, targetMapId);
+    }
   };
 
   const handleDuplicateToken = (token: Token) => {
@@ -909,7 +1079,7 @@ export const App: React.FC = () => {
           onOpenMaps={() => setShowMapManager(true)}
           onOpenSoundboard={() => setShowSoundboard(true)}
           onOpenBackup={() => setShowBackupModal(true)}
-          onAddNewToken={handleCreateNewToken}
+          onAddNewToken={() => setShowTokenPickerModal(true)}
           onToggleMobileDrawer={() => setShowMobileDrawer((v) => !v)}
         />
       )}
@@ -988,9 +1158,13 @@ export const App: React.FC = () => {
         <CharacterFlyout
           player={localPlayer}
           targetToken={selectedToken || assignedToken}
+          ownedTokens={Object.values(session?.tokens || {}).filter(
+            (t) => t.ownerId === localPlayer.id || localPlayer.assignedTokenIds?.includes(t.id)
+          )}
           onSyncToken={(tokenId, updates) => {
             handleUpdateToken(tokenId, updates);
           }}
+          onCreateTokenForCharacter={handleCreateTokenForCharacter}
           onUpdatePlayerChar={(dndBeyondCharacter) => {
             setLocalPlayer((p) => (p ? { ...p, dndBeyondCharacter } : p));
             networkRef.current?.send({
@@ -1021,13 +1195,9 @@ export const App: React.FC = () => {
           activeMapId={session.activeMapId}
           currentGmPreviewMapId={gmPreviewMapId}
           onSelectGmPreviewMap={(id) => setGmPreviewMapId(id)}
-          onSetActiveMapForPlayers={(id) => {
-            setSession((prev) => (prev ? { ...prev, activeMapId: id } : prev));
-            setGmPreviewMapId(id);
-            networkRef.current?.send({ type: 'map-switch', mapId: id });
-            const targetMap = session.maps.find((m) => m.id === id);
-            showToast(`Sent all players to ${targetMap?.name || 'map'}`);
-          }}
+          onSetActiveMapForPlayers={handleSetActiveMapForPlayers}
+          onSendPlayersWithTokens={handleSendPlayersWithTokens}
+          onOpenBatchTokenTransfer={() => setShowBatchTransferModal(true)}
           onAddMap={(newMap) => {
             setSession((prev) => (prev ? { ...prev, maps: [...prev.maps, newMap] } : prev));
             setGmPreviewMapId(newMap.id);
@@ -1036,6 +1206,37 @@ export const App: React.FC = () => {
           onUpdateMap={handleUpdateMap}
           onDeleteMap={handleDeleteMap}
           onClose={() => setShowMapManager(false)}
+        />
+      )}
+
+      {/* Batch Token Transfer Modal (Bug #40) */}
+      {showBatchTransferModal && session && (
+        <BatchTokenTransferModal
+          tokens={Object.values(session.tokens).filter(
+            (t) => t.mapId === (gmPreviewMapId || session.activeMapId)
+          )}
+          maps={session.maps}
+          currentMapId={gmPreviewMapId || session.activeMapId}
+          onTransferTokens={handleBatchTransferTokens}
+          onClose={() => setShowBatchTransferModal(false)}
+        />
+      )}
+
+      {/* Token Creation Image Picker Modal (Bug #32) */}
+      {showTokenPickerModal && (
+        <TokenPickerModal
+          onClose={() => setShowTokenPickerModal(false)}
+          onCreateToken={handleCreateNewTokenFromPicker}
+        />
+      )}
+
+      {/* Player Token Claim Picker on Join (Bug #42) */}
+      {showPlayerTokenPickerModal && localPlayer && (
+        <PlayerTokenPickerModal
+          availableTokens={availablePlayerTokens}
+          player={localPlayer}
+          onClaimToken={handleClaimPlayerToken}
+          onClose={() => setShowPlayerTokenPickerModal(false)}
         />
       )}
 
