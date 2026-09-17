@@ -461,7 +461,26 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
                       <Eye size={13} /> GM View
                     </button>
 
-                    {!isPlayersActive && (
+                    {isPlayersActive ? (
+                      <div
+                        style={{
+                          flex: 1,
+                          fontSize: '0.75rem',
+                          padding: '0.35rem',
+                          backgroundColor: 'rgba(16, 185, 129, 0.15)',
+                          color: 'var(--accent-emerald)',
+                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                          borderRadius: 'var(--radius-sm)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <Check size={13} /> Active for Players
+                      </div>
+                    ) : (
                       <button
                         className="btn btn-primary"
                         style={{ flex: 1, fontSize: '0.75rem', padding: '0.35rem' }}
@@ -469,6 +488,7 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
                           onSelectGmPreviewMap(map.id);
                           onSetActiveMapForPlayers(map.id);
                         }}
+                        title="Send all players to this map"
                       >
                         <Check size={13} /> Send Players
                       </button>

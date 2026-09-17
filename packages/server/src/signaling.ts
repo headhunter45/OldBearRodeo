@@ -257,6 +257,7 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
             shapes: [],
           };
         }
+        updateSession(ws.roomId, { maps: session.maps, fog: session.fog });
       }
       broadcastToRoom(ws.roomId, { type: 'map-added', map: msg.map });
       break;
@@ -267,7 +268,10 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
       const session = getSession(ws.roomId);
       if (session) {
         const map = session.maps.find((m) => m.id === msg.id);
-        if (map) Object.assign(map, msg.updates);
+        if (map) {
+          Object.assign(map, msg.updates);
+          updateSession(ws.roomId, { maps: session.maps });
+        }
       }
       broadcastToRoom(
         ws.roomId,
@@ -275,19 +279,15 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
           type: 'map-updated',
           id: msg.id,
           updates: msg.updates,
-        },
-        ws
+        }
       );
       break;
     }
 
     case 'map-switch': {
       if (!ws.roomId) return;
-      const session = getSession(ws.roomId);
-      if (session) {
-        session.activeMapId = msg.mapId;
-      }
-      broadcastToRoom(ws.roomId, { type: 'map-switched', mapId: msg.mapId }, ws);
+      updateSession(ws.roomId, { activeMapId: msg.mapId });
+      broadcastToRoom(ws.roomId, { type: 'map-switched', mapId: msg.mapId });
       break;
     }
 

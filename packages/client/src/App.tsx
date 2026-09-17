@@ -25,7 +25,7 @@ import { VoiceManager, VoiceState } from './network/VoiceManager.js';
 import { VoiceSettingsModal } from './components/VoiceSettingsModal.js';
 import { DataBackupModal } from './components/DataBackupModal.js';
 import { GlobalDropOverlay } from './components/GlobalDropOverlay.js';
-import { Mic, Radio } from 'lucide-react';
+import { Mic, Radio, Compass, Check } from 'lucide-react';
 
 export const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -35,6 +35,17 @@ export const App: React.FC = () => {
 
   // App State
   const [session, setSession] = useState<GameSession | null>(null);
+  const sessionRef = useRef<GameSession | null>(null);
+  sessionRef.current = session;
+
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const showToast = (msg: string, durationMs = 3500) => {
+    setToastMessage(msg);
+    setTimeout(() => {
+      setToastMessage((cur) => (cur === msg ? null : cur));
+    }, durationMs);
+  };
+
   const [localPlayer, setLocalPlayer] = useState<Player | null>(null);
   const [isGm, setIsGm] = useState(false);
   const [activeTool, setActiveTool] = useState<ActiveTool>('select');
@@ -210,10 +221,26 @@ export const App: React.FC = () => {
         }
 
         case 'map-switched': {
-          setSession((prev) => (prev ? { ...prev, activeMapId: msg.mapId } : prev));
-          // If player, update viewport map as well
-          if (!net.isGm) {
-            setGmPreviewMapId(msg.mapId);
+          setSession((prev) => {
+            if (!prev) return prev;
+            const targetMap = prev.maps.find((m) => m.id === msg.mapId);
+            if (!net.isGm && targetMap) {
+              showToast(`GM moved everyone to ${targetMap.name}`);
+            }
+            return { ...prev, activeMapId: msg.mapId };
+          });
+          setGmPreviewMapId(msg.mapId);
+          if (engineRef.current) {
+            engineRef.current.setActiveMap(msg.mapId);
+            const targetMap = sessionRef.current?.maps.find((m) => m.id === msg.mapId);
+            if (targetMap) {
+              engineRef.current.viewport.centerOn(
+                targetMap.width / 2,
+                targetMap.height / 2,
+                window.innerWidth,
+                window.innerHeight
+              );
+            }
           }
           break;
         }
@@ -820,7 +847,11 @@ export const App: React.FC = () => {
           currentGmPreviewMapId={gmPreviewMapId}
           onSelectGmPreviewMap={(id) => setGmPreviewMapId(id)}
           onSetActiveMapForPlayers={(id) => {
+            setSession((prev) => (prev ? { ...prev, activeMapId: id } : prev));
+            setGmPreviewMapId(id);
             networkRef.current?.send({ type: 'map-switch', mapId: id });
+            const targetMap = session.maps.find((m) => m.id === id);
+            showToast(`Sent all players to ${targetMap?.name || 'map'}`);
           }}
           onAddMap={(newMap) => {
             setSession((prev) => (prev ? { ...prev, maps: [...prev.maps, newMap] } : prev));
@@ -984,6 +1015,35 @@ export const App: React.FC = () => {
         onOpenVoiceSettings={() => setShowVoiceSettings(true)}
         isGm={isGm}
       />
+
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '75px',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+            color: '#f8fafc',
+            border: '1px solid var(--accent-indigo)',
+            padding: '0.6rem 1.25rem',
+            borderRadius: 'var(--radius-full)',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.6), 0 0 15px rgba(99, 102, 241, 0.3)',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            pointerEvents: 'none',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <Compass size={16} color="var(--accent-emerald)" />
+          <span>{toastMessage}</span>
+        </div>
+      )}
     </div>
   );
 };
