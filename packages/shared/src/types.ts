@@ -9,6 +9,11 @@ export interface Player {
   assignedTokenIds: string[];
   dndBeyondCharacterId?: string;
   dndBeyondCharacter?: DnDCharacter;
+  isMuted?: boolean;
+  isSpeaking?: boolean;
+  isDeafened?: boolean;
+  isForceMuted?: boolean;
+  isAudioStreaming?: boolean;
 }
 
 export type GridType = 'square' | 'hex' | 'none';

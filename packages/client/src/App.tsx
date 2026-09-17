@@ -21,11 +21,15 @@ import { CharacterFlyout } from './components/CharacterFlyout.js';
 import { MapManagerModal } from './components/MapManagerModal.js';
 import { SoundboardModal } from './components/SoundboardModal.js';
 import { MobileDrawer } from './components/MobileDrawer.js';
+import { VoiceManager, VoiceState } from './network/VoiceManager.js';
+import { VoiceSettingsModal } from './components/VoiceSettingsModal.js';
+import { Mic, Radio } from 'lucide-react';
 
 export const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<CanvasEngine | null>(null);
   const networkRef = useRef<NetworkClient | null>(null);
+  const voiceManagerRef = useRef<VoiceManager | null>(null);
 
   // App State
   const [session, setSession] = useState<GameSession | null>(null);
@@ -34,6 +38,26 @@ export const App: React.FC = () => {
   const [activeTool, setActiveTool] = useState<ActiveTool>('select');
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+
+  // Voice Chat State
+  const [voiceState, setVoiceState] = useState<VoiceState>({
+    isInitialized: false,
+    isMuted: false,
+    isForceMuted: false,
+    isDeafened: false,
+    isSpeaking: false,
+    isPttActive: false,
+    transmissionMode: (localStorage.getItem('oldbear_audio_trans_mode') as 'open' | 'ptt') || 'open',
+    pttKey: localStorage.getItem('oldbear_audio_ptt_key') || 'KeyV',
+    pttKeyDisplay: localStorage.getItem('oldbear_audio_ptt_key_display') || 'V',
+    selectedInputId: localStorage.getItem('oldbear_audio_input_device') || 'default',
+    selectedOutputId: localStorage.getItem('oldbear_audio_output_device') || 'default',
+    isAudioStreaming: false,
+    micVolume: 1.0,
+    desktopVolume: 0.8,
+    localLevel: 0,
+  });
+  const [showVoiceSettings, setShowVoiceSettings] = useState(false);
 
   // Modals & Flyouts
   const [showTokenEditor, setShowTokenEditor] = useState(false);
@@ -266,15 +290,95 @@ export const App: React.FC = () => {
           });
           break;
         }
+
+        case 'voice-force-mute': {
+          if (localPlayer && msg.targetPlayerId === localPlayer.id) {
+            voiceManagerRef.current?.handleForceMuted();
+          }
+          setSession((prev) => {
+            if (!prev || !prev.players[msg.targetPlayerId]) return prev;
+            return {
+              ...prev,
+              players: {
+                ...prev.players,
+                [msg.targetPlayerId]: {
+                  ...prev.players[msg.targetPlayerId],
+                  isMuted: true,
+                  isForceMuted: true,
+                },
+              },
+            };
+          });
+          break;
+        }
       }
     });
+
+    const vm = new VoiceManager();
+    voiceManagerRef.current = vm;
+    net.setVoiceManager(vm);
+
+    const unsubVoiceState = vm.onStateChange((state) => {
+      setVoiceState(state);
+      net.send({
+        type: 'player-update',
+        updates: {
+          isMuted: state.isMuted,
+          isSpeaking: state.isSpeaking,
+          isDeafened: state.isDeafened,
+          isForceMuted: state.isForceMuted,
+          isAudioStreaming: state.isAudioStreaming,
+        },
+      });
+    });
+
+    const unsubPeerSpeaking = vm.onPeerSpeaking((peerId, isSpeaking) => {
+      setSession((prev) => {
+        if (!prev || !prev.players[peerId]) return prev;
+        return {
+          ...prev,
+          players: {
+            ...prev.players,
+            [peerId]: { ...prev.players[peerId], isSpeaking },
+          },
+        };
+      });
+    });
+
+    const handleFirstGesture = () => {
+      vm.init();
+      window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+    };
+    window.addEventListener('click', handleFirstGesture);
+    window.addEventListener('keydown', handleFirstGesture);
 
     net.connect(roomId, savedName, savedColor, savedGmKey);
 
     return () => {
+      unsubVoiceState();
+      unsubPeerSpeaking();
+      window.removeEventListener('click', handleFirstGesture);
+      window.removeEventListener('keydown', handleFirstGesture);
+      vm.destroy();
       net.disconnect();
     };
   }, []);
+
+  const handleToggleMute = () => {
+    voiceManagerRef.current?.toggleMute();
+  };
+
+  const handleToggleDeafen = () => {
+    voiceManagerRef.current?.toggleDeafen();
+  };
+
+  const handleForceMutePlayer = (targetPlayerId: string) => {
+    networkRef.current?.send({
+      type: 'voice-force-mute',
+      targetPlayerId,
+    });
+  };
 
   // 2. Initialize Canvas Engine
   useEffect(() => {
@@ -489,6 +593,10 @@ export const App: React.FC = () => {
           isGm={isGm}
           players={Object.values(session.players)}
           localPlayer={localPlayer}
+          voiceState={voiceState}
+          onToggleMute={handleToggleMute}
+          onToggleDeafen={handleToggleDeafen}
+          onOpenVoiceSettings={() => setShowVoiceSettings(true)}
           onOpenDice={() => setShowDiceRoller((v) => !v)}
           onOpenInitiative={() => setShowInitiative((v) => !v)}
           onOpenCharacter={() => setShowCharacterFlyout((v) => !v)}
@@ -613,6 +721,78 @@ export const App: React.FC = () => {
         <SoundboardModal isGm={isGm} onClose={() => setShowSoundboard(false)} />
       )}
 
+      {/* Voice Settings Modal */}
+      {showVoiceSettings && voiceManagerRef.current && session && (
+        <VoiceSettingsModal
+          voiceManager={voiceManagerRef.current}
+          voiceState={voiceState}
+          players={Object.values(session.players)}
+          localPlayer={localPlayer}
+          isGm={isGm}
+          onForceMutePlayer={handleForceMutePlayer}
+          onClose={() => setShowVoiceSettings(false)}
+        />
+      )}
+
+      {/* On-Screen Push-to-Talk touch button for mobile / touch screens */}
+      {voiceState.transmissionMode === 'ptt' && (
+        <div
+          className="floating-hud"
+          style={{
+            position: 'fixed',
+            bottom: '1.5rem',
+            right: '1.5rem',
+            zIndex: 40,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0.35rem',
+          }}
+        >
+          <button
+            onMouseDown={() => voiceManagerRef.current?.setPttActive(true)}
+            onMouseUp={() => voiceManagerRef.current?.setPttActive(false)}
+            onTouchStart={(e) => {
+              e.preventDefault();
+              voiceManagerRef.current?.setPttActive(true);
+            }}
+            onTouchEnd={(e) => {
+              e.preventDefault();
+              voiceManagerRef.current?.setPttActive(false);
+            }}
+            onTouchCancel={(e) => {
+              e.preventDefault();
+              voiceManagerRef.current?.setPttActive(false);
+            }}
+            className="btn glass-panel"
+            style={{
+              padding: '0.75rem 1.3rem',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: voiceState.isPttActive
+                ? 'var(--accent-emerald)'
+                : 'rgba(17, 24, 39, 0.85)',
+              borderColor: voiceState.isPttActive ? '#ffffff' : 'var(--border-strong)',
+              boxShadow: voiceState.isPttActive
+                ? '0 0 20px var(--accent-emerald)'
+                : '0 8px 24px rgba(0,0,0,0.5)',
+              color: 'white',
+              fontWeight: 800,
+              fontSize: '0.85rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              transform: voiceState.isPttActive ? 'scale(1.05)' : 'scale(1)',
+              transition: 'all 0.1s ease',
+              userSelect: 'none',
+              WebkitUserSelect: 'none',
+            }}
+          >
+            {voiceState.isPttActive ? <Mic size={18} /> : <Radio size={18} />}
+            <span>{voiceState.isPttActive ? 'TRANSMITTING' : `PTT [${voiceState.pttKeyDisplay}]`}</span>
+          </button>
+        </div>
+      )}
+
       {/* Mobile Navigation Drawer */}
       <MobileDrawer
         isOpen={showMobileDrawer}
@@ -624,6 +804,10 @@ export const App: React.FC = () => {
         onOpenCharacter={() => setShowCharacterFlyout(true)}
         onOpenMaps={() => setShowMapManager(true)}
         onOpenSoundboard={() => setShowSoundboard(true)}
+        voiceState={voiceState}
+        onToggleMute={handleToggleMute}
+        onToggleDeafen={handleToggleDeafen}
+        onOpenVoiceSettings={() => setShowVoiceSettings(true)}
         isGm={isGm}
       />
     </div>

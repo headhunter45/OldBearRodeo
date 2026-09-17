@@ -28,6 +28,7 @@ export type ClientToServerMessage =
   | { type: 'dice-roll'; roll: DiceRollResult }
   | { type: 'initiative-update'; initiative: InitiativeState }
   | { type: 'player-update'; updates: Partial<Player> }
+  | { type: 'voice-force-mute'; targetPlayerId: string }
   | { type: 'audio-action'; trackId: string; action: 'play' | 'pause' | 'stop' | 'volume'; volume?: number; isLooping?: boolean };
 
 export type ServerToClientMessage =
@@ -52,4 +53,5 @@ export type ServerToClientMessage =
   | { type: 'dice-rolled'; roll: DiceRollResult }
   | { type: 'initiative-updated'; initiative: InitiativeState }
   | { type: 'player-updated'; playerId: string; updates: Partial<Player> }
+  | { type: 'voice-force-mute'; targetPlayerId: string }
   | { type: 'audio-action'; trackId: string; action: 'play' | 'pause' | 'stop' | 'volume'; volume?: number; isLooping?: boolean };

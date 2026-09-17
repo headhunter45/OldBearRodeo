@@ -396,6 +396,20 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
       });
       break;
     }
+
+    case 'voice-force-mute': {
+      if (!ws.roomId || !ws.isGm) return;
+      const session = getSession(ws.roomId);
+      if (session && session.players[msg.targetPlayerId]) {
+        session.players[msg.targetPlayerId].isMuted = true;
+        session.players[msg.targetPlayerId].isForceMuted = true;
+      }
+      broadcastToRoom(ws.roomId, {
+        type: 'voice-force-mute',
+        targetPlayerId: msg.targetPlayerId,
+      });
+      break;
+    }
   }
 }
 

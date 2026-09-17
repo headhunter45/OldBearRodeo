@@ -4,6 +4,7 @@ import {
   GameSession,
   Player,
 } from '@oldbear/shared';
+import { VoiceManager } from './VoiceManager.js';
 
 const RTC_CONFIG: RTCConfiguration = {
   iceServers: [
@@ -16,6 +17,7 @@ export class NetworkClient {
   private ws: WebSocket | null = null;
   private peerConnections = new Map<string, RTCPeerConnection>();
   private dataChannels = new Map<string, RTCDataChannel>();
+  voiceManager: VoiceManager | null = null;
 
   session: GameSession | null = null;
   localPlayer: Player | null = null;
@@ -23,6 +25,23 @@ export class NetworkClient {
   gmKey?: string;
 
   onMessageCallbacks: ((msg: ServerToClientMessage) => void)[] = [];
+
+  setVoiceManager(vm: VoiceManager) {
+    this.voiceManager = vm;
+    vm.onTrackChange((newTrack) => {
+      for (const pc of this.peerConnections.values()) {
+        const senders = pc.getSenders();
+        const audioSender = senders.find(
+          (s) => s.track?.kind === 'audio' || (s as any).kind === 'audio'
+        );
+        if (audioSender && newTrack) {
+          audioSender.replaceTrack(newTrack).catch((err) => {
+            console.warn('[WebRTC] replaceTrack error:', err);
+          });
+        }
+      }
+    });
+  }
 
   connect(roomId: string, playerName: string, playerColor: string, gmKey?: string) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -97,9 +116,16 @@ export class NetworkClient {
       this.isGm = msg.isGm;
       this.gmKey = msg.gmKey;
     } else if (msg.type === 'peer-joined') {
-      // If we are GM, initiate WebRTC connection to newly joined peer
-      if (this.isGm) {
-        this.initiateRtcConnection(msg.peerId);
+      // Any existing peer in the room connects to newcomer for full mesh
+      this.initiateRtcConnection(msg.peerId);
+    } else if (msg.type === 'peer-left') {
+      this.peerConnections.get(msg.peerId)?.close();
+      this.peerConnections.delete(msg.peerId);
+      this.dataChannels.delete(msg.peerId);
+      this.voiceManager?.removeRemotePeer(msg.peerId);
+    } else if (msg.type === 'voice-force-mute') {
+      if (this.localPlayer && msg.targetPlayerId === this.localPlayer.id) {
+        this.voiceManager?.handleForceMuted();
       }
     } else if (msg.type === 'rtc-offer') {
       this.handleRtcOffer(msg.fromPeerId, msg.sdp);
@@ -122,6 +148,21 @@ export class NetworkClient {
 
       const dc = pc.createDataChannel('vtt-data');
       this.setupDataChannel(peerId, dc);
+
+      // Attach mixed audio track if available, or request audio transceiver
+      const track = this.voiceManager?.getMixedAudioTrack();
+      const stream = this.voiceManager?.getMixedStream();
+      if (track && stream) {
+        pc.addTrack(track, stream);
+      } else {
+        pc.addTransceiver('audio', { direction: 'sendrecv' });
+      }
+
+      pc.ontrack = (event) => {
+        console.log('[WebRTC] Received audio track from peer:', peerId);
+        const remoteStream = event.streams[0] || new MediaStream([event.track]);
+        this.voiceManager?.handleRemoteTrack(peerId, event.track, remoteStream);
+      };
 
       pc.onicecandidate = (e) => {
         if (e.candidate) {
@@ -153,6 +194,21 @@ export class NetworkClient {
 
       pc.ondatachannel = (e) => {
         this.setupDataChannel(fromPeerId, e.channel);
+      };
+
+      // Attach audio track or transceiver
+      const track = this.voiceManager?.getMixedAudioTrack();
+      const stream = this.voiceManager?.getMixedStream();
+      if (track && stream) {
+        pc.addTrack(track, stream);
+      } else {
+        pc.addTransceiver('audio', { direction: 'sendrecv' });
+      }
+
+      pc.ontrack = (event) => {
+        console.log('[WebRTC] Received audio track from peer:', fromPeerId);
+        const remoteStream = event.streams[0] || new MediaStream([event.track]);
+        this.voiceManager?.handleRemoteTrack(fromPeerId, event.track, remoteStream);
       };
 
       pc.onicecandidate = (e) => {

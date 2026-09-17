@@ -10,8 +10,13 @@ import {
   Plus,
   Copy,
   Check,
+  Mic,
+  MicOff,
+  Headphones,
+  Radio,
 } from 'lucide-react';
 import { Player, GameMap } from '@oldbear/shared';
+import { VoiceState } from '../network/VoiceManager.js';
 
 interface TopBarProps {
   roomName: string;
@@ -19,6 +24,10 @@ interface TopBarProps {
   isGm: boolean;
   players: Player[];
   localPlayer: Player | null;
+  voiceState?: VoiceState;
+  onToggleMute?: () => void;
+  onToggleDeafen?: () => void;
+  onOpenVoiceSettings?: () => void;
   onOpenDice: () => void;
   onOpenInitiative: () => void;
   onOpenCharacter: () => void;
@@ -34,6 +43,10 @@ export const TopBar: React.FC<TopBarProps> = ({
   isGm,
   players,
   localPlayer,
+  voiceState,
+  onToggleMute,
+  onToggleDeafen,
+  onOpenVoiceSettings,
   onOpenDice,
   onOpenInitiative,
   onOpenCharacter,
@@ -105,31 +118,82 @@ export const TopBar: React.FC<TopBarProps> = ({
           <span style={{ color: 'var(--text-muted)' }}>Map:</span>
           <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{activeMapName}</span>
         </div>
+
+        {voiceState?.isAudioStreaming && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.3rem',
+              fontSize: '0.75rem',
+              color: 'var(--accent-emerald)',
+              backgroundColor: 'rgba(16, 185, 129, 0.15)',
+              padding: '0.15rem 0.5rem',
+              borderRadius: 'var(--radius-full)',
+              fontWeight: 600,
+            }}
+          >
+            <span
+              style={{
+                width: '6px',
+                height: '6px',
+                borderRadius: '50%',
+                backgroundColor: 'var(--accent-emerald)',
+                boxShadow: '0 0 6px var(--accent-emerald)',
+              }}
+            />
+            Stream Active
+          </div>
+        )}
       </div>
 
       {/* Center Online Player Indicators */}
-      <div className="topbar-players-list" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-        {players.map((p) => (
-          <div
-            key={p.id}
-            title={`${p.name} (${p.role.toUpperCase()})`}
-            style={{
-              width: '26px',
-              height: '26px',
-              borderRadius: '50%',
-              backgroundColor: p.color,
-              border: '2px solid white',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: '11px',
-              fontWeight: 'bold',
-              color: 'white',
-            }}
-          >
-            {p.name[0]?.toUpperCase() || '?'}
-          </div>
-        ))}
+      <div className="topbar-players-list" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+        {players.map((p) => {
+          const isSelf = p.id === localPlayer?.id;
+          const isSpeaking = isSelf ? (voiceState?.isSpeaking || false) : (p.isSpeaking || false);
+          const isMuted = isSelf ? (voiceState?.isMuted || voiceState?.isForceMuted) : (p.isMuted || p.isForceMuted);
+
+          return (
+            <div
+              key={p.id}
+              title={`${p.name} (${p.role.toUpperCase()})${isSpeaking ? ' - Speaking' : ''}${p.isForceMuted ? ' - Force Muted by GM' : isMuted ? ' - Muted' : ''}`}
+              style={{
+                width: '28px',
+                height: '28px',
+                borderRadius: '50%',
+                backgroundColor: p.color,
+                border: isSpeaking ? '2.5px solid #10b981' : '2px solid rgba(255, 255, 255, 0.65)',
+                boxShadow: isSpeaking ? '0 0 12px #10b981, inset 0 0 4px #10b981' : 'none',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '11px',
+                fontWeight: 'bold',
+                color: 'white',
+                position: 'relative',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              {p.name[0]?.toUpperCase() || '?'}
+              {isMuted && (
+                <div
+                  style={{
+                    position: 'absolute',
+                    bottom: '-2px',
+                    right: '-2px',
+                    width: '9px',
+                    height: '9px',
+                    borderRadius: '50%',
+                    backgroundColor: p.isForceMuted || voiceState?.isForceMuted ? 'var(--accent-rose)' : '#94a3b8',
+                    border: '1.5px solid var(--bg-surface)',
+                  }}
+                  title={p.isForceMuted ? 'Force Muted' : 'Muted'}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Quick Launch Actions */}
@@ -142,6 +206,46 @@ export const TopBar: React.FC<TopBarProps> = ({
         >
           {copied ? <Check size={14} color="#10b981" /> : <Share2 size={14} />}
           <span className="topbar-map-label">{copied ? 'Link Copied!' : 'Invite'}</span>
+        </button>
+
+        {/* Quick Voice Controls */}
+        <button
+          className="btn-icon topbar-desktop-only"
+          onClick={onToggleMute}
+          title={
+            voiceState?.isForceMuted
+              ? 'Muted by GM'
+              : voiceState?.isMuted
+              ? 'Unmute Microphone'
+              : 'Mute Microphone'
+          }
+          style={{
+            color: voiceState?.isForceMuted || voiceState?.isMuted ? 'var(--accent-rose)' : '#ffffff',
+            backgroundColor:
+              voiceState?.isForceMuted || voiceState?.isMuted ? 'rgba(244, 63, 94, 0.15)' : undefined,
+          }}
+        >
+          {voiceState?.isForceMuted || voiceState?.isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+        </button>
+
+        <button
+          className="btn-icon topbar-desktop-only"
+          onClick={onToggleDeafen}
+          title={voiceState?.isDeafened ? 'Undeafen' : 'Deafen (Mute incoming sound & mic)'}
+          style={{
+            color: voiceState?.isDeafened ? 'var(--accent-rose)' : '#ffffff',
+            backgroundColor: voiceState?.isDeafened ? 'rgba(244, 63, 94, 0.15)' : undefined,
+          }}
+        >
+          <Headphones size={18} />
+        </button>
+
+        <button
+          className="btn-icon topbar-desktop-only"
+          onClick={onOpenVoiceSettings}
+          title="Voice & Audio Settings"
+        >
+          <Radio size={18} />
         </button>
 
         {/* Dice Roller Toggle */}

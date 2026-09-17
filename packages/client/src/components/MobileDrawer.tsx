@@ -9,8 +9,13 @@ import {
   Settings,
   Share2,
   Check,
+  Mic,
+  MicOff,
+  Headphones,
+  Radio,
 } from 'lucide-react';
 import { Player } from '@oldbear/shared';
+import { VoiceState } from '../network/VoiceManager.js';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -22,6 +27,10 @@ interface MobileDrawerProps {
   onOpenCharacter: () => void;
   onOpenMaps: () => void;
   onOpenSoundboard: () => void;
+  voiceState?: VoiceState;
+  onToggleMute?: () => void;
+  onToggleDeafen?: () => void;
+  onOpenVoiceSettings?: () => void;
   isGm: boolean;
 }
 
@@ -37,6 +46,10 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   onOpenCharacter,
   onOpenMaps,
   onOpenSoundboard,
+  voiceState,
+  onToggleMute,
+  onToggleDeafen,
+  onOpenVoiceSettings,
   isGm,
 }) => {
   const [name, setName] = useState(localPlayer?.name || 'Adventurer');
@@ -78,11 +91,12 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           display: 'flex',
           flexDirection: 'column',
           padding: '1.25rem',
+          overflowY: 'auto',
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ fontSize: '1.3rem' }}>🐻</span>
             <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.1rem' }}>
@@ -94,6 +108,75 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           </button>
         </div>
 
+        {/* Quick Voice Bar */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'var(--bg-surface-elevated)',
+            padding: '0.6rem 0.8rem',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-subtle)',
+            marginBottom: '1rem',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div
+              style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                backgroundColor: voiceState?.isSpeaking ? 'var(--accent-emerald)' : 'var(--text-muted)',
+                boxShadow: voiceState?.isSpeaking ? '0 0 8px var(--accent-emerald)' : 'none',
+              }}
+            />
+            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+              {voiceState?.isForceMuted ? 'Muted by GM' : voiceState?.isMuted ? 'Mic Muted' : 'Voice Active'}
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.35rem' }}>
+            <button
+              className="btn-icon"
+              style={{
+                width: '32px',
+                height: '32px',
+                color: voiceState?.isMuted || voiceState?.isForceMuted ? 'var(--accent-rose)' : undefined,
+              }}
+              onClick={onToggleMute}
+              title="Toggle Microphone"
+            >
+              {voiceState?.isMuted || voiceState?.isForceMuted ? <MicOff size={16} /> : <Mic size={16} />}
+            </button>
+
+            <button
+              className="btn-icon"
+              style={{
+                width: '32px',
+                height: '32px',
+                color: voiceState?.isDeafened ? 'var(--accent-rose)' : undefined,
+              }}
+              onClick={onToggleDeafen}
+              title="Toggle Deafen"
+            >
+              <Headphones size={16} />
+            </button>
+
+            <button
+              className="btn-icon"
+              style={{ width: '32px', height: '32px' }}
+              onClick={() => {
+                onClose();
+                onOpenVoiceSettings?.();
+              }}
+              title="Voice Settings"
+            >
+              <Radio size={16} />
+            </button>
+          </div>
+        </div>
+
         {/* Profile Customization Section */}
         <form
           onSubmit={handleSaveProfile}
@@ -102,7 +185,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             padding: '0.85rem',
             borderRadius: 'var(--radius-md)',
             border: '1px solid var(--border-subtle)',
-            marginBottom: '1.5rem',
+            marginBottom: '1rem',
           }}
         >
           <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
@@ -154,10 +237,21 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         </form>
 
         {/* Quick Drawer Navigation Buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', flex: 1 }}>
           <button
             className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.75rem' }}
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+            onClick={() => {
+              onClose();
+              onOpenVoiceSettings?.();
+            }}
+          >
+            <Radio size={18} color="var(--accent-primary)" /> Voice & Audio Settings
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
             onClick={() => {
               onClose();
               onOpenCharacter();
@@ -168,7 +262,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
           <button
             className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.75rem' }}
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
             onClick={() => {
               onClose();
               onOpenDice();
@@ -179,7 +273,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
           <button
             className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.75rem' }}
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
             onClick={() => {
               onClose();
               onOpenInitiative();
@@ -190,7 +284,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
           <button
             className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.75rem' }}
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
             onClick={() => {
               onClose();
               onOpenSoundboard();
@@ -202,7 +296,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           {isGm && (
             <button
               className="btn btn-secondary"
-              style={{ justifyContent: 'flex-start', padding: '0.75rem' }}
+              style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
               onClick={() => {
                 onClose();
                 onOpenMaps();
