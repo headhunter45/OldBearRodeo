@@ -37,5 +37,6 @@ describe('D&D Beyond Integration', () => {
     assert.strictEqual(char.level, 5);
     assert.strictEqual(char.speed, 30);
     assert.ok(char.maxHp >= 28);
+    assert.ok(char.avatarUrl && char.avatarUrl.startsWith('http'), 'Avatar URL parsed');
   });
 });

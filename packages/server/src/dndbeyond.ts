@@ -129,10 +129,18 @@ function parseDnDData(characterId: string, data: any): DnDCharacter {
     });
   }
 
+  const avatarUrl =
+    data.avatarUrl ||
+    data.decorations?.avatarUrl ||
+    data.avatar?.avatarUrl ||
+    data.race?.portraitAvatarUrl ||
+    data.classes?.[0]?.definition?.portraitAvatarUrl ||
+    undefined;
+
   return {
     id: characterId,
     name: (data.name || 'Hero').replace(/^["']|["']$/g, '').trim(),
-    avatarUrl: data.avatarUrl || data.decorations?.avatarUrl || data.avatar?.avatarUrl || undefined,
+    avatarUrl,
     level,
     classes: classNames,
     race,

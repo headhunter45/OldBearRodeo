@@ -16,16 +16,16 @@ import {
 
 interface CharacterFlyoutProps {
   player: Player;
-  assignedToken?: Token | null;
-  onUpdateTokenHp?: (tokenId: string, currentHp: number, maxHp: number, speed: number) => void;
+  targetToken?: Token | null;
+  onSyncToken?: (tokenId: string, updates: Partial<Token>) => void;
   onUpdatePlayerChar?: (char: DnDCharacter) => void;
   onClose: () => void;
 }
 
 export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
   player,
-  assignedToken,
-  onUpdateTokenHp,
+  targetToken,
+  onSyncToken,
   onUpdatePlayerChar,
   onClose,
 }) => {
@@ -38,8 +38,22 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
   const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
 
   // Manual fallback HP
-  const [localHp, setLocalHp] = useState(assignedToken?.currentHp || 25);
-  const [localMaxHp, setLocalMaxHp] = useState(assignedToken?.maxHp || 25);
+  const [localHp, setLocalHp] = useState(targetToken?.currentHp || 25);
+  const [localMaxHp, setLocalMaxHp] = useState(targetToken?.maxHp || 25);
+
+  const syncToToken = (char: DnDCharacter) => {
+    if (!targetToken || !onSyncToken) return;
+    const updates: Partial<Token> = {
+      name: char.name,
+      currentHp: char.currentHp,
+      maxHp: char.maxHp,
+      speed: char.speed,
+    };
+    if (char.avatarUrl) {
+      updates.imageUrl = char.avatarUrl;
+    }
+    onSyncToken(targetToken.id, updates);
+  };
 
   const fetchCharacter = async (charId: string) => {
     setLoading(true);
@@ -54,9 +68,9 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
       setCharacter(data);
       onUpdatePlayerChar?.(data);
 
-      // Automatically sync HP & Speed with assigned token
-      if (assignedToken && onUpdateTokenHp) {
-        onUpdateTokenHp(assignedToken.id, data.currentHp, data.maxHp, data.speed);
+      // Automatically sync name, image, HP & Speed with target token
+      if (targetToken && onSyncToken) {
+        syncToToken(data);
       }
     } catch (err: any) {
       setError(err.message || 'Could not fetch character.');
@@ -66,11 +80,14 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
   };
 
   const handleSyncToToken = () => {
-    if (!assignedToken || !onUpdateTokenHp) return;
+    if (!targetToken || !onSyncToken) return;
     if (character) {
-      onUpdateTokenHp(assignedToken.id, character.currentHp, character.maxHp, character.speed);
+      syncToToken(character);
     } else {
-      onUpdateTokenHp(assignedToken.id, localHp, localMaxHp, assignedToken.speed);
+      onSyncToken(targetToken.id, {
+        currentHp: localHp,
+        maxHp: localMaxHp,
+      });
     }
   };
 
@@ -80,13 +97,13 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
       const updated = { ...character, currentHp: newHp };
       setCharacter(updated);
       onUpdatePlayerChar?.(updated);
-      if (assignedToken && onUpdateTokenHp) {
-        onUpdateTokenHp(assignedToken.id, newHp, character.maxHp, character.speed);
+      if (targetToken && onSyncToken) {
+        onSyncToken(targetToken.id, { currentHp: newHp });
       }
-    } else if (assignedToken && onUpdateTokenHp) {
+    } else if (targetToken && onSyncToken) {
       const newHp = Math.max(0, Math.min(localMaxHp, localHp + delta));
       setLocalHp(newHp);
-      onUpdateTokenHp(assignedToken.id, newHp, localMaxHp, assignedToken.speed);
+      onSyncToken(targetToken.id, { currentHp: newHp, maxHp: localMaxHp });
     }
   };
 
@@ -477,8 +494,8 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
                   onChange={(e) => {
                     const val = Number(e.target.value);
                     setLocalMaxHp(val);
-                    if (assignedToken && onUpdateTokenHp) {
-                      onUpdateTokenHp(assignedToken.id, localHp, val, assignedToken.speed);
+                    if (targetToken && onSyncToken) {
+                      onSyncToken(targetToken.id, { currentHp: localHp, maxHp: val });
                     }
                   }}
                   style={{
@@ -498,11 +515,18 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
       </div>
 
       {/* Footer */}
-      {assignedToken && (
+      {targetToken ? (
         <div style={{ padding: '1rem', borderTop: '1px solid var(--border-subtle)' }}>
-          <button className="btn btn-secondary" style={{ width: '100%' }} onClick={handleSyncToToken}>
-            <RefreshCw size={14} /> Sync with Assigned Token ({assignedToken.name})
+          <button className="btn btn-primary" style={{ width: '100%' }} onClick={handleSyncToToken}>
+            <RefreshCw size={14} /> Sync with Token ({targetToken.name})
           </button>
+          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textAlign: 'center', marginTop: '0.35rem' }}>
+            Sets token name, avatar, HP, and speed.
+          </div>
+        </div>
+      ) : (
+        <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.75rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+          Select a token on the map to sync this character to it.
         </div>
       )}
     </div>

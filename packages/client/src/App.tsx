@@ -562,9 +562,9 @@ export const App: React.FC = () => {
       {showCharacterFlyout && localPlayer && (
         <CharacterFlyout
           player={localPlayer}
-          assignedToken={assignedToken}
-          onUpdateTokenHp={(tokenId, currentHp, maxHp, speed) => {
-            handleUpdateToken(tokenId, { currentHp, maxHp, speed });
+          targetToken={selectedToken || assignedToken}
+          onSyncToken={(tokenId, updates) => {
+            handleUpdateToken(tokenId, updates);
           }}
           onUpdatePlayerChar={(dndBeyondCharacter) => {
             setLocalPlayer((p) => (p ? { ...p, dndBeyondCharacter } : p));
