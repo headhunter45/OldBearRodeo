@@ -195,6 +195,17 @@ html, body, #root {
   animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
+/* Floating HUD Panel Container (Desktop) */
+.hud-panel-container {
+  position: absolute;
+  top: 4.5rem;
+  right: 1rem;
+  z-index: 35;
+  pointer-events: auto;
+  max-height: calc(100vh - 6rem);
+  display: flex;
+}
+
 /* Responsive & Portrait Layouts */
 @media (max-width: 768px), (orientation: portrait) {
   .topbar-desktop-only {
@@ -242,4 +253,49 @@ html, body, #root {
     width: 36px !important;
     height: 36px !important;
   }
+}
+
+/* Audio Sending & Receiving animations for TopBar and Mobile controls */
+@keyframes audio-pulse-mic {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 8px rgba(16, 185, 129, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+@keyframes audio-pulse-headphones {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7);
+  }
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 8px rgba(56, 189, 248, 0);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0);
+  }
+}
+
+.anim-sending-audio {
+  animation: audio-pulse-mic 1s infinite ease-in-out !important;
+  color: var(--accent-emerald) !important;
+  background-color: rgba(16, 185, 129, 0.25) !important;
+  border-color: var(--accent-emerald) !important;
+}
+
+.anim-receiving-audio {
+  animation: audio-pulse-headphones 1s infinite ease-in-out !important;
+  color: #38bdf8 !important;
+  background-color: rgba(56, 189, 248, 0.25) !important;
+  border-color: #38bdf8 !important;
 }

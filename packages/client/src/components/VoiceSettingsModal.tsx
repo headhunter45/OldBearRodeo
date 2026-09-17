@@ -167,11 +167,11 @@ export const VoiceSettingsModal: React.FC<VoiceSettingsModalProps> = ({
         <div
           style={{
             display: 'flex',
-            gap: '0.5rem',
-            padding: '0.75rem 1.5rem',
+            flexWrap: 'wrap',
+            gap: '0.4rem',
+            padding: '0.6rem 1rem',
             backgroundColor: 'rgba(0, 0, 0, 0.3)',
             borderBottom: '1px solid var(--border-subtle)',
-            overflowX: 'auto',
           }}
         >
           <button

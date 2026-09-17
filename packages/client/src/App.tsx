@@ -17,12 +17,14 @@ import { TokenControls } from './components/TokenControls.js';
 import { TokenEditorModal } from './components/TokenEditorModal.js';
 import { DiceRoller } from './components/DiceRoller.js';
 import { InitiativeTracker } from './components/InitiativeTracker.js';
-import { CharacterFlyout } from './components/CharacterFlyout.js';
+import { CharacterFlyout, saveCharacterToStorage } from './components/CharacterFlyout.js';
 import { MapManagerModal } from './components/MapManagerModal.js';
 import { SoundboardModal } from './components/SoundboardModal.js';
 import { MobileDrawer } from './components/MobileDrawer.js';
 import { VoiceManager, VoiceState } from './network/VoiceManager.js';
 import { VoiceSettingsModal } from './components/VoiceSettingsModal.js';
+import { DataBackupModal } from './components/DataBackupModal.js';
+import { GlobalDropOverlay } from './components/GlobalDropOverlay.js';
 import { Mic, Radio } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -67,6 +69,7 @@ export const App: React.FC = () => {
   const [showCharacterFlyout, setShowCharacterFlyout] = useState(false);
   const [showMapManager, setShowMapManager] = useState(false);
   const [showSoundboard, setShowSoundboard] = useState(false);
+  const [showBackupModal, setShowBackupModal] = useState(false);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
 
   // GM Preview Map vs Player Active Map
@@ -195,6 +198,17 @@ export const App: React.FC = () => {
           break;
         }
 
+        case 'map-updated': {
+          setSession((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              maps: prev.maps.map((m) => (m.id === msg.id ? { ...m, ...msg.updates } : m)),
+            };
+          });
+          break;
+        }
+
         case 'map-switched': {
           setSession((prev) => (prev ? { ...prev, activeMapId: msg.mapId } : prev));
           // If player, update viewport map as well
@@ -253,6 +267,9 @@ export const App: React.FC = () => {
         }
 
         case 'player-updated': {
+          if (net.isGm && msg.updates.dndBeyondCharacter) {
+            saveCharacterToStorage(msg.updates.dndBeyondCharacter, true);
+          }
           setSession((prev) => {
             if (!prev || !prev.players[msg.playerId]) return prev;
             return {
@@ -501,17 +518,35 @@ export const App: React.FC = () => {
     });
   };
 
+  const findUnoccupiedPosition = (mapId: string, startX = 400, startY = 400, gridSize = 50) => {
+    if (!session) return { x: startX, y: startY };
+    const existing = Object.values(session.tokens).filter((t) => t.mapId === mapId);
+    let x = startX;
+    let y = startY;
+    let step = 0;
+    while (existing.some((t) => Math.hypot(t.x - x, t.y - y) < gridSize * 0.8)) {
+      step++;
+      const row = Math.floor(step / 6);
+      const col = step % 6;
+      x = startX + col * gridSize;
+      y = startY + row * gridSize;
+    }
+    return { x, y };
+  };
+
   const handleCreateNewToken = () => {
     if (!session || !localPlayer) return;
     const currentMapId = isGm && gmPreviewMapId ? gmPreviewMapId : session.activeMapId;
+    const gridSize = currentMap?.gridSize || 50;
+    const pos = findUnoccupiedPosition(currentMapId, 400, 400, gridSize);
 
     const newToken: Token = {
       id: `token-${crypto.randomUUID()}`,
       mapId: currentMapId,
       name: 'New Token',
       imageUrl: '',
-      x: 400,
-      y: 400,
+      x: pos.x,
+      y: pos.y,
       size: 1,
       rotation: 0,
       ringColor: localPlayer.color || '#3b82f6',
@@ -535,10 +570,46 @@ export const App: React.FC = () => {
       };
     });
     setSelectedToken(newToken);
+    engineRef.current?.selectToken(newToken.id);
 
     networkRef.current?.send({
       type: 'token-add',
       token: newToken,
+    });
+  };
+
+  const handleDuplicateToken = (token: Token) => {
+    if (!session || !localPlayer) return;
+    const currentMapId = token.mapId;
+    const gridSize = currentMap?.gridSize || 50;
+    const pos = findUnoccupiedPosition(currentMapId, token.x + gridSize, token.y, gridSize);
+
+    const nameMatch = token.name.match(/^(.*?)(?:\s+(\d+))?$/);
+    const baseName = nameMatch && nameMatch[1] ? nameMatch[1].trim() : token.name;
+    const nextNum = nameMatch && nameMatch[2] ? parseInt(nameMatch[2], 10) + 1 : 2;
+    const newName = `${baseName} ${nextNum}`;
+
+    const duplicated: Token = {
+      ...token,
+      id: `token-${crypto.randomUUID()}`,
+      name: newName,
+      x: pos.x,
+      y: pos.y,
+    };
+
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        tokens: { ...prev.tokens, [duplicated.id]: duplicated },
+      };
+    });
+    setSelectedToken(duplicated);
+    engineRef.current?.selectToken(duplicated.id);
+
+    networkRef.current?.send({
+      type: 'token-add',
+      token: duplicated,
     });
   };
 
@@ -556,13 +627,48 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleUpdateMap = (id: string, updates: Partial<GameMap>) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        maps: prev.maps.map((m) => (m.id === id ? { ...m, ...updates } : m)),
+      };
+    });
+    networkRef.current?.send({ type: 'map-update', id, updates });
+  };
+
   const currentMap =
     session?.maps.find((m) => m.id === (isGm && gmPreviewMapId ? gmPreviewMapId : session.activeMapId)) ||
     session?.maps[0];
 
+  const handleToggleGrid = () => {
+    if (!currentMap) return;
+    const newShowGrid = currentMap.showGrid === false ? true : false;
+    handleUpdateMap(currentMap.id, { showGrid: newShowGrid });
+  };
+
   const assignedToken = localPlayer
     ? Object.values(session?.tokens || {}).find((t) => t.ownerId === localPlayer.id)
     : null;
+
+  // Keyboard shortcut: Ctrl+D / Cmd+D to duplicate selected token
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'd') {
+        const tag = (e.target as HTMLElement)?.tagName?.toLowerCase();
+        if (tag === 'input' || tag === 'textarea' || (e.target as HTMLElement)?.isContentEditable) {
+          return;
+        }
+        if (selectedToken) {
+          e.preventDefault();
+          handleDuplicateToken(selectedToken);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedToken, session, localPlayer, currentMap]);
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
@@ -602,6 +708,7 @@ export const App: React.FC = () => {
           onOpenCharacter={() => setShowCharacterFlyout((v) => !v)}
           onOpenMaps={() => setShowMapManager(true)}
           onOpenSoundboard={() => setShowSoundboard(true)}
+          onOpenBackup={() => setShowBackupModal(true)}
           onAddNewToken={handleCreateNewToken}
           onToggleMobileDrawer={() => setShowMobileDrawer((v) => !v)}
         />
@@ -614,6 +721,8 @@ export const App: React.FC = () => {
         isGm={isGm}
         snapEnabled={snapEnabled}
         onToggleSnap={() => setSnapEnabled((v) => !v)}
+        showGrid={currentMap?.showGrid !== false}
+        onToggleGrid={handleToggleGrid}
         userColor={localPlayer?.color || '#6366f1'}
         onChangeColor={(c) => handleUpdateProfile(localPlayer?.name || 'Player', c)}
       />
@@ -624,14 +733,20 @@ export const App: React.FC = () => {
           token={selectedToken}
           onUpdateToken={handleUpdateToken}
           onDeleteToken={handleDeleteToken}
+          onDuplicateToken={handleDuplicateToken}
           onTransferToken={handleTransferToken}
           onOpenFullEditor={() => {
             setTokenToEdit(selectedToken);
             setShowTokenEditor(true);
           }}
-          canControl={isGm || selectedToken.ownerId === localPlayer?.id}
+          canControl={
+            isGm ||
+            selectedToken.ownerId === localPlayer?.id ||
+            Boolean(localPlayer?.assignedTokenIds?.includes(selectedToken.id))
+          }
           isGm={isGm}
           maps={session.maps}
+          players={Object.values(session.players)}
         />
       )}
 
@@ -682,6 +797,7 @@ export const App: React.FC = () => {
             });
           }}
           onClose={() => setShowCharacterFlyout(false)}
+          isGm={isGm}
         />
       )}
 
@@ -707,18 +823,29 @@ export const App: React.FC = () => {
             networkRef.current?.send({ type: 'map-switch', mapId: id });
           }}
           onAddMap={(newMap) => {
+            setSession((prev) => (prev ? { ...prev, maps: [...prev.maps, newMap] } : prev));
+            setGmPreviewMapId(newMap.id);
             networkRef.current?.send({ type: 'map-add', map: newMap });
           }}
-          onUpdateMap={(id, updates) => {
-            networkRef.current?.send({ type: 'map-update', id, updates });
-          }}
+          onUpdateMap={handleUpdateMap}
           onClose={() => setShowMapManager(false)}
         />
       )}
 
       {/* Soundboard Modal */}
       {showSoundboard && (
-        <SoundboardModal isGm={isGm} onClose={() => setShowSoundboard(false)} />
+        <SoundboardModal
+          isGm={isGm}
+          onClose={() => setShowSoundboard(false)}
+          onBroadcastAudioAction={(trackId, action, volume) => {
+            networkRef.current?.send({
+              type: 'audio-action',
+              trackId,
+              action,
+              volume,
+            });
+          }}
+        />
       )}
 
       {/* Voice Settings Modal */}
@@ -733,6 +860,52 @@ export const App: React.FC = () => {
           onClose={() => setShowVoiceSettings(false)}
         />
       )}
+
+      {/* Full Data Backup & Transfer Modal (Export / Import) */}
+      {showBackupModal && (
+        <DataBackupModal
+          session={session}
+          isGm={isGm}
+          onRestoreSession={(restoredSession) => {
+            setSession(restoredSession);
+            if (networkRef.current && isGm) {
+              for (const map of restoredSession.maps) {
+                networkRef.current.send({ type: 'map-add', map });
+              }
+              for (const tok of Object.values(restoredSession.tokens)) {
+                networkRef.current.send({ type: 'token-add', token: tok });
+              }
+              if (restoredSession.initiative) {
+                networkRef.current.send({ type: 'initiative-update', initiative: restoredSession.initiative });
+              }
+            }
+          }}
+          onClose={() => setShowBackupModal(false)}
+        />
+      )}
+
+      {/* Global Drag & Drop Handler (Maps, Tokens, Audio, Backups) */}
+      <GlobalDropOverlay
+        isGm={isGm}
+        activeMapId={currentMap?.id || session?.activeMapId || ''}
+        gridSize={currentMap?.gridSize || 50}
+        onAddMap={(newMap) => {
+          setSession((prev) => (prev ? { ...prev, maps: [...prev.maps, newMap] } : prev));
+          setGmPreviewMapId(newMap.id);
+          networkRef.current?.send({ type: 'map-add', map: newMap });
+        }}
+        onAddToken={(newToken) => {
+          setSession((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              tokens: { ...prev.tokens, [newToken.id]: newToken },
+            };
+          });
+          networkRef.current?.send({ type: 'token-add', token: newToken });
+          engineRef.current?.selectToken(newToken.id);
+        }}
+      />
 
       {/* On-Screen Push-to-Talk touch button for mobile / touch screens */}
       {voiceState.transmissionMode === 'ptt' && (
@@ -804,6 +977,7 @@ export const App: React.FC = () => {
         onOpenCharacter={() => setShowCharacterFlyout(true)}
         onOpenMaps={() => setShowMapManager(true)}
         onOpenSoundboard={() => setShowSoundboard(true)}
+        onOpenBackup={() => setShowBackupModal(true)}
         voiceState={voiceState}
         onToggleMute={handleToggleMute}
         onToggleDeafen={handleToggleDeafen}

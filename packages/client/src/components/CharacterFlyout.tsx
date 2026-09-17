@@ -20,6 +20,64 @@ interface CharacterFlyoutProps {
   onSyncToken?: (tokenId: string, updates: Partial<Token>) => void;
   onUpdatePlayerChar?: (char: DnDCharacter) => void;
   onClose: () => void;
+  isGm?: boolean;
+}
+
+interface SavedCharacterRecord {
+  id: string;
+  name: string;
+  classes?: string;
+  avatarUrl?: string;
+  charData: DnDCharacter;
+  savedAt: number;
+}
+
+const LOCAL_STORAGE_KEY = 'oldbear_saved_characters';
+const GM_STORAGE_KEY = 'oldbear_gm_saved_characters';
+
+export function getSavedCharacters(isGm: boolean): SavedCharacterRecord[] {
+  try {
+    const raw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const list: SavedCharacterRecord[] = raw ? JSON.parse(raw) : [];
+    if (isGm) {
+      const gmRaw = localStorage.getItem(GM_STORAGE_KEY);
+      const gmList: SavedCharacterRecord[] = gmRaw ? JSON.parse(gmRaw) : [];
+      const map = new Map<string, SavedCharacterRecord>();
+      for (const item of [...list, ...gmList]) {
+        map.set(item.id, item);
+      }
+      return Array.from(map.values());
+    }
+    return list;
+  } catch {
+    return [];
+  }
+}
+
+export function saveCharacterToStorage(char: DnDCharacter, isGm: boolean) {
+  try {
+    const record: SavedCharacterRecord = {
+      id: char.id,
+      name: char.name,
+      classes: char.classes,
+      avatarUrl: char.avatarUrl,
+      charData: char,
+      savedAt: Date.now(),
+    };
+    // Save to player's storage
+    const userRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const userList: SavedCharacterRecord[] = userRaw ? JSON.parse(userRaw) : [];
+    const updatedUserList = [record, ...userList.filter((c) => c.id !== char.id)];
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedUserList.slice(0, 30)));
+
+    // Save to GM storage
+    const gmRaw = localStorage.getItem(GM_STORAGE_KEY);
+    const gmList: SavedCharacterRecord[] = gmRaw ? JSON.parse(gmRaw) : [];
+    const updatedGmList = [record, ...gmList.filter((c) => c.id !== char.id)];
+    localStorage.setItem(GM_STORAGE_KEY, JSON.stringify(updatedGmList.slice(0, 50)));
+  } catch (e) {
+    console.error('Failed to save character to localStorage:', e);
+  }
 }
 
 export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
@@ -28,6 +86,7 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
   onSyncToken,
   onUpdatePlayerChar,
   onClose,
+  isGm = false,
 }) => {
   const [charInput, setCharInput] = useState(player.dndBeyondCharacterId || '');
   const [character, setCharacter] = useState<DnDCharacter | null>(
@@ -36,10 +95,18 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
+  const [showOnlyTrainedSkills, setShowOnlyTrainedSkills] = useState(false);
+  const [savedCharacters, setSavedCharacters] = useState<SavedCharacterRecord[]>(() =>
+    getSavedCharacters(isGm)
+  );
 
   // Manual fallback HP
   const [localHp, setLocalHp] = useState(targetToken?.currentHp || 25);
   const [localMaxHp, setLocalMaxHp] = useState(targetToken?.maxHp || 25);
+
+  const refreshSavedCharacters = () => {
+    setSavedCharacters(getSavedCharacters(isGm));
+  };
 
   const syncToToken = (char: DnDCharacter) => {
     if (!targetToken || !onSyncToken) return;
@@ -55,6 +122,21 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
     onSyncToken(targetToken.id, updates);
   };
 
+  const handleSelectSavedCharacter = (selectedId: string) => {
+    if (!selectedId) return;
+    const found = savedCharacters.find((c) => c.id === selectedId);
+    if (!found) return;
+
+    setCharacter(found.charData);
+    onUpdatePlayerChar?.(found.charData);
+    if (targetToken && onSyncToken) {
+      syncToToken(found.charData);
+    }
+    // Refresh storage timestamp
+    saveCharacterToStorage(found.charData, isGm);
+    refreshSavedCharacters();
+  };
+
   const fetchCharacter = async (charId: string) => {
     setLoading(true);
     setError(null);
@@ -67,6 +149,10 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
       const data: DnDCharacter = await res.json();
       setCharacter(data);
       onUpdatePlayerChar?.(data);
+
+      // Save to localStorage for both player and GM
+      saveCharacterToStorage(data, isGm);
+      refreshSavedCharacters();
 
       // Automatically sync name, image, HP & Speed with target token
       if (targetToken && onSyncToken) {
@@ -97,6 +183,7 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
       const updated = { ...character, currentHp: newHp };
       setCharacter(updated);
       onUpdatePlayerChar?.(updated);
+      saveCharacterToStorage(updated, isGm);
       if (targetToken && onSyncToken) {
         onSyncToken(targetToken.id, { currentHp: newHp });
       }
@@ -111,6 +198,10 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
     const mod = Math.floor((score - 10) / 2);
     return mod >= 0 ? `+${mod}` : `${mod}`;
   };
+
+  const proficiencyBonus =
+    character?.proficiencyBonus ??
+    (character ? Math.floor((character.level - 1) / 4) + 2 : 2);
 
   return (
     <div
@@ -152,6 +243,36 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
 
       {/* D&D Beyond Link Input */}
       <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}>
+        {/* Saved Characters Dropdown */}
+        {savedCharacters.length > 0 && (
+          <div style={{ marginBottom: '0.6rem' }}>
+            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginBottom: '0.25rem', fontWeight: 600 }}>
+              LOAD SAVED CHARACTER ({savedCharacters.length})
+            </div>
+            <select
+              style={{
+                width: '100%',
+                padding: '0.45rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-subtle)',
+                color: 'white',
+                fontSize: '0.8rem',
+                cursor: 'pointer',
+              }}
+              value={character?.id || ''}
+              onChange={(e) => handleSelectSavedCharacter(e.target.value)}
+            >
+              <option value="">-- Choose from saved characters --</option>
+              {savedCharacters.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} {c.classes ? `(${c.classes})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
           LINK D&D BEYOND CHARACTER
         </div>
@@ -230,39 +351,42 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
                   borderRadius: '50%',
                   border: '2px solid var(--accent-primary)',
                   objectFit: 'cover',
+                  flexShrink: 0,
                 }}
               />
-              <div>
-                <h3 style={{ fontSize: '1.15rem', fontWeight: 700 }}>{character.name}</h3>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {character.name}
+                </h3>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                   {character.race} • {character.classes}
                 </div>
               </div>
             </div>
 
-            {/* Combat Vitals (AC, Speed, HP) */}
+            {/* Combat Vitals (AC, Speed, Prof, Passive) */}
             <div
               style={{
                 display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: '0.5rem',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '0.4rem',
                 marginBottom: '1.25rem',
               }}
             >
               <div
                 style={{
                   background: 'var(--bg-surface-elevated)',
-                  padding: '0.6rem',
+                  padding: '0.5rem 0.25rem',
                   borderRadius: 'var(--radius-sm)',
                   textAlign: 'center',
                   border: '1px solid var(--border-subtle)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', color: '#38bdf8' }}>
-                  <Shield size={14} />
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>ARMOR</span>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '3px', color: '#38bdf8' }}>
+                  <Shield size={12} />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>ARMOR</span>
                 </div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '2px' }}>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '2px' }}>
                   {character.armorClass}
                 </div>
               </div>
@@ -270,17 +394,17 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
               <div
                 style={{
                   background: 'var(--bg-surface-elevated)',
-                  padding: '0.6rem',
+                  padding: '0.5rem 0.25rem',
                   borderRadius: 'var(--radius-sm)',
                   textAlign: 'center',
                   border: '1px solid var(--border-subtle)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', color: '#10b981' }}>
-                  <Zap size={14} />
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>SPEED</span>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '3px', color: '#10b981' }}>
+                  <Zap size={12} />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>SPEED</span>
                 </div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '2px' }}>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '2px' }}>
                   {character.speed} ft
                 </div>
               </div>
@@ -288,17 +412,35 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
               <div
                 style={{
                   background: 'var(--bg-surface-elevated)',
-                  padding: '0.6rem',
+                  padding: '0.5rem 0.25rem',
                   borderRadius: 'var(--radius-sm)',
                   textAlign: 'center',
                   border: '1px solid var(--border-subtle)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '4px', color: '#f59e0b' }}>
-                  <User size={14} />
-                  <span style={{ fontSize: '0.7rem', fontWeight: 600 }}>PASSIVE</span>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '3px', color: '#a855f7' }}>
+                  <Sparkles size={12} />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>PROF</span>
                 </div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: '2px' }}>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '2px' }}>
+                  +{proficiencyBonus}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface-elevated)',
+                  padding: '0.5rem 0.25rem',
+                  borderRadius: 'var(--radius-sm)',
+                  textAlign: 'center',
+                  border: '1px solid var(--border-subtle)',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '3px', color: '#f59e0b' }}>
+                  <User size={12} />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>PASSIVE</span>
+                </div>
+                <div style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '2px' }}>
                   {character.passivePerception}
                 </div>
               </div>
@@ -362,7 +504,7 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
               </div>
             </div>
 
-            {/* Ability Scores Grid */}
+            {/* Ability Scores Grid (Modifier Large, Score Small) */}
             <div style={{ marginBottom: '1.25rem' }}>
               <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                 ABILITY SCORES
@@ -375,21 +517,145 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
                       backgroundColor: 'var(--bg-surface-elevated)',
                       border: '1px solid var(--border-subtle)',
                       borderRadius: 'var(--radius-sm)',
-                      padding: '0.4rem 0.2rem',
+                      padding: '0.45rem 0.2rem 0.35rem 0.2rem',
                       textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                   >
                     <div style={{ fontSize: '0.65rem', fontWeight: 700, color: 'var(--text-muted)' }}>
                       {stat.toUpperCase()}
                     </div>
-                    <div style={{ fontSize: '0.9rem', fontWeight: 800 }}>{score}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                    {/* MODIFIER LARGE */}
+                    <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.15, marginTop: '2px' }}>
                       {getModifier(score)}
+                    </div>
+                    {/* SCORE SMALL */}
+                    <div
+                      style={{
+                        fontSize: '0.65rem',
+                        color: 'var(--text-secondary)',
+                        fontWeight: 600,
+                        backgroundColor: 'rgba(255, 255, 255, 0.07)',
+                        borderRadius: '999px',
+                        padding: '1px 5px',
+                        marginTop: '2px',
+                      }}
+                    >
+                      {score}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Skills & Proficiencies Section */}
+            {character.skills && character.skills.length > 0 && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    SKILLS ({character.skills.filter((s) => s.proficiency !== 'none').length} Trained)
+                  </div>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ fontSize: '0.68rem', padding: '2px 7px' }}
+                    onClick={() => setShowOnlyTrainedSkills((v) => !v)}
+                  >
+                    {showOnlyTrainedSkills ? 'Show All Skills' : 'Trained Only'}
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    maxHeight: '180px',
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '3px',
+                    background: 'var(--bg-surface-elevated)',
+                    padding: '0.4rem',
+                    borderRadius: 'var(--radius-sm)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  {(showOnlyTrainedSkills
+                    ? character.skills.filter((s) => s.proficiency !== 'none')
+                    : character.skills
+                  ).map((skill) => (
+                    <div
+                      key={skill.name}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '0.25rem 0.4rem',
+                        borderRadius: 'var(--radius-xs)',
+                        backgroundColor:
+                          skill.proficiency === 'expertise'
+                            ? 'rgba(245, 158, 11, 0.12)'
+                            : skill.proficiency === 'proficient'
+                            ? 'rgba(16, 185, 129, 0.1)'
+                            : 'transparent',
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span
+                          style={{
+                            display: 'inline-block',
+                            width: '10px',
+                            height: '10px',
+                            borderRadius: '50%',
+                            backgroundColor:
+                              skill.proficiency === 'expertise'
+                                ? '#f59e0b'
+                                : skill.proficiency === 'proficient'
+                                ? '#10b981'
+                                : 'transparent',
+                            border:
+                              skill.proficiency === 'none'
+                                ? '1.5px solid var(--text-muted)'
+                                : 'none',
+                          }}
+                          title={skill.proficiency.toUpperCase()}
+                        />
+                        <span style={{ fontSize: '0.8rem', fontWeight: skill.proficiency !== 'none' ? 600 : 400 }}>
+                          {skill.name}
+                        </span>
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                          ({skill.stat})
+                        </span>
+                        {skill.proficiency === 'expertise' && (
+                          <span
+                            style={{
+                              fontSize: '0.6rem',
+                              color: '#f59e0b',
+                              fontWeight: 700,
+                              background: 'rgba(245, 158, 11, 0.2)',
+                              padding: '1px 4px',
+                              borderRadius: '4px',
+                            }}
+                          >
+                            EXP
+                          </span>
+                        )}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.85rem',
+                          fontWeight: 700,
+                          color: skill.proficiency !== 'none' ? 'var(--text-primary)' : 'var(--text-muted)',
+                        }}
+                      >
+                        {skill.modifier >= 0 ? `+${skill.modifier}` : skill.modifier}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Spells & Features Section */}
             <div>

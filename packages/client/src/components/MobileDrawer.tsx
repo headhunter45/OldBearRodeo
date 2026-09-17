@@ -13,9 +13,12 @@ import {
   MicOff,
   Headphones,
   Radio,
+  Database,
 } from 'lucide-react';
 import { Player } from '@oldbear/shared';
 import { VoiceState } from '../network/VoiceManager.js';
+
+import { COLOR_VALUES } from '../config/colors.js';
 
 interface MobileDrawerProps {
   isOpen: boolean;
@@ -27,6 +30,7 @@ interface MobileDrawerProps {
   onOpenCharacter: () => void;
   onOpenMaps: () => void;
   onOpenSoundboard: () => void;
+  onOpenBackup?: () => void;
   voiceState?: VoiceState;
   onToggleMute?: () => void;
   onToggleDeafen?: () => void;
@@ -34,7 +38,7 @@ interface MobileDrawerProps {
   isGm: boolean;
 }
 
-const PLAYER_COLORS = ['#6366f1', '#ef4444', '#10b981', '#f59e0b', '#0ea5e9', '#ec4899', '#8b5cf6'];
+const PLAYER_COLORS = COLOR_VALUES;
 
 export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   isOpen,
@@ -46,6 +50,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   onOpenCharacter,
   onOpenMaps,
   onOpenSoundboard,
+  onOpenBackup,
   voiceState,
   onToggleMute,
   onToggleDeafen,
@@ -69,54 +74,73 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const isSendingAudio =
+    !voiceState?.isMuted &&
+    !voiceState?.isForceMuted &&
+    Boolean(voiceState?.isSpeaking || voiceState?.isPttActive);
+
   return (
     <div
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(0,0,0,0.7)',
-        backdropFilter: 'blur(8px)',
-        zIndex: 50,
+        backgroundColor: 'rgba(0, 0, 0, 0.65)',
+        backdropFilter: 'blur(6px)',
+        zIndex: 100,
         display: 'flex',
         justifyContent: 'flex-end',
       }}
       onClick={onClose}
     >
       <div
-        className="glass-panel-elevated animate-slide-right"
+        className="glass-panel"
         style={{
-          width: '100%',
-          maxWidth: '320px',
+          width: '85%',
+          maxWidth: '360px',
           height: '100%',
+          borderRadius: 0,
+          borderRight: 'none',
+          borderTop: 'none',
+          borderBottom: 'none',
           display: 'flex',
           flexDirection: 'column',
           padding: '1.25rem',
           overflowY: 'auto',
+          animation: 'fadeIn 0.2s ease',
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span style={{ fontSize: '1.3rem' }}>🐻</span>
-            <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: '1.1rem' }}>
-              OldBear Menu
-            </h3>
-          </div>
-          <button className="btn-icon" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Quick Voice Bar */}
+        {/* Drawer Header */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            background: 'var(--bg-surface-elevated)',
-            padding: '0.6rem 0.8rem',
-            borderRadius: 'var(--radius-md)',
+            marginBottom: '1.25rem',
+            paddingBottom: '0.75rem',
+            borderBottom: '1px solid var(--border-subtle)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span style={{ fontSize: '1.25rem' }}>🐻</span>
+            <span style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.02em' }}>
+              Old Bear Rodeo
+            </span>
+          </div>
+          <button className="btn-icon" onClick={onClose} style={{ width: '32px', height: '32px' }}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Voice Controls Section */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '0.6rem 0.75rem',
+            backgroundColor: 'rgba(255, 255, 255, 0.03)',
+            borderRadius: 'var(--radius-sm)',
             border: '1px solid var(--border-subtle)',
             marginBottom: '1rem',
           }}
@@ -132,17 +156,17 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               }}
             />
             <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-              {voiceState?.isForceMuted ? 'Muted by GM' : voiceState?.isMuted ? 'Mic Muted' : 'Voice Active'}
+              {voiceState?.isForceMuted ? 'Muted by GM' : voiceState?.isMuted ? 'Mic Muted' : isSendingAudio ? 'Transmitting...' : 'Voice Active'}
             </span>
           </div>
 
           <div style={{ display: 'flex', gap: '0.35rem' }}>
             <button
-              className="btn-icon"
+              className={`btn-icon ${isSendingAudio ? 'anim-sending-audio' : ''}`}
               style={{
                 width: '32px',
                 height: '32px',
-                color: voiceState?.isMuted || voiceState?.isForceMuted ? 'var(--accent-rose)' : undefined,
+                color: voiceState?.isMuted || voiceState?.isForceMuted ? 'var(--accent-rose)' : isSendingAudio ? 'var(--accent-emerald)' : undefined,
               }}
               onClick={onToggleMute}
               title="Toggle Microphone"
@@ -292,6 +316,19 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           >
             <Volume2 size={18} color="var(--accent-emerald)" /> Soundboard
           </button>
+
+          {onOpenBackup && (
+            <button
+              className="btn btn-secondary"
+              style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+              onClick={() => {
+                onClose();
+                onOpenBackup();
+              }}
+            >
+              <Database size={18} color="var(--accent-primary)" /> Backup & Transfer Data
+            </button>
+          )}
 
           {isGm && (
             <button

@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { ActiveTool } from '../engine/CanvasEngine.js';
 
+import { COLOR_VALUES } from '../config/colors.js';
+
 interface ToolBarProps {
   activeTool: ActiveTool;
   onSelectTool: (tool: ActiveTool) => void;
@@ -21,9 +23,11 @@ interface ToolBarProps {
   onToggleSnap: () => void;
   userColor: string;
   onChangeColor: (color: string) => void;
+  showGrid?: boolean;
+  onToggleGrid?: () => void;
 }
 
-const COLORS = ['#6366f1', '#ef4444', '#10b981', '#f59e0b', '#0ea5e9', '#ec4899'];
+const COLORS = COLOR_VALUES;
 
 export const ToolBar: React.FC<ToolBarProps> = ({
   activeTool,
@@ -33,6 +37,8 @@ export const ToolBar: React.FC<ToolBarProps> = ({
   onToggleSnap,
   userColor,
   onChangeColor,
+  showGrid,
+  onToggleGrid,
 }) => {
   return (
     <div
@@ -138,6 +144,21 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       >
         <Grid size={18} />
       </button>
+
+      {/* Grid Overlay Visibility Toggle */}
+      {onToggleGrid && (
+        <button
+          className={`btn-icon ${showGrid ? 'active' : ''}`}
+          onClick={onToggleGrid}
+          title={`Map Grid Overlay: ${showGrid ? 'VISIBLE' : 'HIDDEN'}`}
+          style={{
+            color: showGrid ? 'var(--accent-emerald)' : 'var(--text-muted)',
+            backgroundColor: showGrid ? 'rgba(16, 185, 129, 0.15)' : undefined,
+          }}
+        >
+          <Grid size={16} />
+        </button>
+      )}
 
       {/* User Color Selector */}
       <div

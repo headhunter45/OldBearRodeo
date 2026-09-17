@@ -258,7 +258,7 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
           };
         }
       }
-      broadcastToRoom(ws.roomId, { type: 'map-added', map: msg.map }, ws);
+      broadcastToRoom(ws.roomId, { type: 'map-added', map: msg.map });
       break;
     }
 

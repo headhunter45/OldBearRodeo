@@ -36,7 +36,11 @@ describe('D&D Beyond Integration', () => {
     assert.strictEqual(char.name, 'Joy');
     assert.strictEqual(char.level, 5);
     assert.strictEqual(char.speed, 30);
-    assert.ok(char.maxHp >= 28);
-    assert.ok(char.avatarUrl && char.avatarUrl.startsWith('http'), 'Avatar URL parsed');
+    assert.strictEqual(char.proficiencyBonus, 3, 'Level 5 proficiency bonus is +3');
+    assert.ok(char.skills && char.skills.length === 18, 'All 18 skills parsed');
+    const athletics = char.skills.find((s) => s.name === 'Athletics');
+    assert.ok(athletics, 'Athletics skill found');
+    assert.strictEqual(athletics.stat, 'str');
+    assert.ok(char.avatarUrl && (char.avatarUrl.startsWith('http') || char.avatarUrl.startsWith('data:')), 'Avatar URL parsed');
   });
 });

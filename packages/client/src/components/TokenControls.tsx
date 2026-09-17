@@ -1,16 +1,18 @@
 import React from 'react';
 import { Token, Player, GameMap } from '@oldbear/shared';
-import { Heart, Shield, Plus, Minus, Settings, Trash2, ArrowRightLeft } from 'lucide-react';
+import { Heart, Shield, Plus, Minus, Settings, Trash2, ArrowRightLeft, Copy, UserCheck } from 'lucide-react';
 
 interface TokenControlsProps {
   token: Token;
   onUpdateToken: (id: string, updates: Partial<Token>) => void;
   onDeleteToken: (id: string) => void;
+  onDuplicateToken?: (token: Token) => void;
   onTransferToken: (id: string, toMapId: string) => void;
   onOpenFullEditor: () => void;
   canControl: boolean;
   isGm: boolean;
   maps: GameMap[];
+  players?: Player[];
 }
 
 const ALL_CONDITIONS = [
@@ -23,11 +25,13 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
   token,
   onUpdateToken,
   onDeleteToken,
+  onDuplicateToken,
   onTransferToken,
   onOpenFullEditor,
   canControl,
   isGm,
   maps,
+  players = [],
 }) => {
   if (!canControl && !isGm) return null;
 
@@ -59,24 +63,45 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
         overflowX: 'auto',
       }}
     >
-      {/* Token Identity */}
+      {/* Token Identity: Square, Non-Squished Avatar */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-        <div
-          style={{
-            width: '32px',
-            height: '32px',
-            borderRadius: '50%',
-            backgroundColor: token.fillColor || '#1e293b',
-            border: `2px solid ${token.ringColor || '#64748b'}`,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontWeight: 'bold',
-            fontSize: '12px',
-          }}
-        >
-          {token.name[0]?.toUpperCase() || '?'}
-        </div>
+        {token.imageUrl ? (
+          <img
+            src={token.imageUrl}
+            alt={token.name}
+            style={{
+              width: '36px',
+              height: '36px',
+              minWidth: '36px',
+              borderRadius: 'var(--radius-sm)',
+              border: `2px solid ${token.ringColor || '#64748b'}`,
+              objectFit: 'cover',
+              aspectRatio: '1 / 1',
+              flexShrink: 0,
+              backgroundColor: token.fillColor || '#1e293b',
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              minWidth: '36px',
+              borderRadius: 'var(--radius-sm)',
+              backgroundColor: token.fillColor || '#1e293b',
+              border: `2px solid ${token.ringColor || '#64748b'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontWeight: 'bold',
+              fontSize: '13px',
+              flexShrink: 0,
+              aspectRatio: '1 / 1',
+            }}
+          >
+            {token.name[0]?.toUpperCase() || '?'}
+          </div>
+        )}
         <div>
           <div style={{ fontWeight: '600', fontSize: '0.875rem' }}>{token.name}</div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
@@ -224,6 +249,33 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
         </select>
       </div>
 
+      {/* Assign to Player (GM Feature) */}
+      {isGm && players.length > 0 && (
+        <select
+          style={{
+            background: 'var(--bg-surface-elevated)',
+            color: 'var(--text-primary)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '4px 8px',
+            fontSize: '0.75rem',
+            outline: 'none',
+          }}
+          value={token.ownerId || ''}
+          onChange={(e) => {
+            onUpdateToken(token.id, { ownerId: e.target.value || undefined });
+          }}
+          title="Assign control of this token to a player"
+        >
+          <option value="">Assigned: GM Only</option>
+          {players.map((p) => (
+            <option key={p.id} value={p.id}>
+              Assigned: {p.name}
+            </option>
+          ))}
+        </select>
+      )}
+
       {/* Move/Copy Token to Another Map (GM Feature) */}
       {isGm && maps.length > 1 && (
         <select
@@ -256,8 +308,17 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
         </select>
       )}
 
-      {/* Full Editor Modal & Delete */}
+      {/* Full Editor Modal, Duplicate & Delete */}
       <div style={{ display: 'flex', gap: '0.3rem' }}>
+        {onDuplicateToken && (
+          <button
+            className="btn-icon"
+            onClick={() => onDuplicateToken(token)}
+            title="Duplicate Token (Ctrl+D)"
+          >
+            <Copy size={16} />
+          </button>
+        )}
         <button className="btn-icon" onClick={onOpenFullEditor} title="Full Token Settings">
           <Settings size={16} />
         </button>

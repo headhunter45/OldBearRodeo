@@ -29,6 +29,11 @@ export interface GameMap {
   width: number;
   height: number;
   scaleFtPerCell: number; // default 5 (5ft per cell)
+  showGrid?: boolean;
+  gridOffsetX?: number;
+  gridOffsetY?: number;
+  tilesX?: number;
+  tilesY?: number;
 }
 
 export interface Token {
@@ -140,6 +145,13 @@ export interface DnDSpell {
   dndBeyondUrl: string;
 }
 
+export interface CharacterSkill {
+  name: string;
+  stat: 'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha';
+  modifier: number;
+  proficiency: 'none' | 'proficient' | 'expertise';
+}
+
 export interface DnDCharacter {
   id: string;
   name: string;
@@ -153,6 +165,7 @@ export interface DnDCharacter {
   speed: number;
   armorClass: number;
   passivePerception: number;
+  proficiencyBonus?: number;
   stats: {
     str: number;
     dex: number;
@@ -161,6 +174,7 @@ export interface DnDCharacter {
     wis: number;
     cha: number;
   };
+  skills?: CharacterSkill[];
   spells: DnDSpell[];
 }
 

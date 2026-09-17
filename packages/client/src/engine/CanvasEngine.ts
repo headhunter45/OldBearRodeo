@@ -90,6 +90,10 @@ export class CanvasEngine {
     this.currentMapId = mapId;
   }
 
+  selectToken(id: string | null) {
+    this.selectedTokenId = id;
+  }
+
   destroy() {
     cancelAnimationFrame(this.animId);
     this.unbindEvents();
@@ -306,8 +310,11 @@ export class CanvasEngine {
       (t) => t.mapId === currentMap.id
     );
 
-    // Find clicked token (reverse order to pick topmost token)
-    let clickedToken: Token | null = null;
+    const isGm = this.localPlayer?.role === 'gm';
+    const localId = this.localPlayer?.id;
+
+    // Find all clicked tokens under coordinate
+    const matchingTokens: Token[] = [];
     for (let i = tokens.length - 1; i >= 0; i--) {
       const tok = tokens[i];
       const tokDiameter = tok.size * currentMap.gridSize;
@@ -315,8 +322,24 @@ export class CanvasEngine {
       const cx = tok.x + radius;
       const cy = tok.y + radius;
       if (Math.hypot(worldPos.x - cx, worldPos.y - cy) <= radius) {
-        clickedToken = tok;
-        break;
+        matchingTokens.push(tok);
+      }
+    }
+
+    let clickedToken: Token | null = null;
+    if (matchingTokens.length > 0) {
+      // Prioritize tokens the player can control first
+      const isControllable = (t: Token) =>
+        isGm || t.ownerId === localId || Boolean(this.localPlayer?.assignedTokenIds?.includes(t.id));
+      const controllableTokens = matchingTokens.filter(isControllable);
+      const candidates = controllableTokens.length > 0 ? controllableTokens : matchingTokens;
+
+      // If a candidate token is already selected, cycle to the next one
+      const currentIndex = candidates.findIndex((t) => t.id === this.selectedTokenId);
+      if (currentIndex !== -1) {
+        clickedToken = candidates[(currentIndex + 1) % candidates.length];
+      } else {
+        clickedToken = candidates[0];
       }
     }
 
@@ -324,11 +347,11 @@ export class CanvasEngine {
     this.callbacks.onTokenSelect?.(clickedToken);
 
     if (clickedToken) {
-      const isGm = this.localPlayer?.role === 'gm';
-      const isOwner = clickedToken.ownerId === this.localPlayer?.id;
+      const isControllable =
+        isGm || clickedToken.ownerId === localId || Boolean(this.localPlayer?.assignedTokenIds?.includes(clickedToken.id));
 
-      // Player permissions check: Players can only move their own tokens!
-      if (isGm || isOwner) {
+      // Player permissions check: Players can only move their own tokens
+      if (isControllable) {
         this.draggingToken = clickedToken;
         this.dragStartPos = { x: clickedToken.x, y: clickedToken.y };
         this.dragCurrentPos = worldPos;

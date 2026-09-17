@@ -1,10 +1,20 @@
 import { GameMap } from '@oldbear/shared';
 import { Viewport } from './Viewport.js';
 
-export function snapToGrid(x: number, y: number, gridSize: number, tokenSize = 1): { x: number; y: number } {
+export function snapToGrid(
+  x: number,
+  y: number,
+  gridSize: number,
+  tokenSize = 1,
+  offsetX = 0,
+  offsetY = 0
+): { x: number; y: number } {
+  const offX = ((offsetX % gridSize) + gridSize) % gridSize;
+  const offY = ((offsetY % gridSize) + gridSize) % gridSize;
   const halfGrid = gridSize / 2;
-  const snappedX = Math.round((x - (tokenSize % 2 === 1 ? 0 : halfGrid)) / gridSize) * gridSize + (tokenSize % 2 === 1 ? 0 : halfGrid);
-  const snappedY = Math.round((y - (tokenSize % 2 === 1 ? 0 : halfGrid)) / gridSize) * gridSize + (tokenSize % 2 === 1 ? 0 : halfGrid);
+  const centerOffset = tokenSize % 2 === 1 ? 0 : halfGrid;
+  const snappedX = Math.round((x - offX - centerOffset) / gridSize) * gridSize + offX + centerOffset;
+  const snappedY = Math.round((y - offY - centerOffset) / gridSize) * gridSize + offY + centerOffset;
   return { x: snappedX, y: snappedY };
 }
 
@@ -15,9 +25,12 @@ export function renderGrid(
   canvasWidth: number,
   canvasHeight: number
 ) {
-  if (map.gridType === 'none' || map.gridSize <= 0) return;
+  if (map.showGrid === false || map.gridType === 'none' || map.gridSize <= 0) return;
 
   const { gridSize, gridColor, gridOpacity, width: mapWidth, height: mapHeight } = map;
+
+  const offsetX = (((map.gridOffsetX || 0) % gridSize) + gridSize) % gridSize;
+  const offsetY = (((map.gridOffsetY || 0) % gridSize) + gridSize) % gridSize;
 
   // Viewport bounds in world coordinates
   const topLeft = viewport.screenToWorld(0, 0);
@@ -30,20 +43,22 @@ export function renderGrid(
   const endY = Math.min(mapHeight, Math.ceil(bottomRight.y / gridSize) * gridSize);
 
   ctx.save();
-  ctx.strokeStyle = gridColor || 'rgba(255, 255, 255, 0.2)';
-  ctx.globalAlpha = gridOpacity ?? 0.25;
-  ctx.lineWidth = 1 / viewport.scale; // maintain crisp 1px screen width
+  ctx.strokeStyle = gridColor || 'rgba(255, 255, 255, 0.4)';
+  ctx.globalAlpha = gridOpacity ?? 0.4;
+  ctx.lineWidth = Math.max(1 / viewport.scale, 1); // Maintain crisp 1px visible line
 
   ctx.beginPath();
 
   if (map.gridType === 'square') {
-    // Vertical lines
-    for (let x = startX; x <= endX; x += gridSize) {
+    // Vertical grid lines with offset
+    const firstLineX = startX + (((offsetX - (startX % gridSize)) % gridSize) + gridSize) % gridSize;
+    for (let x = firstLineX; x <= endX; x += gridSize) {
       ctx.moveTo(x, Math.max(0, startY));
       ctx.lineTo(x, Math.min(mapHeight, endY));
     }
-    // Horizontal lines
-    for (let y = startY; y <= endY; y += gridSize) {
+    // Horizontal grid lines with offset
+    const firstLineY = startY + (((offsetY - (startY % gridSize)) % gridSize) + gridSize) % gridSize;
+    for (let y = firstLineY; y <= endY; y += gridSize) {
       ctx.moveTo(Math.max(0, startX), y);
       ctx.lineTo(Math.min(mapWidth, endX), y);
     }
@@ -51,14 +66,13 @@ export function renderGrid(
     // Hexagonal grid points
     const hexRadius = gridSize / Math.sqrt(3);
     const hexHeight = gridSize;
-    const hexWidth = hexRadius * 2;
     const horizDist = hexRadius * 1.5;
     const vertDist = hexHeight;
 
     for (let col = Math.floor(startX / horizDist); col * horizDist <= endX; col++) {
       for (let row = Math.floor(startY / vertDist); row * vertDist <= endY; row++) {
-        const cx = col * horizDist;
-        const cy = row * vertDist + (col % 2 ? hexHeight / 2 : 0);
+        const cx = col * horizDist + offsetX;
+        const cy = row * vertDist + (col % 2 ? hexHeight / 2 : 0) + offsetY;
         drawHexagon(ctx, cx, cy, hexRadius);
       }
     }

@@ -14,6 +14,7 @@ import {
   MicOff,
   Headphones,
   Radio,
+  Database,
 } from 'lucide-react';
 import { Player, GameMap } from '@oldbear/shared';
 import { VoiceState } from '../network/VoiceManager.js';
@@ -33,6 +34,7 @@ interface TopBarProps {
   onOpenCharacter: () => void;
   onOpenMaps: () => void;
   onOpenSoundboard: () => void;
+  onOpenBackup?: () => void;
   onAddNewToken: () => void;
   onToggleMobileDrawer: () => void;
 }
@@ -52,6 +54,7 @@ export const TopBar: React.FC<TopBarProps> = ({
   onOpenCharacter,
   onOpenMaps,
   onOpenSoundboard,
+  onOpenBackup,
   onAddNewToken,
   onToggleMobileDrawer,
 }) => {
@@ -62,6 +65,15 @@ export const TopBar: React.FC<TopBarProps> = ({
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
+
+  const isSendingAudio =
+    !voiceState?.isMuted &&
+    !voiceState?.isForceMuted &&
+    Boolean(voiceState?.isSpeaking || voiceState?.isPttActive);
+
+  const isReceivingAudio =
+    !voiceState?.isDeafened &&
+    (players.some((p) => p.id !== localPlayer?.id && p.isSpeaking) || Boolean(voiceState?.isAudioStreaming));
 
   return (
     <header
@@ -210,31 +222,58 @@ export const TopBar: React.FC<TopBarProps> = ({
 
         {/* Quick Voice Controls */}
         <button
-          className="btn-icon topbar-desktop-only"
+          className={`btn-icon topbar-desktop-only ${isSendingAudio ? 'anim-sending-audio' : ''}`}
           onClick={onToggleMute}
           title={
             voiceState?.isForceMuted
               ? 'Muted by GM'
               : voiceState?.isMuted
               ? 'Unmute Microphone'
+              : isSendingAudio
+              ? 'Transmitting Voice Audio'
               : 'Mute Microphone'
           }
           style={{
-            color: voiceState?.isForceMuted || voiceState?.isMuted ? 'var(--accent-rose)' : '#ffffff',
+            color:
+              voiceState?.isForceMuted || voiceState?.isMuted
+                ? 'var(--accent-rose)'
+                : isSendingAudio
+                ? 'var(--accent-emerald)'
+                : '#ffffff',
             backgroundColor:
-              voiceState?.isForceMuted || voiceState?.isMuted ? 'rgba(244, 63, 94, 0.15)' : undefined,
+              voiceState?.isForceMuted || voiceState?.isMuted
+                ? 'rgba(244, 63, 94, 0.15)'
+                : isSendingAudio
+                ? 'rgba(16, 185, 129, 0.25)'
+                : undefined,
           }}
         >
           {voiceState?.isForceMuted || voiceState?.isMuted ? <MicOff size={18} /> : <Mic size={18} />}
         </button>
 
         <button
-          className="btn-icon topbar-desktop-only"
+          className={`btn-icon topbar-desktop-only ${isReceivingAudio ? 'anim-receiving-audio' : ''}`}
           onClick={onToggleDeafen}
-          title={voiceState?.isDeafened ? 'Undeafen' : 'Deafen (Mute incoming sound & mic)'}
+          title={
+            voiceState?.isDeafened
+              ? 'Undeafen'
+              : isReceivingAudio
+              ? 'Receiving Audio Stream / Voice'
+              : 'Deafen (Mute incoming sound & mic)'
+          }
           style={{
-            color: voiceState?.isDeafened ? 'var(--accent-rose)' : '#ffffff',
-            backgroundColor: voiceState?.isDeafened ? 'rgba(244, 63, 94, 0.15)' : undefined,
+            color:
+              voiceState?.isDeafened
+                ? 'var(--accent-rose)'
+                : isReceivingAudio
+                ? '#38bdf8'
+                : '#ffffff',
+            backgroundColor:
+              voiceState?.isDeafened
+                ? 'rgba(244, 63, 94, 0.15)'
+                : isReceivingAudio
+                ? 'rgba(56, 189, 248, 0.25)'
+                : undefined,
           }}
         >
           <Headphones size={18} />
@@ -279,6 +318,17 @@ export const TopBar: React.FC<TopBarProps> = ({
         <button className="btn-icon topbar-desktop-only" onClick={onOpenSoundboard} title="Soundboard & Audio">
           <Volume2 size={18} />
         </button>
+
+        {/* Backup & Transfer Data Toggle */}
+        {onOpenBackup && (
+          <button
+            className="btn-icon topbar-desktop-only"
+            onClick={onOpenBackup}
+            title="Backup & Transfer Data (Export/Import)"
+          >
+            <Database size={18} />
+          </button>
+        )}
 
         {/* Mobile Hamburger Menu (visible always, primary on portrait) */}
         <button className="btn-icon" onClick={onToggleMobileDrawer} title="Menu" style={{ backgroundColor: 'var(--accent-primary)', color: '#ffffff' }}>
