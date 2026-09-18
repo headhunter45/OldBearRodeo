@@ -113,6 +113,29 @@ function nameGen(type) {
     - Drop `.monster` into the Asset Manager: It saves to the library for encounter prep without cluttering the current map.
     - When a GM drags a monster from the Asset Manager onto the map, it spawns a token with those settings, art, and auto-numbered names (e.g. Ankheg 1, Ankheg 2), with clickable statblock attacks and actions.
 74. ✅ Multi-file image drag-and-drop import: when image files are dragged in, prompt the user with a single unified view listing all dropped files. Allow toggling/selecting each file as a Map, Token, or Prop. Include bulk-selection aids ("Set all to Tokens", "Set all to Maps", "Set all to Props", "Check all") since users may import many images at once.
+75. When I change my player name it doesn't update in the icons at the top. The letter stays at what it was before until I refresh.
+76. When I open settings the nickname is "Player" and not the random nickname I was assigned. When I click save after typing in a different name the new name does not take effect for the icons at the bottom that show connected players or when I go back to the main screen the connected players at the top until I refresh the page.
+77. The hamburger menu animates in and out from the right instead of the left.
+78. Box select still only selects one token. I want it to select all tokens in the box so I can move them as a group, Assign them as a group, or duplicate them as a group.
+79. The button to change the initiative score is on the token info component at the bottom. It should be inline in the initiative tracker row. Perhaps a pen icon next to the roll one that puts a number input and green check / red x or yes/no icons to save the number or go back to the previous value.
+80. When I drag rows in the initiative tracker they don't stay and the scores don't change.
+81. When I click a row in the initiative tracker select the associated token and pan to focus on it. If it is one that is not attached to a token don't do that.
+82. When minimizing the initiative tracker we minimize too small it should be slightly larger to avoid clipping the icon, text, and buttons in the header. Minimized chat is perfect.
+83. Rolling via chat command or the buttons on the dice roller do not add the roll to history. 
+84. Refreshing the page adds me to the connected list again repeatedly.
+85. The flyout submenu for selection tools does not appear. The icon and tool do change when I use the shortcut keys. Same for the fog.
+86. I want to combine the grid similarly and have different icons for snap to grid and show grid. The snap to grid can be the same grid icon, but make the show/hide be the same as the hide/show fog eye icons.
+87. Remove the sound icons from the top bar now that they are in the hamburger menu.
+88. Move the toggle chat button into the left menu as well.
+89. Move dice roller, character sheet, initiative tracker, scene manager, add token, and backup and transfer, and soundbar buttons into the hamburger menu under the section with audio controls.
+90. When we know the dndbeyond id/url of a character prefill the sync url with that so the user can click sync to update it from dndbeyond.
+91. Let spell/skill/attack/item commands use the index from 1 of the results suggested with the bare command and include that index in the message that lists them.
+92. At the top of chat between /skill and /help include /spell now that /spell looks for spells on the character.
+93. When an asset is dragged in and added to the asset manager the asset manager display does not update to show it. I have to close and reopen it again.
+94. When editing a scene in the settings for it I have two vertical scrollbars.
+95. When I change grid type in a scene settings it chagnes the type value for all scenes, but the grid drawn and snapped to is still squeare not hexagonal
+96. I don't see anything showing my imported monsters and characters. Please add them to the asset manager.
+
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
 - **Discord Activity Integration**: Embed OldBearRodeo directly inside Discord voice channels using the Discord Embedded App SDK so players can launch and join sessions with a single click from their voice call, without needing room codes or link sharing.
