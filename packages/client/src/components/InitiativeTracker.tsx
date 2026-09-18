@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { InitiativeState, InitiativeItem, Token, Player } from '@oldbear/shared';
-import { Swords, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Trash2, X, Dices, HelpCircle, ChevronDown, GripVertical } from 'lucide-react';
+import { Swords, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Trash2, X, Dices, HelpCircle, ChevronDown, GripVertical, Pencil, Check } from 'lucide-react';
 import { useDraggableWindow } from '../hooks/useDraggableWindow.js';
 
 interface InitiativeTrackerProps {
@@ -421,13 +421,6 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                       value={editScore}
                       onClick={(e) => e.stopPropagation()}
                       onChange={(e) => setEditScore(Number(e.target.value))}
-                      onBlur={() => {
-                        const items = initiative.items
-                          .map((it) => (it.id === item.id ? { ...it, initiative: editScore } : it))
-                          .sort((a, b) => b.initiative - a.initiative);
-                        onUpdateInitiative({ ...initiative, items });
-                        setEditingItemId(null);
-                      }}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') {
                           const items = initiative.items
@@ -439,7 +432,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                         if (e.key === 'Escape') setEditingItemId(null);
                       }}
                       style={{
-                        width: '34px',
+                        width: '38px',
                         height: '28px',
                         borderRadius: 'var(--radius-sm)',
                         backgroundColor: 'var(--bg-surface)',
@@ -449,16 +442,19 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                         fontSize: '0.85rem',
                         textAlign: 'center',
                         padding: 0,
+                        flexShrink: 0,
                       }}
                     />
                   ) : (
                     <div
                       onClick={(e) => {
-                        e.stopPropagation();
-                        setEditingItemId(item.id);
-                        setEditScore(item.initiative);
+                        if (isGm) {
+                          e.stopPropagation();
+                          setEditingItemId(item.id);
+                          setEditScore(item.initiative);
+                        }
                       }}
-                      title="Click to edit initiative score"
+                      title={isGm ? "Click to edit initiative score" : undefined}
                       style={{
                         width: '28px',
                         height: '28px',
@@ -470,7 +466,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                         justifyContent: 'center',
                         fontWeight: 700,
                         fontSize: '0.8rem',
-                        cursor: 'pointer',
+                        cursor: isGm ? 'pointer' : 'default',
                         userSelect: 'none',
                         border: '1.5px solid rgba(255, 255, 255, 0.4)',
                         boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
@@ -491,30 +487,89 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  {isGm && (
-                    <button
-                      className="btn-icon"
-                      title="Reroll Initiative (using character bonus)"
-                      style={{ width: '24px', height: '24px', color: 'var(--text-secondary)' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRerollItem(item);
-                      }}
-                    >
-                      <Dices size={13} />
-                    </button>
-                  )}
-                  {isGm && (
-                    <button
-                      className="btn-icon"
-                      style={{ width: '24px', height: '24px', color: '#f43f5e' }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleRemove(item.id);
-                      }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
+                  {editingItemId === item.id ? (
+                    <>
+                      <button
+                        className="btn-icon"
+                        title="Save initiative score (Enter)"
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          color: '#10b981',
+                          border: '1px solid rgba(16, 185, 129, 0.5)',
+                          backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const items = initiative.items
+                            .map((it) => (it.id === item.id ? { ...it, initiative: editScore } : it))
+                            .sort((a, b) => b.initiative - a.initiative);
+                          onUpdateInitiative({ ...initiative, items });
+                          setEditingItemId(null);
+                        }}
+                      >
+                        <Check size={13} />
+                      </button>
+                      <button
+                        className="btn-icon"
+                        title="Cancel (Esc)"
+                        style={{
+                          width: '24px',
+                          height: '24px',
+                          color: '#f43f5e',
+                          border: '1px solid rgba(244, 63, 94, 0.5)',
+                          backgroundColor: 'rgba(244, 63, 94, 0.2)',
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingItemId(null);
+                        }}
+                      >
+                        <X size={13} />
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      {isGm && (
+                        <button
+                          className="btn-icon"
+                          title="Reroll Initiative (using character bonus)"
+                          style={{ width: '24px', height: '24px', color: 'var(--text-secondary)' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRerollItem(item);
+                          }}
+                        >
+                          <Dices size={13} />
+                        </button>
+                      )}
+                      {isGm && (
+                        <button
+                          className="btn-icon"
+                          title="Edit Initiative Score"
+                          style={{ width: '24px', height: '24px', color: 'var(--text-secondary)' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingItemId(item.id);
+                            setEditScore(item.initiative);
+                          }}
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                      {isGm && (
+                        <button
+                          className="btn-icon"
+                          style={{ width: '24px', height: '24px', color: '#f43f5e' }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemove(item.id);
+                          }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

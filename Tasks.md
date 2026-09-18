@@ -117,7 +117,7 @@ function nameGen(type) {
 76. ✅ When I open settings the nickname is "Player" and not the random nickname I was assigned. When I click save after typing in a different name the new name does not take effect for the icons at the bottom that show connected players or when I go back to the main screen the connected players at the top until I refresh the page.
 77. ✅ The hamburger menu animates in and out from the right instead of the left.
 78. ✅ Box select still only selects one token. I want it to select all tokens in the box so I can move them as a group, Assign them as a group, or duplicate them as a group.
-79. The button to change the initiative score is on the token info component at the bottom. It should be inline in the initiative tracker row. Perhaps a pen icon next to the roll one that puts a number input and green check / red x or yes/no icons to save the number or go back to the previous value.
+79. ✅ The button to change the initiative score is on the token info component at the bottom. It should be inline in the initiative tracker row. Perhaps a pen icon next to the roll one that puts a number input and green check / red x or yes/no icons to save the number or go back to the previous value.
 80. When I drag rows in the initiative tracker they don't stay and the scores don't change.
 81. When I click a row in the initiative tracker select the associated token and pan to focus on it. If it is one that is not attached to a token don't do that.
 82. When minimizing the initiative tracker we minimize too small it should be slightly larger to avoid clipping the icon, text, and buttons in the header. Minimized chat is perfect.
