@@ -72,6 +72,13 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     localPlayer?.color || localStorage.getItem('oldbear_player_color') || '#6366f1'
   );
   const [copied, setCopied] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsClosing(false);
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (localPlayer) {
@@ -85,7 +92,15 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
     }
   }, [localPlayer, isOpen]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !isClosing) return null;
+
+  const handleClose = () => {
+    setIsClosing(true);
+    setTimeout(() => {
+      setIsClosing(false);
+      onClose();
+    }, 240);
+  };
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +120,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
   return (
     <div
+      className={isClosing ? 'animate-fade-out' : 'animate-fade-in'}
       style={{
         position: 'fixed',
         inset: 0,
@@ -112,25 +128,25 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         backdropFilter: 'blur(6px)',
         zIndex: 100,
         display: 'flex',
-        justifyContent: 'flex-end',
+        justifyContent: 'flex-start',
       }}
-      onClick={onClose}
+      onClick={handleClose}
     >
       <div
-        className="glass-panel"
+        className={`glass-panel ${isClosing ? 'animate-slide-left-out' : 'animate-slide-left'}`}
         style={{
           width: '85%',
           maxWidth: '360px',
           height: '100%',
           borderRadius: 0,
-          borderRight: 'none',
+          borderLeft: 'none',
           borderTop: 'none',
           borderBottom: 'none',
+          borderRight: '1px solid var(--border-subtle)',
           display: 'flex',
           flexDirection: 'column',
           padding: '1.25rem',
           overflowY: 'auto',
-          animation: 'fadeIn 0.2s ease',
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -151,7 +167,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               Old Bear Rodeo
             </span>
           </div>
-          <button className="btn-icon" onClick={onClose} style={{ width: '32px', height: '32px' }}>
+          <button className="btn-icon" onClick={handleClose} style={{ width: '32px', height: '32px' }}>
             <X size={18} />
           </button>
         </div>
