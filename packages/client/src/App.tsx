@@ -1051,10 +1051,11 @@ export const App: React.FC = () => {
     ? Object.values(session?.tokens || {}).find((t) => t.ownerId === localPlayer.id)
     : null;
 
-  // Keyboard shortcuts (Bugs #16, #39, #60, #61):
+  // Keyboard shortcuts (Bugs #16, #39, #60, #61, #62):
   // 1-5: Ephemeral highlight tools (laser, arrow, crosshair, circle, rectangle)
   // g: Grab tool (pan viewport)
   // s: Select tool
+  // b: Box select tool
   // f: Fog hide (GM only)
   // r: Fog reveal (GM only)
   // d / Ctrl+D / Cmd+D: Duplicate selected token
@@ -1101,6 +1102,11 @@ export const App: React.FC = () => {
       if (key === 's') {
         e.preventDefault();
         setActiveTool('select');
+        return;
+      }
+      if (key === 'b') {
+        e.preventDefault();
+        setActiveTool('box-select');
         return;
       }
       if (key === 'f') {

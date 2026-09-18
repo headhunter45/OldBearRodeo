@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   MousePointer,
   Hand,
+  BoxSelect,
   Sparkles,
   ArrowUpRight,
   Crosshair,
@@ -94,6 +95,15 @@ export const ToolBar: React.FC<ToolBarProps> = ({
         title="Grab"
       >
         <Hand size={18} />
+      </button>
+
+      {/* Box Select Tool (Bug #62) */}
+      <button
+        className={`btn-icon ${activeTool === 'box-select' ? 'active' : ''}`}
+        onClick={() => onSelectTool('box-select')}
+        title="Box Select (B)"
+      >
+        <BoxSelect size={18} />
       </button>
 
       <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.2rem 0' }} />

@@ -16,6 +16,7 @@ import { drawRuler, measureDistance, RulerMeasurement } from './Ruler.js';
 export type ActiveTool =
   | 'select'
   | 'pan'
+  | 'box-select'
   | 'laser'
   | 'arrow'
   | 'crosshair'
@@ -238,10 +239,16 @@ export class CanvasEngine {
       ctx.fillStyle = 'rgba(99, 102, 241, 0.2)';
       ctx.fill();
       ctx.stroke();
-    } else if (this.activeTool === 'rectangle' || this.activeTool.startsWith('fog')) {
+    } else if (this.activeTool === 'rectangle' || this.activeTool.startsWith('fog') || this.activeTool === 'box-select') {
       ctx.fillStyle = this.activeTool === 'fog-reveal'
         ? 'rgba(255, 255, 255, 0.2)'
+        : this.activeTool === 'box-select'
+        ? 'rgba(99, 102, 241, 0.15)'
         : 'rgba(0, 0, 0, 0.4)';
+      if (this.activeTool === 'box-select') {
+        ctx.strokeStyle = '#6366f1';
+        ctx.setLineDash([4, 4]);
+      }
       ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
       ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
     }
@@ -277,6 +284,10 @@ export class CanvasEngine {
 
     if (this.activeTool === 'select') {
       this.handleSelectPointerDown(worldPos);
+    } else if (this.activeTool === 'box-select') {
+      this.isDrawing = true;
+      this.drawStart = worldPos;
+      this.drawCurrent = worldPos;
     } else if (this.activeTool === 'crosshair') {
       this.broadcastMarker({
         id: crypto.randomUUID(),
@@ -496,6 +507,44 @@ export class CanvasEngine {
 
     const { x: x1, y: y1 } = this.drawStart;
     const { x: x2, y: y2 } = this.drawCurrent;
+
+    if (this.activeTool === 'box-select') {
+      if (Math.abs(x2 - x1) < 5 && Math.abs(y2 - y1) < 5) {
+        this.handleSelectPointerDown(this.drawStart);
+        return;
+      }
+
+      const minX = Math.min(x1, x2);
+      const maxX = Math.max(x1, x2);
+      const minY = Math.min(y1, y2);
+      const maxY = Math.max(y1, y2);
+
+      const currentMap =
+        this.session?.maps.find((m) => m.id === this.currentMapId) ||
+        this.session?.maps[0];
+      if (!currentMap || !this.session) return;
+
+      const tokens = Object.values(this.session.tokens).filter(
+        (t) => t.mapId === currentMap.id
+      );
+
+      const isGm = this.localPlayer?.role === 'gm';
+      const localId = this.localPlayer?.id;
+      const isControllable = (t: Token) =>
+        isGm || t.ownerId === localId || Boolean(this.localPlayer?.assignedTokenIds?.includes(t.id));
+
+      const enclosedTokens = tokens.filter((t) => {
+        const tokDiameter = t.size * currentMap.gridSize;
+        const cx = t.x + tokDiameter / 2;
+        const cy = t.y + tokDiameter / 2;
+        return cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
+      });
+
+      const selected = enclosedTokens.find(isControllable) || enclosedTokens[0] || null;
+      this.selectedTokenId = selected ? selected.id : null;
+      this.callbacks.onTokenSelect?.(selected);
+      return;
+    }
 
     if (this.activeTool === 'laser') {
       this.broadcastMarker({
