@@ -124,7 +124,7 @@ function nameGen(type) {
 83. ✅ Rolling via chat command or the buttons on the dice roller do not add the roll to history. 
 84. ✅ Refreshing the page adds me to the connected list again repeatedly.
 85. ✅ The flyout submenu for selection tools does not appear. The icon and tool do change when I use the shortcut keys. Same for the fog.
-86. I want to combine the grid similarly and have different icons for snap to grid and show grid. The snap to grid can be the same grid icon, but make the show/hide be the same as the hide/show fog eye icons.
+86. ✅ I want to combine the grid similarly and have different icons for snap to grid and show grid. The snap to grid can be the same grid icon, but make the show/hide be the same as the hide/show fog eye icons.
 87. Remove the sound icons from the top bar now that they are in the hamburger menu.
 88. Move the toggle chat button into the left menu as well.
 89. Move dice roller, character sheet, initiative tracker, scene manager, add token, and backup and transfer, and soundbar buttons into the hamburger menu under the section with audio controls.

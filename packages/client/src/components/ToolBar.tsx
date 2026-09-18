@@ -56,6 +56,9 @@ export const ToolBar: React.FC<ToolBarProps> = ({
   const [showHighlightMenu, setShowHighlightMenu] = useState(false);
   const highlightMenuRef = useRef<HTMLDivElement>(null);
 
+  const [showGridMenu, setShowGridMenu] = useState(false);
+  const gridMenuRef = useRef<HTMLDivElement>(null);
+
   const isSelectTool = ['select', 'box-select', 'pan'].includes(activeTool);
   const isHighlightTool = ['laser', 'arrow', 'crosshair', 'circle', 'rectangle'].includes(activeTool);
 
@@ -71,12 +74,15 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       if (highlightMenuRef.current && !highlightMenuRef.current.contains(target)) {
         setShowHighlightMenu(false);
       }
+      if (gridMenuRef.current && !gridMenuRef.current.contains(target)) {
+        setShowGridMenu(false);
+      }
     };
-    if (showSelectMenu || showFogMenu || showHighlightMenu) {
+    if (showSelectMenu || showFogMenu || showHighlightMenu || showGridMenu) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showSelectMenu, showFogMenu, showHighlightMenu]);
+  }, [showSelectMenu, showFogMenu, showHighlightMenu, showGridMenu]);
   return (
     <div
       className="floating-hud floating-hud-toolbar glass-panel"
@@ -93,6 +99,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
             setShowSelectMenu((v) => !v);
             setShowHighlightMenu(false);
             setShowFogMenu(false);
+            setShowGridMenu(false);
           }}
           title="Selection Tools (S / B / G)"
         >
@@ -194,6 +201,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
             setShowHighlightMenu((v) => !v);
             setShowSelectMenu(false);
             setShowFogMenu(false);
+            setShowGridMenu(false);
           }}
           title="Highlights & Markers (1-5)"
         >
@@ -340,6 +348,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
                 setShowFogMenu((v) => !v);
                 setShowSelectMenu(false);
                 setShowHighlightMenu(false);
+                setShowGridMenu(false);
               }}
               title="Fog of War Controls"
               style={{
@@ -458,29 +467,79 @@ export const ToolBar: React.FC<ToolBarProps> = ({
 
       <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.2rem 0' }} />
 
-      {/* Snap to Grid Toggle */}
-      <button
-        className={`btn-icon ${snapEnabled ? 'active' : ''}`}
-        onClick={onToggleSnap}
-        title={`Grid Snap: ${snapEnabled ? 'ON' : 'OFF'}`}
-      >
-        <Grid size={18} />
-      </button>
-
-      {/* Grid Overlay Visibility Toggle */}
-      {onToggleGrid && (
+      {/* Grid Controls Sub-menu (Flyout) */}
+      <div ref={gridMenuRef} style={{ position: 'relative' }}>
         <button
-          className={`btn-icon ${showGrid ? 'active' : ''}`}
-          onClick={onToggleGrid}
-          title={`Map Grid Overlay: ${showGrid ? 'VISIBLE' : 'HIDDEN'}`}
+          className={`btn-icon ${snapEnabled || showGrid || showGridMenu ? 'active' : ''}`}
+          onClick={() => {
+            setShowGridMenu((v) => !v);
+            setShowSelectMenu(false);
+            setShowHighlightMenu(false);
+            setShowFogMenu(false);
+          }}
+          title="Grid Controls (Snap & Visibility)"
           style={{
-            color: showGrid ? 'var(--accent-emerald)' : 'var(--text-muted)',
-            backgroundColor: showGrid ? 'rgba(16, 185, 129, 0.15)' : undefined,
+            color: showGrid ? 'var(--accent-emerald)' : undefined,
           }}
         >
-          <Grid size={16} />
+          <Grid size={18} />
         </button>
-      )}
+
+        {showGridMenu && (
+          <div
+            className="glass-panel"
+            style={{
+              position: 'absolute',
+              left: 'calc(100% + 8px)',
+              top: '0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.35rem',
+              padding: '0.4rem',
+              zIndex: 100,
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+              minWidth: '170px',
+            }}
+          >
+            <button
+              className={`btn btn-secondary ${snapEnabled ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.35rem 0.6rem',
+                fontSize: '0.8rem',
+                justifyContent: 'flex-start',
+              }}
+              onClick={onToggleSnap}
+              title={`Grid Snap: ${snapEnabled ? 'ON' : 'OFF'}`}
+            >
+              <Grid size={16} />
+              <span>Snap to Grid ({snapEnabled ? 'ON' : 'OFF'})</span>
+            </button>
+
+            {onToggleGrid && (
+              <button
+                className={`btn btn-secondary ${showGrid ? 'active' : ''}`}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.35rem 0.6rem',
+                  fontSize: '0.8rem',
+                  justifyContent: 'flex-start',
+                  color: showGrid ? 'var(--accent-emerald)' : undefined,
+                }}
+                onClick={onToggleGrid}
+                title={`Map Grid Overlay: ${showGrid ? 'VISIBLE' : 'HIDDEN'}`}
+              >
+                {showGrid ? <Eye size={16} /> : <EyeOff size={16} />}
+                <span>{showGrid ? 'Hide Grid' : 'Show Grid'}</span>
+              </button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* User Color Selector */}
       <div
