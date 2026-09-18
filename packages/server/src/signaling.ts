@@ -378,6 +378,11 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
 
     case 'chat-send': {
       if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session && msg.message.roll) {
+        session.diceHistory.push(msg.message.roll);
+        if (session.diceHistory.length > 50) session.diceHistory.shift();
+      }
       if (msg.message.recipientId) {
         sendToPeer(ws.roomId, msg.message.recipientId, {
           type: 'chat-message',

@@ -27,15 +27,21 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   userColor,
   userId,
   onRoll,
-  rollHistory,
+  rollHistory = [],
   onClose,
 }) => {
   const [modifier, setModifier] = useState<number>(0);
   const [diceCount, setDiceCount] = useState<number>(1);
   const [viewFilter, setViewFilter] = useState<'mine' | 'all'>('mine');
 
-  const myRolls = rollHistory.filter((r) => r.userId === userId || (!r.userId && r.userName === userName));
-  const displayedRolls = viewFilter === 'mine' ? myRolls : rollHistory;
+  const safeHistory = rollHistory || [];
+  const myRolls = safeHistory.filter(
+    (r) =>
+      (userId && r.userId === userId) ||
+      (userName && r.userName && r.userName.toLowerCase() === userName.toLowerCase()) ||
+      (!r.userId && !r.userName)
+  );
+  const displayedRolls = viewFilter === 'mine' ? myRolls : safeHistory;
 
   const rollDice = (
     diceType: DieType,
@@ -251,7 +257,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
             }}
             onClick={() => setViewFilter('all')}
           >
-            All ({rollHistory.length})
+            All ({safeHistory.length})
           </button>
         </div>
       </div>

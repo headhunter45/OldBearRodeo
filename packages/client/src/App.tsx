@@ -367,9 +367,11 @@ export const App: React.FC = () => {
           setActiveRollAnnouncement(msg.roll);
           setSession((prev) => {
             if (!prev) return prev;
+            const history = prev.diceHistory || [];
+            if (history.some((r) => r.id === msg.roll.id)) return prev;
             return {
               ...prev,
-              diceHistory: [...prev.diceHistory, msg.roll],
+              diceHistory: [...history, msg.roll],
             };
           });
           break;
@@ -385,6 +387,15 @@ export const App: React.FC = () => {
           }
           if (msg.message.roll) {
             setActiveRollAnnouncement(msg.message.roll);
+            setSession((prev) => {
+              if (!prev) return prev;
+              const history = prev.diceHistory || [];
+              if (history.some((r) => r.id === msg.message.roll!.id)) return prev;
+              return {
+                ...prev,
+                diceHistory: [...history, msg.message.roll!],
+              };
+            });
           }
           break;
         }
@@ -1236,6 +1247,18 @@ export const App: React.FC = () => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [selectedToken, selectedTokens, session, localPlayer, currentMap, isGm]);
 
+  const handleRecordRoll = (roll: DiceRollResult) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const history = prev.diceHistory || [];
+      if (history.some((r) => r.id === roll.id)) return prev;
+      return {
+        ...prev,
+        diceHistory: [...history, roll],
+      };
+    });
+  };
+
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
       {/* 2D Viewport Canvas */}
@@ -1327,6 +1350,9 @@ export const App: React.FC = () => {
           }}
           messages={chatMessages}
           onSendMessage={(m) => {
+            if (m.roll) {
+              handleRecordRoll(m.roll);
+            }
             if (m.isEphemeral) {
               setChatMessages((prev) => [...prev, m]);
             } else {
@@ -1334,6 +1360,7 @@ export const App: React.FC = () => {
             }
           }}
           onBroadcastRoll={(r) => {
+            handleRecordRoll(r);
             networkRef.current?.send({ type: 'dice-roll', roll: r });
             setActiveRollAnnouncement(r);
           }}
@@ -1396,10 +1423,11 @@ export const App: React.FC = () => {
             userColor={localPlayer.color}
             userId={localPlayer.id}
             onRoll={(roll) => {
+              handleRecordRoll(roll);
               networkRef.current?.send({ type: 'dice-roll', roll });
               setActiveRollAnnouncement(roll);
             }}
-            rollHistory={session.diceHistory}
+            rollHistory={session.diceHistory || []}
             onClose={() => setShowDiceRoller(false)}
           />
         </div>
