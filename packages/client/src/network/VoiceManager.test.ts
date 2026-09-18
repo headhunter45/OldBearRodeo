@@ -44,7 +44,7 @@ describe('VoiceManager State & Transmission Logic', async () => {
 
   it('initializes with default transmission settings', () => {
     const vm = new VoiceManager();
-    assert.strictEqual(vm.state.isMuted, false);
+    assert.strictEqual(vm.state.isMuted, true);
     assert.strictEqual(vm.state.isDeafened, false);
     assert.strictEqual(vm.state.isForceMuted, false);
     assert.strictEqual(vm.state.transmissionMode, 'open');
@@ -54,10 +54,11 @@ describe('VoiceManager State & Transmission Logic', async () => {
 
   it('handles mute and deafen toggles', () => {
     const vm = new VoiceManager();
-    vm.toggleMute();
     assert.strictEqual(vm.state.isMuted, true);
     vm.toggleMute();
     assert.strictEqual(vm.state.isMuted, false);
+    vm.toggleMute();
+    assert.strictEqual(vm.state.isMuted, true);
 
     vm.toggleDeafen();
     assert.strictEqual(vm.state.isDeafened, true);

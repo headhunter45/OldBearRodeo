@@ -60,7 +60,7 @@ export class VoiceManager {
   // State
   public state: VoiceState = {
     isInitialized: false,
-    isMuted: false,
+    isMuted: true,
     isForceMuted: false,
     isDeafened: false,
     isSpeaking: false,
@@ -148,8 +148,10 @@ export class VoiceManager {
 
       await this.refreshDevices();
 
-      // Acquire microphone
-      await this.acquireMicrophone(this.state.selectedInputId);
+      // Only acquire microphone if user has unmuted (default is muted to avoid prompting on page load)
+      if (!this.state.isMuted) {
+        await this.acquireMicrophone(this.state.selectedInputId);
+      }
 
       this.state.isInitialized = true;
       this.startVadLoop();
@@ -162,13 +164,26 @@ export class VoiceManager {
     }
   }
 
-  private ensureAudioContext() {
+  private ensureAudioContext(): AudioContext | null {
     if (!this.audioCtx) {
-      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
-      this.audioCtx = new AudioCtxClass();
+      const AudioCtxClass =
+        typeof window !== 'undefined'
+          ? (window as any).AudioContext || (window as any).webkitAudioContext
+          : null;
+      if (typeof AudioCtxClass === 'function') {
+        try {
+          this.audioCtx = new AudioCtxClass();
+        } catch {
+          this.audioCtx = null;
+        }
+      }
     }
-    if (this.audioCtx.state === 'suspended') {
-      this.audioCtx.resume();
+    if (this.audioCtx && this.audioCtx.state === 'suspended') {
+      try {
+        this.audioCtx.resume();
+      } catch {
+        // Ignore in headless/mock environments
+      }
     }
     return this.audioCtx;
   }
@@ -206,7 +221,12 @@ export class VoiceManager {
   }
 
   private async acquireMicrophone(deviceId: string) {
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      return;
+    }
+
     const ctx = this.ensureAudioContext();
+    if (!ctx) return;
 
     // Close existing mic tracks
     if (this.localMicStream) {
@@ -324,14 +344,24 @@ export class VoiceManager {
       return this.state.isMuted;
     }
     this.state.isMuted = !this.state.isMuted;
-    this.updateMicGainsAndTracks();
+    if (!this.state.isMuted && !this.localMicStream) {
+      // Request mic permission and acquire stream now that user unmuted
+      this.acquireMicrophone(this.state.selectedInputId);
+    } else {
+      this.updateMicGainsAndTracks();
+    }
     this.notifyState();
     return this.state.isMuted;
   }
 
   setMuted(muted: boolean) {
     this.state.isMuted = muted;
-    this.updateMicGainsAndTracks();
+    if (!muted && !this.localMicStream) {
+      // Request mic permission and acquire stream now that user unmuted
+      this.acquireMicrophone(this.state.selectedInputId);
+    } else {
+      this.updateMicGainsAndTracks();
+    }
     this.notifyState();
   }
 
@@ -383,7 +413,9 @@ export class VoiceManager {
   async setInputDevice(deviceId: string) {
     this.state.selectedInputId = deviceId;
     localStorage.setItem('oldbear_audio_input_device', deviceId);
-    await this.acquireMicrophone(deviceId);
+    if (!this.state.isMuted || this.localMicStream) {
+      await this.acquireMicrophone(deviceId);
+    }
     this.notifyState();
   }
 
@@ -413,6 +445,7 @@ export class VoiceManager {
 
   async startDesktopAudio(): Promise<boolean> {
     const ctx = this.ensureAudioContext();
+    if (!ctx) return false;
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
         audio: true,
@@ -499,6 +532,7 @@ export class VoiceManager {
 
   handleRemoteTrack(peerId: string, track: MediaStreamTrack, stream: MediaStream) {
     const ctx = this.ensureAudioContext();
+    if (!ctx) return;
 
     // Clean up any old peer resources
     this.removeRemotePeer(peerId);
