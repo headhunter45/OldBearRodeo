@@ -130,7 +130,7 @@ function nameGen(type) {
 89. ✅ Move dice roller, character sheet, initiative tracker, scene manager, add token, and backup and transfer, and soundbar buttons into the hamburger menu under the section with audio controls.
 90. ✅ When we know the dndbeyond id/url of a character prefill the sync url with that so the user can click sync to update it from dndbeyond.
 91. ✅ Let spell/skill/attack/item commands use the index from 1 of the results suggested with the bare command and include that index in the message that lists them.
-92. At the top of chat between /skill and /help include /spell now that /spell looks for spells on the character.
+92. ✅ At the top of chat between /skill and /help include /spell now that /spell looks for spells on the character.
 93. When an asset is dragged in and added to the asset manager the asset manager display does not update to show it. I have to close and reopen it again.
 94. When editing a scene in the settings for it I have two vertical scrollbars.
 95. When I change grid type in a scene settings it chagnes the type value for all scenes, but the grid drawn and snapped to is still squeare not hexagonal

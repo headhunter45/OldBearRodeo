@@ -823,6 +823,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             </span>
             <span>•</span>
             <span
+              style={{ cursor: 'pointer', color: '#a855f7' }}
+              onClick={() => setInputText('/spell ')}
+            >
+              /spell
+            </span>
+            <span>•</span>
+            <span
               style={{ cursor: 'pointer', color: 'var(--text-muted)' }}
               onClick={() => handleCommand('/help')}
             >
