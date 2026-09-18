@@ -25,6 +25,20 @@ export class NetworkClient {
   gmKey?: string;
 
   onMessageCallbacks: ((msg: ServerToClientMessage) => void)[] = [];
+  onStatusCallbacks: ((status: 'connecting' | 'connected' | 'error' | 'disconnected', error?: string) => void)[] = [];
+
+  onStatusChange(cb: (status: 'connecting' | 'connected' | 'error' | 'disconnected', error?: string) => void) {
+    this.onStatusCallbacks.push(cb);
+    return () => {
+      this.onStatusCallbacks = this.onStatusCallbacks.filter((c) => c !== cb);
+    };
+  }
+
+  private notifyStatus(status: 'connecting' | 'connected' | 'error' | 'disconnected', error?: string) {
+    for (const cb of this.onStatusCallbacks) {
+      cb(status, error);
+    }
+  }
 
   setVoiceManager(vm: VoiceManager) {
     this.voiceManager = vm;
@@ -48,10 +62,18 @@ export class NetworkClient {
     const host = window.location.port === '3000' ? `${window.location.hostname}:3001` : window.location.host;
     const wsUrl = `${protocol}//${host}/ws`;
 
-    this.ws = new WebSocket(wsUrl);
+    this.notifyStatus('connecting');
+
+    try {
+      this.ws = new WebSocket(wsUrl);
+    } catch (err: any) {
+      this.notifyStatus('error', err?.message || 'Failed to initialize WebSocket');
+      return;
+    }
 
     this.ws.onopen = () => {
       console.log('[Network] Connected to signaling server');
+      this.notifyStatus('connected');
       const joinMsg: ClientToServerMessage = {
         type: 'join',
         roomId,
@@ -71,8 +93,18 @@ export class NetworkClient {
       }
     };
 
-    this.ws.onclose = () => {
-      console.log('[Network] Disconnected from server');
+    this.ws.onerror = (event) => {
+      console.warn('[Network] WebSocket error:', event);
+      this.notifyStatus('error', 'WebSocket connection failed. If using Nginx Proxy Manager, please ensure "Websockets Support" is toggled ON.');
+    };
+
+    this.ws.onclose = (event) => {
+      console.log('[Network] Disconnected from server (code:', event.code, ')');
+      if (event.code !== 1000) {
+        this.notifyStatus('error', `Connection closed (code ${event.code}). Please verify WebSocket proxy settings.`);
+      } else {
+        this.notifyStatus('disconnected');
+      }
     };
   }
 

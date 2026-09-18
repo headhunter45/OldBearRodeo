@@ -44,3 +44,4 @@
 44. remember in the player's local storage the characters they have used so they can pick one as their character. List them on the character sheet import page.
 45. Tell me how we can create a chat system with simple commands like /roll or /attack /skill and maybe /spell, but that could be /attack or an alias for it then roll that check as if they chose the correct dice and modifiers from their character sheet. allow appending adv or dis to roll with advantage or disadvantage on any d20 in the roll.
 46. Move the ports for client, server, and nginx to a .env file and create a .env.example file with the same ports listed. Is there anything else we should move to the .env file?
+47. 

@@ -31,7 +31,7 @@ import { BatchTokenTransferModal } from './components/BatchTokenTransferModal.js
 import { PlayerTokenPickerModal } from './components/PlayerTokenPickerModal.js';
 import { RollAnnouncementBanner } from './components/RollAnnouncementBanner.js';
 import { ChatPanel } from './components/ChatPanel.js';
-import { Mic, Radio, Compass, Check } from 'lucide-react';
+import { Mic, Radio, Compass, Check, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -102,6 +102,10 @@ export const App: React.FC = () => {
   // GM Preview Map vs Player Active Map
   const [gmPreviewMapId, setGmPreviewMapId] = useState<string>('');
 
+  // Connection & Signaling Status
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'error' | 'disconnected'>('connecting');
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+
   // 1. Initialize Network & Session
   useEffect(() => {
     // Extract room ID from URL search param or generate/default
@@ -125,9 +129,18 @@ export const App: React.FC = () => {
     const net = new NetworkClient();
     networkRef.current = net;
 
+    net.onStatusChange((status, error) => {
+      setConnectionStatus(status);
+      if (error) {
+        setConnectionError(error);
+      }
+    });
+
     net.onMessage((msg) => {
       switch (msg.type) {
         case 'join-ack': {
+          setConnectionStatus('connected');
+          setConnectionError(null);
           setLocalPlayer(msg.player);
           setSession(msg.session);
           setIsGm(msg.isGm);
@@ -1487,6 +1500,125 @@ export const App: React.FC = () => {
         >
           <Compass size={16} color="var(--accent-emerald)" />
           <span>{toastMessage}</span>
+        </div>
+      )}
+
+      {/* Connecting & Error Overlay when Session is Loading */}
+      {!session && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(10, 15, 29, 0.96)',
+            backdropFilter: 'blur(12px)',
+            zIndex: 100,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1.5rem',
+          }}
+        >
+          <div
+            className="glass-panel-elevated animate-fade-in"
+            style={{
+              maxWidth: '480px',
+              width: '100%',
+              padding: '2rem',
+              textAlign: 'center',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--border-strong)',
+            }}
+          >
+            {connectionStatus === 'error' ? (
+              <div>
+                <div
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(244, 63, 94, 0.15)',
+                    color: 'var(--accent-rose)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 1.25rem',
+                  }}
+                >
+                  <AlertTriangle size={28} />
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.75rem', color: '#fff' }}>
+                  Unable to Connect to Server
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem', lineHeight: 1.5 }}>
+                  {connectionError || 'Failed to establish WebSocket connection with the game server.'}
+                </p>
+
+                <div
+                  style={{
+                    padding: '0.85rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.3)',
+                    color: '#fbbf24',
+                    fontSize: '0.8rem',
+                    textAlign: 'left',
+                    marginBottom: '1.5rem',
+                  }}
+                >
+                  <strong>Nginx Proxy Manager Configuration Required:</strong>
+                  <br />
+                  If you are using Nginx Proxy Manager (NPM), open your NPM admin panel, edit the Proxy Host for <code>ttrpgwith.me</code>, and toggle <strong>Websockets Support</strong> to <strong>ON</strong>.
+                </div>
+
+                <button
+                  className="btn btn-primary"
+                  style={{ width: '100%', justifyContent: 'center' }}
+                  onClick={() => {
+                    setConnectionStatus('connecting');
+                    setConnectionError(null);
+                    const net = networkRef.current;
+                    if (net) {
+                      const params = new URLSearchParams(window.location.search);
+                      const roomId = params.get('room') || 'default-room';
+                      const savedName = localStorage.getItem('oldbear_player_name') || 'Adventurer';
+                      const savedColor = localStorage.getItem('oldbear_player_color') || '#6366f1';
+                      const savedGmKey = localStorage.getItem(`oldbear_gmkey_${roomId}`) || undefined;
+                      net.connect(roomId, savedName, savedColor, savedGmKey);
+                    } else {
+                      window.location.reload();
+                    }
+                  }}
+                >
+                  <RefreshCw size={16} /> Retry Connection
+                </button>
+              </div>
+            ) : (
+              <div>
+                <div
+                  style={{
+                    width: '56px',
+                    height: '56px',
+                    borderRadius: '50%',
+                    backgroundColor: 'rgba(99, 102, 241, 0.15)',
+                    color: 'var(--accent-primary)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    margin: '0 auto 1.25rem',
+                    animation: 'pulse 2s infinite',
+                  }}
+                >
+                  <Compass size={32} />
+                </div>
+                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, marginBottom: '0.5rem', color: '#fff' }}>
+                  Joining Virtual Tabletop...
+                </h3>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  Connecting to real-time session signaling server
+                </p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

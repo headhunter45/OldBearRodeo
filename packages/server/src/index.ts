@@ -83,6 +83,14 @@ app.get('/api/dndbeyond/:characterId', async (req, res) => {
   }
 });
 
+// Fallback for HTTP GET /ws when a reverse proxy (e.g. Nginx Proxy Manager) fails to forward WebSocket upgrade
+app.get('/ws', (_req, res) => {
+  res.status(426).json({
+    error: 'Upgrade Required',
+    message: 'This endpoint requires a WebSocket connection. If you are accessing this through a reverse proxy (such as Nginx Proxy Manager), please toggle ON "Websockets Support" in your proxy host settings.',
+  });
+});
+
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server });
 
