@@ -604,42 +604,13 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
   return (
     <>
-      {/* Floating Chat Trigger Button in Bottom Left */}
-      <div
-        className="floating-hud"
-        style={{
-          position: 'fixed',
-          bottom: '1.25rem',
-          left: '1.25rem',
-          zIndex: 45,
-        }}
-      >
-        <button
-          className="btn glass-panel"
-          onClick={onToggleOpen}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.6rem 1rem',
-            borderRadius: 'var(--radius-full)',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-            border: isOpen ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-          }}
-        >
-          <MessageSquare size={17} color={isOpen ? 'var(--accent-primary)' : 'white'} />
-          <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>Chat & Commands</span>
-          {isOpen ? <ChevronDown size={14} /> : <ChevronUp size={14} />}
-        </button>
-      </div>
-
       {/* Expanded Chat & Commands Drawer */}
       {isOpen && (
         <div
           className="glass-panel-elevated animate-slide-up"
           style={{
             position: 'fixed',
-            bottom: '4.25rem',
+            bottom: '1.25rem',
             left: '1.25rem',
             width: '360px',
             height: '420px',
@@ -650,6 +621,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
             overflow: 'hidden',
             boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
             border: '1px solid var(--border-subtle)',
+            color: '#ffffff',
           }}
         >
           {/* Header */}
@@ -748,18 +720,19 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
                       borderLeft: `3px solid ${m.senderColor || '#6366f1'}`,
                       fontSize: '0.8rem',
                       lineHeight: 1.4,
+                      color: '#ffffff',
                     }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2px' }}>
                       <span style={{ fontWeight: 700, color: m.senderColor || 'white', fontSize: '0.75rem' }}>
                         {m.senderName}
                       </span>
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'rgba(255, 255, 255, 0.6)' }}>
                         {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
 
-                    <div style={{ color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>
+                    <div style={{ color: '#ffffff', whiteSpace: 'pre-wrap' }}>
                       {m.text}
                     </div>
                   </div>
