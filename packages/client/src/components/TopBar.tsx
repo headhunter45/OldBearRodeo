@@ -98,6 +98,16 @@ export const TopBar: React.FC<TopBarProps> = ({
     >
       {/* Brand & Map Info */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        {/* Hamburger Menu (Far Left) */}
+        <button
+          className="btn-icon"
+          onClick={onToggleMobileDrawer}
+          title="Menu"
+          style={{ backgroundColor: 'var(--accent-primary)', color: '#ffffff', flexShrink: 0 }}
+        >
+          <Menu size={18} />
+        </button>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <div
             style={{
@@ -370,11 +380,6 @@ export const TopBar: React.FC<TopBarProps> = ({
             <Database size={18} />
           </button>
         )}
-
-        {/* Mobile Hamburger Menu (visible always, primary on portrait) */}
-        <button className="btn-icon" onClick={onToggleMobileDrawer} title="Menu" style={{ backgroundColor: 'var(--accent-primary)', color: '#ffffff' }}>
-          <Menu size={18} />
-        </button>
       </div>
     </header>
   );
