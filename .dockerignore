@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+dist
+**/dist
+build
+**/build
+*.log
+.DS_Store
