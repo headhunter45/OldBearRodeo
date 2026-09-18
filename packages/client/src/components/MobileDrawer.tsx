@@ -60,7 +60,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   onOpenVoiceSettings,
   isGm,
 }) => {
-  const [name, setName] = useState(localPlayer?.name || 'Adventurer');
+  const [name, setName] = useState(localPlayer?.name || (isGm ? 'GM' : 'Player'));
   const [color, setColor] = useState(localPlayer?.color || '#6366f1');
   const [copied, setCopied] = useState(false);
 

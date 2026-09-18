@@ -111,6 +111,7 @@ export const App: React.FC = () => {
   useEffect(() => {
     // Extract room ID from URL search param or generate/default
     const params = new URLSearchParams(window.location.search);
+    const isNewRoom = !params.get('room');
     let roomId = params.get('room');
     if (!roomId) {
       const ADJECTIVES = ['daring', 'brave', 'mystic', 'ancient', 'wild', 'shadow', 'golden', 'frost', 'ember', 'arcane'];
@@ -123,13 +124,21 @@ export const App: React.FC = () => {
       window.history.replaceState({}, '', newUrl);
     }
 
-    let savedName = localStorage.getItem('oldbear_player_name');
-    if (!savedName || savedName === 'Adventurer') {
-      savedName = generateRandomName();
-      localStorage.setItem('oldbear_player_name', savedName);
-    }
-    const savedColor = localStorage.getItem('oldbear_player_color') || '#6366f1';
     const savedGmKey = localStorage.getItem(`oldbear_gmkey_${roomId}`) || undefined;
+    const isLikelyGm = isNewRoom || Boolean(savedGmKey);
+
+    let savedName = localStorage.getItem('oldbear_player_name');
+    if (isLikelyGm) {
+      if (!savedName || savedName === 'Adventurer' || savedName === 'Game Master') {
+        savedName = 'GM';
+      }
+    } else {
+      if (!savedName || savedName === 'Adventurer' || savedName === 'Game Master') {
+        savedName = generateRandomName();
+        localStorage.setItem('oldbear_player_name', savedName);
+      }
+    }
+    const savedColor = localStorage.getItem('oldbear_player_color') || (isLikelyGm ? '#ef4444' : '#6366f1');
 
     const net = new NetworkClient();
     networkRef.current = net;
@@ -146,6 +155,9 @@ export const App: React.FC = () => {
         case 'join-ack': {
           setConnectionStatus('connected');
           setConnectionError(null);
+          if (msg.isGm && (msg.player.name === 'Adventurer' || msg.player.name === 'Game Master')) {
+            msg.player.name = 'GM';
+          }
           setLocalPlayer(msg.player);
           setSession(msg.session);
           setIsGm(msg.isGm);

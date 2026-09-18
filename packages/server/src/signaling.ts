@@ -102,7 +102,12 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
 
       const player: Player = {
         id: playerId,
-        name: playerName || (isGm ? 'Game Master' : generateRandomName()),
+        name:
+          playerName && playerName !== 'Adventurer' && playerName !== 'Game Master'
+            ? playerName
+            : isGm
+            ? 'GM'
+            : generateRandomName(),
         role: isGm ? 'gm' : 'player',
         color: playerColor || '#3b82f6',
         connected: true,
