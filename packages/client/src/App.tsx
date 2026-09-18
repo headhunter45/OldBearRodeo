@@ -32,6 +32,7 @@ import { TokenPickerModal } from './components/TokenPickerModal.js';
 import { BatchTokenTransferModal } from './components/BatchTokenTransferModal.js';
 import { PlayerTokenPickerModal } from './components/PlayerTokenPickerModal.js';
 import { RollAnnouncementBanner } from './components/RollAnnouncementBanner.js';
+import { TurnAnnouncementBanner, TurnAnnouncement } from './components/TurnAnnouncementBanner.js';
 import { ChatPanel } from './components/ChatPanel.js';
 import { Mic, Radio, Compass, Check, AlertTriangle, RefreshCw } from 'lucide-react';
 
@@ -95,9 +96,11 @@ export const App: React.FC = () => {
   const [showPlayerTokenPickerModal, setShowPlayerTokenPickerModal] = useState(false);
   const [availablePlayerTokens, setAvailablePlayerTokens] = useState<Token[]>([]);
 
-  // Chat & Dice Announcement State (Bugs #43, #45)
+  // Chat & Dice Announcement State (Bugs #43, #45, #67)
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [activeRollAnnouncement, setActiveRollAnnouncement] = useState<DiceRollResult | null>(null);
+  const [activeTurnAnnouncement, setActiveTurnAnnouncement] = useState<TurnAnnouncement | null>(null);
+  const prevInitTurnRef = useRef<{ round: number; index: number; id?: string } | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
   const [unreadChatCount, setUnreadChatCount] = useState(0);
 
@@ -504,6 +507,41 @@ export const App: React.FC = () => {
       net.disconnect();
     };
   }, []);
+
+  // Turn Change Announcement Listener (Bug #67)
+  useEffect(() => {
+    if (!session?.initiative || session.initiative.items.length === 0) return;
+    const init = session.initiative;
+    const currentItem = init.items[init.currentTurnIndex];
+    if (!currentItem) return;
+
+    if (!prevInitTurnRef.current) {
+      prevInitTurnRef.current = { round: init.round, index: init.currentTurnIndex, id: currentItem.id };
+      return;
+    }
+
+    if (
+      prevInitTurnRef.current.round !== init.round ||
+      prevInitTurnRef.current.index !== init.currentTurnIndex ||
+      prevInitTurnRef.current.id !== currentItem.id
+    ) {
+      prevInitTurnRef.current = { round: init.round, index: init.currentTurnIndex, id: currentItem.id };
+      setActiveTurnAnnouncement({ combatant: currentItem, round: init.round });
+
+      if (isGm) {
+        const turnMsg: ChatMessage = {
+          id: crypto.randomUUID(),
+          senderId: 'system',
+          senderName: 'Initiative Tracker',
+          senderColor: '#f59e0b',
+          text: `⚔️ **Round ${init.round}**: It's now **${currentItem.name}**'s turn!`,
+          timestamp: Date.now(),
+        };
+        networkRef.current?.send({ type: 'chat-send', message: turnMsg });
+        setChatMessages((prev) => [...prev, turnMsg]);
+      }
+    }
+  }, [session?.initiative, isGm]);
 
   const handleToggleMute = () => {
     voiceManagerRef.current?.toggleMute();
@@ -1191,6 +1229,12 @@ export const App: React.FC = () => {
       <RollAnnouncementBanner
         roll={activeRollAnnouncement}
         onDismiss={() => setActiveRollAnnouncement(null)}
+      />
+
+      {/* Animated Turn Announcement Banner (Bug #67) */}
+      <TurnAnnouncementBanner
+        announcement={activeTurnAnnouncement}
+        onDismiss={() => setActiveTurnAnnouncement(null)}
       />
 
       {/* Chat & Commands Panel (Bug #45) */}

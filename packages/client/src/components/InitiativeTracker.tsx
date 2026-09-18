@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { InitiativeState, InitiativeItem, Token, Player } from '@oldbear/shared';
-import { Swords, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Trash2, X, Dices, HelpCircle, ChevronDown } from 'lucide-react';
+import { Swords, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Trash2, X, Dices, HelpCircle, ChevronDown, GripVertical } from 'lucide-react';
 import { useDraggableWindow } from '../hooks/useDraggableWindow.js';
 
 interface InitiativeTrackerProps {
@@ -28,9 +28,90 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
   const [editScore, setEditScore] = useState<number>(0);
   const [selectedInitScore, setSelectedInitScore] = useState<string>('');
   const [isMinimized, setIsMinimized] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const { windowRef, position, isDragging, handleMouseDown } = useDraggableWindow({
     storageKey: 'obr_init_tracker_pos',
   });
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    if ((e.target as HTMLElement).closest('input, button')) {
+      e.preventDefault();
+      return;
+    }
+    setDraggedIndex(index);
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', String(index));
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverIndex !== index) {
+      setDragOverIndex(index);
+    }
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+    setDragOverIndex(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    setDragOverIndex(null);
+    if (draggedIndex === null || draggedIndex === targetIndex) {
+      setDraggedIndex(null);
+      return;
+    }
+
+    const newItems = [...initiative.items];
+    const [movedItem] = newItems.splice(draggedIndex, 1);
+    newItems.splice(targetIndex, 0, movedItem);
+
+    // Update the initiative numbers to fit the new reordered position (Bug #67)
+    let calculatedScore: number;
+    if (newItems.length === 1) {
+      calculatedScore = movedItem.initiative;
+    } else if (targetIndex === 0) {
+      const nextScore = newItems[1].initiative;
+      calculatedScore = nextScore + 1;
+    } else if (targetIndex === newItems.length - 1) {
+      const prevScore = newItems[newItems.length - 2].initiative;
+      calculatedScore = Math.max(0, prevScore - 1);
+    } else {
+      const prevScore = newItems[targetIndex - 1].initiative;
+      const nextScore = newItems[targetIndex + 1].initiative;
+      if (prevScore > nextScore + 1) {
+        calculatedScore = Math.round((prevScore + nextScore) / 2);
+      } else {
+        calculatedScore = prevScore;
+      }
+    }
+
+    newItems[targetIndex] = {
+      ...movedItem,
+      initiative: calculatedScore,
+    };
+
+    // Keep turn index tracking the active combatant
+    let newTurnIndex = initiative.currentTurnIndex;
+    if (initiative.currentTurnIndex === draggedIndex) {
+      newTurnIndex = targetIndex;
+    } else if (draggedIndex < initiative.currentTurnIndex && targetIndex >= initiative.currentTurnIndex) {
+      newTurnIndex = initiative.currentTurnIndex - 1;
+    } else if (draggedIndex > initiative.currentTurnIndex && targetIndex <= initiative.currentTurnIndex) {
+      newTurnIndex = initiative.currentTurnIndex + 1;
+    }
+
+    onUpdateInitiative({
+      ...initiative,
+      items: newItems,
+      currentTurnIndex: newTurnIndex,
+    });
+
+    setDraggedIndex(null);
+  };
 
   const handleNextTurn = () => {
     if (initiative.items.length === 0) return;
@@ -307,23 +388,38 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
             return (
               <div
                 key={item.id}
+                draggable={!editingItemId}
+                onDragStart={(e) => handleDragStart(e, idx)}
+                onDragOver={(e) => handleDragOver(e, idx)}
+                onDragEnd={handleDragEnd}
+                onDrop={(e) => handleDrop(e, idx)}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'space-between',
-                  padding: '0.5rem 0.6rem',
+                  padding: '0.45rem 0.55rem',
                   borderRadius: 'var(--radius-sm)',
                   backgroundColor: isCurrent ? 'rgba(99, 102, 241, 0.25)' : 'var(--bg-surface-elevated)',
                   border: isCurrent ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                  borderTop: dragOverIndex === idx && draggedIndex !== idx ? '2px solid var(--accent-primary)' : undefined,
                   boxShadow: isCurrent ? '0 0 10px var(--accent-glow)' : 'none',
+                  opacity: draggedIndex === idx ? 0.4 : 1,
+                  cursor: 'grab',
+                  transition: 'background-color 0.15s ease',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <GripVertical
+                    size={14}
+                    style={{ color: 'var(--text-muted)', cursor: 'grab', flexShrink: 0 }}
+                  />
+
                   {editingItemId === item.id ? (
                     <input
                       type="number"
                       autoFocus
                       value={editScore}
+                      onClick={(e) => e.stopPropagation()}
                       onChange={(e) => setEditScore(Number(e.target.value))}
                       onBlur={() => {
                         const items = initiative.items
@@ -343,11 +439,11 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                         if (e.key === 'Escape') setEditingItemId(null);
                       }}
                       style={{
-                        width: '32px',
+                        width: '34px',
                         height: '28px',
                         borderRadius: 'var(--radius-sm)',
                         backgroundColor: 'var(--bg-surface)',
-                        border: '1px solid var(--accent-primary)',
+                        border: '2px solid var(--accent-primary)',
                         color: 'white',
                         fontWeight: 700,
                         fontSize: '0.85rem',
@@ -357,13 +453,12 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                     />
                   ) : (
                     <div
-                      onClick={() => {
-                        if (isGm) {
-                          setEditingItemId(item.id);
-                          setEditScore(item.initiative);
-                        }
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditingItemId(item.id);
+                        setEditScore(item.initiative);
                       }}
-                      title={isGm ? 'Click to set initiative score as GM' : undefined}
+                      title="Click to edit initiative score"
                       style={{
                         width: '28px',
                         height: '28px',
@@ -375,8 +470,11 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                         justifyContent: 'center',
                         fontWeight: 700,
                         fontSize: '0.8rem',
-                        cursor: isGm ? 'pointer' : 'default',
+                        cursor: 'pointer',
                         userSelect: 'none',
+                        border: '1.5px solid rgba(255, 255, 255, 0.4)',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                        flexShrink: 0,
                       }}
                     >
                       {item.initiative}
@@ -398,7 +496,10 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                       className="btn-icon"
                       title="Reroll Initiative (using character bonus)"
                       style={{ width: '24px', height: '24px', color: 'var(--text-secondary)' }}
-                      onClick={() => handleRerollItem(item)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRerollItem(item);
+                      }}
                     >
                       <Dices size={13} />
                     </button>
@@ -407,7 +508,10 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                     <button
                       className="btn-icon"
                       style={{ width: '24px', height: '24px', color: '#f43f5e' }}
-                      onClick={() => handleRemove(item.id)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleRemove(item.id);
+                      }}
                     >
                       <Trash2 size={13} />
                     </button>
