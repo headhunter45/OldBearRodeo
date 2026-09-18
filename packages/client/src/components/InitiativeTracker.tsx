@@ -292,13 +292,13 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
         right: position ? 'auto' : '1rem',
         display: 'flex',
         flexDirection: 'column',
-        height: isMinimized ? 'auto' : '100%',
-        maxHeight: isMinimized ? '46px' : '520px',
+        height: isMinimized ? '52px' : '100%',
+        maxHeight: isMinimized ? '52px' : '520px',
         width: '320px',
-        padding: '0.75rem 1rem',
+        padding: isMinimized ? '0.65rem 1rem' : '0.75rem 1rem',
         zIndex: 45,
         boxShadow: isDragging ? '0 16px 36px rgba(0,0,0,0.6)' : '0 10px 25px rgba(0,0,0,0.4)',
-        transition: isDragging ? 'none' : 'max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        transition: isDragging ? 'none' : 'max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
         overflow: 'hidden',
       }}
     >
@@ -316,7 +316,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Swords size={20} color="var(--accent-gold)" />
-          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem' }}>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem', margin: 0, lineHeight: 1.2 }}>
             Round {initiative.round}
           </h3>
         </div>

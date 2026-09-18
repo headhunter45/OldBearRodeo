@@ -120,7 +120,7 @@ function nameGen(type) {
 79. ✅ The button to change the initiative score is on the token info component at the bottom. It should be inline in the initiative tracker row. Perhaps a pen icon next to the roll one that puts a number input and green check / red x or yes/no icons to save the number or go back to the previous value.
 80. ✅ When I drag rows in the initiative tracker they don't stay and the scores don't change.
 81. ✅ When I click a row in the initiative tracker select the associated token and pan to focus on it. If it is one that is not attached to a token don't do that.
-82. When minimizing the initiative tracker we minimize too small it should be slightly larger to avoid clipping the icon, text, and buttons in the header. Minimized chat is perfect.
+82. ✅ When minimizing the initiative tracker we minimize too small it should be slightly larger to avoid clipping the icon, text, and buttons in the header. Minimized chat is perfect.
 83. Rolling via chat command or the buttons on the dice roller do not add the roll to history. 
 84. Refreshing the page adds me to the connected list again repeatedly.
 85. The flyout submenu for selection tools does not appear. The icon and tool do change when I use the shortcut keys. Same for the fog.
