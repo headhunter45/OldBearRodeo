@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { DnDCharacter, Token, Player, getActivationCategory } from '@oldbear/shared';
 import {
   User,
@@ -94,10 +94,21 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
   onClose,
   isGm = false,
 }) => {
-  const [charInput, setCharInput] = useState(player.dndBeyondCharacterId || '');
-  const [character, setCharacter] = useState<DnDCharacter | null>(
-    player.dndBeyondCharacter || null
-  );
+  const initialChar = targetToken?.character || player.dndBeyondCharacter || null;
+  const getKnownSyncUrl = (char: DnDCharacter | null): string => {
+    if (player.dndBeyondCharacterId) {
+      const id = player.dndBeyondCharacterId;
+      return /^\d+$/.test(id) ? `https://www.dndbeyond.com/characters/${id}` : id;
+    }
+    const cid = targetToken?.character?.id || char?.id || player.dndBeyondCharacter?.id;
+    if (cid) {
+      return /^\d+$/.test(cid) ? `https://www.dndbeyond.com/characters/${cid}` : cid;
+    }
+    return '';
+  };
+
+  const [charInput, setCharInput] = useState(() => getKnownSyncUrl(initialChar));
+  const [character, setCharacter] = useState<DnDCharacter | null>(initialChar);
   const [syncTokenId, setSyncTokenId] = useState<string>(
     targetToken?.id || (ownedTokens.length > 0 ? ownedTokens[0].id : 'create_new')
   );
@@ -154,11 +165,32 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
     if (!found) return;
 
     setCharacter(found.charData);
+    const cid = found.charData.id || found.id;
+    if (cid) {
+      setCharInput(/^\d+$/.test(cid) ? `https://www.dndbeyond.com/characters/${cid}` : cid);
+    }
     onUpdatePlayerChar?.(found.charData);
     applyCharacterToBoard(found.charData);
     saveCharacterToStorage(found.charData, isGm);
     refreshSavedCharacters();
   };
+
+  useEffect(() => {
+    if (targetToken?.character) {
+      setCharacter(targetToken.character);
+      const cid = targetToken.character.id;
+      if (cid) {
+        setCharInput(/^\d+$/.test(cid) ? `https://www.dndbeyond.com/characters/${cid}` : cid);
+      }
+    }
+  }, [targetToken?.id, targetToken?.character]);
+
+  useEffect(() => {
+    if (!charInput) {
+      const known = getKnownSyncUrl(character);
+      if (known) setCharInput(known);
+    }
+  }, [character?.id, player.dndBeyondCharacterId, player.dndBeyondCharacter?.id]);
 
   const fetchCharacter = async (charId: string) => {
     setLoading(true);

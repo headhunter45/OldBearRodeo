@@ -444,8 +444,17 @@ export function processSlashCommand(
 
       // 6. /sync [urlOrId] [tokenIndex]
       if (cmd === 'sync') {
-        const urlOrId = args[0];
-        const tokenIndexArg = args[1];
+        let urlOrId = args[0];
+        let tokenIndexArg = args[1];
+
+        const knownCharId =
+          context.player?.dndBeyondCharacterId ||
+          context.player?.dndBeyondCharacter?.id ||
+          (context.tokens && context.tokens[0]?.character?.id);
+
+        if (!urlOrId && knownCharId) {
+          urlOrId = /^\d+$/.test(knownCharId) ? `https://www.dndbeyond.com/characters/${knownCharId}` : knownCharId;
+        }
 
         if (!urlOrId) {
           sendPrivateSystemMessage(
