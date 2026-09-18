@@ -183,6 +183,30 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     }
   };
 
+  const handleMakeScene = (asset: StoredAsset) => {
+    if (!onAddMap) return;
+    const newScene: GameMap = {
+      id: `map-${crypto.randomUUID()}`,
+      name: `${asset.name} Scene`,
+      imageUrl: asset.dataUrl,
+      gridSize: 50,
+      gridType: 'square',
+      gridColor: '#ffffff',
+      gridOpacity: 0.4,
+      width: asset.width || 2000,
+      height: asset.height || 1500,
+      scaleFtPerCell: 5,
+      showGrid: true,
+      baseMapId: asset.id,
+      baseMapName: asset.name,
+    };
+    onAddMap(newScene);
+    setResultMessage({
+      type: 'success',
+      text: `Created new scene "${newScene.name}" from map asset!`,
+    });
+  };
+
   // Export / Import
   const handleExport = async () => {
     setExporting(true);
@@ -434,22 +458,46 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             </div>
 
             {selectedAssetIds.length > 0 && (
-              <button
-                className="btn"
-                style={{
-                  backgroundColor: 'rgba(244, 63, 94, 0.2)',
-                  color: '#f43f5e',
-                  border: '1px solid rgba(244, 63, 94, 0.4)',
-                  padding: '0.4rem 0.8rem',
-                  fontSize: '0.8rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                }}
-                onClick={handleDeleteSelected}
-              >
-                <Trash2 size={14} /> Delete Selected ({selectedAssetIds.length})
-              </button>
+              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                {activeTab === 'maps' && onAddMap && (
+                  <button
+                    className="btn btn-primary"
+                    style={{
+                      padding: '0.4rem 0.8rem',
+                      fontSize: '0.8rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '5px',
+                    }}
+                    onClick={() => {
+                      selectedAssetIds.forEach((id) => {
+                        const asset = assets.find((a) => a.id === id);
+                        if (asset) handleMakeScene(asset);
+                      });
+                      setSelectedAssetIds([]);
+                    }}
+                    title="Make scenes from selected maps"
+                  >
+                    <Layers size={14} /> Make Scene from Selected ({selectedAssetIds.length})
+                  </button>
+                )}
+                <button
+                  className="btn"
+                  style={{
+                    backgroundColor: 'rgba(244, 63, 94, 0.2)',
+                    color: '#f43f5e',
+                    border: '1px solid rgba(244, 63, 94, 0.4)',
+                    padding: '0.4rem 0.8rem',
+                    fontSize: '0.8rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px',
+                  }}
+                  onClick={handleDeleteSelected}
+                >
+                  <Trash2 size={14} /> Delete Selected ({selectedAssetIds.length})
+                </button>
+              </div>
             )}
           </div>
 
@@ -600,43 +648,23 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                       )}
                     </div>
 
-                    {activeTab === 'maps' && isGm && onAddMap && (
+                    {activeTab === 'maps' && onAddMap && (
                       <button
-                        className="btn btn-secondary"
+                        className="btn btn-primary"
                         style={{
-                          fontSize: '0.68rem',
-                          padding: '3px 6px',
-                          margin: '0 5px 5px 5px',
+                          fontSize: '0.75rem',
+                          fontWeight: 700,
+                          padding: '0.35rem 0.6rem',
+                          margin: '0 6px 6px 6px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'center',
-                          gap: '4px',
+                          gap: '5px',
                         }}
-                        onClick={() => {
-                          const newScene: GameMap = {
-                            id: `map-${crypto.randomUUID()}`,
-                            name: `${asset.name} Scene`,
-                            imageUrl: asset.dataUrl,
-                            gridSize: 50,
-                            gridType: 'square',
-                            gridColor: '#ffffff',
-                            gridOpacity: 0.4,
-                            width: asset.width || 2000,
-                            height: asset.height || 1500,
-                            scaleFtPerCell: 5,
-                            showGrid: true,
-                            baseMapId: asset.id,
-                            baseMapName: asset.name,
-                          };
-                          onAddMap(newScene);
-                          setResultMessage({
-                            type: 'success',
-                            text: `Created new scene "${newScene.name}" from map asset.`,
-                          });
-                        }}
-                        title="Create a new Scene in this session using this map image"
+                        onClick={() => handleMakeScene(asset)}
+                        title="Create a playable scene from this map directly in this session"
                       >
-                        <Layers size={11} /> + Create Scene
+                        <Layers size={13} /> Make Scene
                       </button>
                     )}
                   </div>
