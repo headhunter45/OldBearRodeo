@@ -178,7 +178,7 @@ export const TopBar: React.FC<TopBarProps> = ({
 
       {/* Center Online Player Indicators */}
       <div className="topbar-players-list" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-        {players.map((p) => {
+        {players.filter((p) => p.connected !== false).map((p) => {
           const isSelf = p.id === localPlayer?.id;
           const currentPlayer = isSelf && localPlayer ? localPlayer : p;
           const isSpeaking = isSelf ? (voiceState?.isSpeaking || false) : (currentPlayer.isSpeaking || false);

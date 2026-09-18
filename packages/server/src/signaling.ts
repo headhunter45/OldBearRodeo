@@ -70,7 +70,7 @@ function sendToPeer(roomId: string, targetPeerId: string, message: ServerToClien
 function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
   switch (msg.type) {
     case 'join': {
-      const { roomId, playerName, playerColor, gmKey } = msg;
+      const { roomId, playerName, playerColor, gmKey, playerId: requestedPlayerId } = msg;
       let session = getSession(roomId);
       let sessionGmKey = getSessionGmKey(roomId);
 
@@ -82,7 +82,11 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
         sessionGmKey = created.gmKey;
       }
 
-      const playerId = crypto.randomUUID();
+      const playerId =
+        requestedPlayerId && typeof requestedPlayerId === 'string' && requestedPlayerId.trim() !== ''
+          ? requestedPlayerId.trim()
+          : crypto.randomUUID();
+
       // Only room creator or clients with matching secret gmKey are GM
       const isGm = isNewRoom || Boolean(gmKey && sessionGmKey && gmKey === sessionGmKey);
 
@@ -94,27 +98,52 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
       ws.playerId = playerId;
       ws.isGm = isGm;
 
-      // Add to room client set
+      // Add to room client set, closing any prior socket for the same player (e.g. from page refresh)
       if (!rooms.has(roomId)) {
         rooms.set(roomId, new Set());
       }
-      rooms.get(roomId)!.add(ws);
+      const roomClients = rooms.get(roomId)!;
+      for (const client of roomClients) {
+        if (client !== ws && client.playerId === playerId) {
+          try {
+            client.close();
+          } catch {
+            // ignore
+          }
+          roomClients.delete(client);
+        }
+      }
+      roomClients.add(ws);
 
-      const player: Player = {
-        id: playerId,
-        name:
-          playerName && playerName !== 'Adventurer' && playerName !== 'Game Master'
-            ? playerName
-            : isGm
-            ? 'GM'
-            : generateRandomName(),
-        role: isGm ? 'gm' : 'player',
-        color: playerColor || '#3b82f6',
-        connected: true,
-        assignedTokenIds: [],
-      };
-
-      session.players[playerId] = player;
+      let player: Player;
+      if (session.players[playerId]) {
+        player = session.players[playerId];
+        player.connected = true;
+        if (playerName && playerName !== 'Adventurer' && playerName !== 'Game Master') {
+          player.name = playerName;
+        }
+        if (playerColor) {
+          player.color = playerColor;
+        }
+        if (isGm) {
+          player.role = 'gm';
+        }
+      } else {
+        player = {
+          id: playerId,
+          name:
+            playerName && playerName !== 'Adventurer' && playerName !== 'Game Master'
+              ? playerName
+              : isGm
+              ? 'GM'
+              : generateRandomName(),
+          role: isGm ? 'gm' : 'player',
+          color: playerColor || '#3b82f6',
+          connected: true,
+          assignedTokenIds: [],
+        };
+        session.players[playerId] = player;
+      }
 
       // Ack join to sender
       const ackMsg: ServerToClientMessage = {

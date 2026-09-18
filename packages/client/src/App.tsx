@@ -169,6 +169,9 @@ export const App: React.FC = () => {
           setIsGm(msg.isGm);
           setGmPreviewMapId(msg.session.activeMapId);
 
+          if (msg.player?.id) {
+            localStorage.setItem('oldbear_player_id', msg.player.id);
+          }
           if (msg.gmKey) {
             localStorage.setItem(`oldbear_gmkey_${roomId}`, msg.gmKey);
           }
@@ -507,9 +510,8 @@ export const App: React.FC = () => {
       window.removeEventListener('keydown', handleFirstGesture);
     };
     window.addEventListener('click', handleFirstGesture);
-    window.addEventListener('keydown', handleFirstGesture);
-
-    net.connect(roomId, savedName, savedColor, savedGmKey);
+    const savedPlayerId = localStorage.getItem('oldbear_player_id') || undefined;
+    net.connect(roomId, savedName, savedColor, savedGmKey, savedPlayerId);
 
     return () => {
       unsubVoiceState();
@@ -1286,7 +1288,7 @@ export const App: React.FC = () => {
           roomName={session.name}
           activeMapName={currentMap?.name || 'Default Map'}
           isGm={isGm}
-          players={Object.values(session.players)}
+          players={session ? Object.values(session.players).filter((p) => p.connected !== false) : []}
           localPlayer={localPlayer}
           voiceState={voiceState}
           onToggleMute={handleToggleMute}
@@ -1697,7 +1699,7 @@ export const App: React.FC = () => {
         isOpen={showMobileDrawer}
         onClose={() => setShowMobileDrawer(false)}
         localPlayer={localPlayer}
-        players={session ? Object.values(session.players) : []}
+        players={session ? Object.values(session.players).filter((p) => p.connected !== false) : []}
         onUpdatePlayerName={handleUpdateProfile}
         onAddNewToken={() => setShowTokenPickerModal(true)}
         onOpenDice={() => setShowDiceRoller(true)}

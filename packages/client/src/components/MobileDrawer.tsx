@@ -413,21 +413,24 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         </div>
 
         {/* Online Players in Drawer */}
-        {players && players.length > 0 && (
-          <div style={{ marginTop: '0.75rem', marginBottom: '0.75rem', padding: '0.6rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
-            <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem', letterSpacing: '0.05em' }}>
-              ONLINE PLAYERS ({players.length})
-            </label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-              {players.map((p) => {
-                const isSelf = p.id === localPlayer?.id;
-                const effectivePlayer = isSelf && localPlayer ? localPlayer : p;
-                return (
-                  <div
-                    key={effectivePlayer.id}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
+        {(() => {
+          const onlinePlayers = (players || []).filter((p) => p.connected !== false);
+          if (onlinePlayers.length === 0) return null;
+          return (
+            <div style={{ marginTop: '0.75rem', marginBottom: '0.75rem', padding: '0.6rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+              <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem', letterSpacing: '0.05em' }}>
+                ONLINE PLAYERS ({onlinePlayers.length})
+              </label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                {onlinePlayers.map((p) => {
+                  const isSelf = p.id === localPlayer?.id;
+                  const effectivePlayer = isSelf && localPlayer ? localPlayer : p;
+                  return (
+                    <div
+                      key={effectivePlayer.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
                       gap: '0.35rem',
                       padding: '0.2rem 0.5rem',
                       borderRadius: 'var(--radius-full)',
@@ -453,7 +456,8 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               })}
             </div>
           </div>
-        )}
+        );
+      })()}
 
         {/* Footer: Share invite */}
         <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>

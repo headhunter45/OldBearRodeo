@@ -57,7 +57,7 @@ export class NetworkClient {
     });
   }
 
-  connect(roomId: string, playerName: string, playerColor: string, gmKey?: string) {
+  connect(roomId: string, playerName: string, playerColor: string, gmKey?: string, playerId?: string) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.port === '3000' ? `${window.location.hostname}:3001` : window.location.host;
     const wsUrl = `${protocol}//${host}/ws`;
@@ -74,12 +74,14 @@ export class NetworkClient {
     this.ws.onopen = () => {
       console.log('[Network] Connected to signaling server');
       this.notifyStatus('connected');
+      const resolvedPlayerId = playerId || localStorage.getItem('oldbear_player_id') || undefined;
       const joinMsg: ClientToServerMessage = {
         type: 'join',
         roomId,
         playerName,
         playerColor,
         gmKey,
+        playerId: resolvedPlayerId,
       };
       this.sendWs(joinMsg);
     };
@@ -147,6 +149,9 @@ export class NetworkClient {
       this.session = msg.session;
       this.isGm = msg.isGm;
       this.gmKey = msg.gmKey;
+      if (msg.player?.id) {
+        localStorage.setItem('oldbear_player_id', msg.player.id);
+      }
     } else if (msg.type === 'peer-joined') {
       // Any existing peer in the room connects to newcomer for full mesh
       this.initiateRtcConnection(msg.peerId);
