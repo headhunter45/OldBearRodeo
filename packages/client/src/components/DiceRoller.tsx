@@ -32,6 +32,10 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
 }) => {
   const [modifier, setModifier] = useState<number>(0);
   const [diceCount, setDiceCount] = useState<number>(1);
+  const [viewFilter, setViewFilter] = useState<'mine' | 'all'>('mine');
+
+  const myRolls = rollHistory.filter((r) => r.userId === userId || (!r.userId && r.userName === userName));
+  const displayedRolls = viewFilter === 'mine' ? myRolls : rollHistory;
 
   const rollDice = (
     diceType: DieType,
@@ -217,14 +221,63 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
 
       <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.2rem 0 0.5rem' }} />
 
-      {/* Roll History / Log */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-        {rollHistory.length === 0 ? (
+      {/* Roll History Header & User Filter (Bug #68) */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+          Roll History
+        </span>
+        <div style={{ display: 'flex', gap: '0.25rem' }}>
+          <button
+            className={`btn btn-secondary ${viewFilter === 'mine' ? 'active' : ''}`}
+            style={{
+              padding: '0.15rem 0.5rem',
+              fontSize: '0.7rem',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: viewFilter === 'mine' ? 'var(--accent-primary)' : undefined,
+              color: viewFilter === 'mine' ? 'white' : 'var(--text-secondary)',
+            }}
+            onClick={() => setViewFilter('mine')}
+          >
+            My Rolls ({myRolls.length})
+          </button>
+          <button
+            className={`btn btn-secondary ${viewFilter === 'all' ? 'active' : ''}`}
+            style={{
+              padding: '0.15rem 0.5rem',
+              fontSize: '0.7rem',
+              borderRadius: 'var(--radius-full)',
+              backgroundColor: viewFilter === 'all' ? 'var(--accent-primary)' : undefined,
+              color: viewFilter === 'all' ? 'white' : 'var(--text-secondary)',
+            }}
+            onClick={() => setViewFilter('all')}
+          >
+            All ({rollHistory.length})
+          </button>
+        </div>
+      </div>
+
+      {/* Scrollable Roll History / Log */}
+      <div
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.4rem',
+          maxHeight: '180px',
+          minHeight: '80px',
+          paddingRight: '2px',
+          scrollbarWidth: 'thin',
+        }}
+      >
+        {displayedRolls.length === 0 ? (
           <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '1rem' }}>
-            No rolls yet. Click a die to roll!
+            {viewFilter === 'mine'
+              ? "You haven't made any rolls yet. Click a die above to roll!"
+              : 'No rolls yet. Click a die to roll!'}
           </div>
         ) : (
-          rollHistory
+          displayedRolls
             .slice()
             .reverse()
             .map((roll) => (
@@ -234,19 +287,19 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
                   padding: '0.4rem 0.6rem',
                   borderRadius: 'var(--radius-sm)',
                   backgroundColor: 'var(--bg-surface-elevated)',
-                  borderLeft: `3px solid ${roll.userColor}`,
+                  borderLeft: `3px solid ${roll.userColor || 'var(--accent-primary)'}`,
                   fontSize: '0.8rem',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 600, color: roll.userColor }}>{roll.userName}</span>
+                  <span style={{ fontWeight: 600, color: roll.userColor || 'white' }}>{roll.userName}</span>
                   <span style={{ fontWeight: 800, fontSize: '1rem', color: '#f8fafc' }}>
                     {roll.total}
                   </span>
                 </div>
                 <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                   rolled {roll.count > 1 ? `${roll.count}x` : ''}{roll.diceType}
-                  {roll.advantageMode !== 'normal' ? ` (${roll.advantageMode})` : ''}
+                  {roll.advantageMode && roll.advantageMode !== 'normal' ? ` (${roll.advantageMode})` : ''}
                   {roll.modifier ? ` with ${roll.modifier >= 0 ? `+${roll.modifier}` : roll.modifier}` : ''}:
                   [{roll.rolls.join(', ')}]
                 </div>
