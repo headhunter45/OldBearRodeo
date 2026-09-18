@@ -29,7 +29,8 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
   const [selectedInitScore, setSelectedInitScore] = useState<string>('');
   const [isMinimized, setIsMinimized] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+  const [dragOverInfo, setDragOverInfo] = useState<{ index: number; placement: 'before' | 'after' } | null>(null);
+  const draggedIndexRef = React.useRef<number | null>(null);
   const { windowRef, position, isDragging, handleMouseDown } = useDraggableWindow({
     storageKey: 'obr_init_tracker_pos',
   });
@@ -39,6 +40,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
       e.preventDefault();
       return;
     }
+    draggedIndexRef.current = index;
     setDraggedIndex(index);
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', String(index));
@@ -47,60 +49,107 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
-    if (dragOverIndex !== index) {
-      setDragOverIndex(index);
+    const rect = e.currentTarget.getBoundingClientRect();
+    const isBottomHalf = e.clientY > rect.top + rect.height / 2;
+    const placement: 'before' | 'after' = isBottomHalf ? 'after' : 'before';
+
+    if (!dragOverInfo || dragOverInfo.index !== index || dragOverInfo.placement !== placement) {
+      setDragOverInfo({ index, placement });
     }
   };
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
-    setDragOverIndex(null);
+    setDragOverInfo(null);
+    draggedIndexRef.current = null;
   };
 
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
-    setDragOverIndex(null);
-    if (draggedIndex === null || draggedIndex === targetIndex) {
-      setDraggedIndex(null);
+    const rawData = e.dataTransfer.getData('text/plain');
+    const fromIndex = draggedIndexRef.current ?? (rawData !== '' ? parseInt(rawData, 10) : null);
+    const placement = dragOverInfo?.placement ?? 'before';
+
+    setDragOverInfo(null);
+    setDraggedIndex(null);
+    draggedIndexRef.current = null;
+
+    if (fromIndex === null || isNaN(fromIndex) || fromIndex < 0 || fromIndex >= initiative.items.length) {
       return;
     }
 
-    const newItems = [...initiative.items];
-    const [movedItem] = newItems.splice(draggedIndex, 1);
-    newItems.splice(targetIndex, 0, movedItem);
+    const targetItem = initiative.items[targetIndex];
+    if (!targetItem) return;
 
-    // Update the initiative numbers to fit the new reordered position (Bug #67)
-    let calculatedScore: number;
-    if (newItems.length === 1) {
-      calculatedScore = movedItem.initiative;
-    } else if (targetIndex === 0) {
-      const nextScore = newItems[1].initiative;
-      calculatedScore = nextScore + 1;
-    } else if (targetIndex === newItems.length - 1) {
-      const prevScore = newItems[newItems.length - 2].initiative;
-      calculatedScore = Math.max(0, prevScore - 1);
-    } else {
-      const prevScore = newItems[targetIndex - 1].initiative;
-      const nextScore = newItems[targetIndex + 1].initiative;
-      if (prevScore > nextScore + 1) {
-        calculatedScore = Math.round((prevScore + nextScore) / 2);
+    // Clone items and remove the dragged item
+    const newItems = [...initiative.items];
+    const [movedItem] = newItems.splice(fromIndex, 1);
+
+    // Find insertion index relative to targetItem
+    let insertIndex = newItems.findIndex((it) => it.id === targetItem.id);
+    if (insertIndex === -1) return;
+    if (placement === 'after') {
+      insertIndex += 1;
+    }
+
+    if (insertIndex === fromIndex) {
+      return;
+    }
+
+    newItems.splice(insertIndex, 0, movedItem);
+
+    // Update initiative scores to match the new order and ensure they strictly decrease
+    if (newItems.length > 0) {
+      if (insertIndex === 0) {
+        const nextScore = newItems[1]?.initiative ?? 10;
+        newItems[0] = {
+          ...newItems[0],
+          initiative: Math.max(movedItem.initiative, nextScore + 1),
+        };
+      } else if (insertIndex === newItems.length - 1) {
+        const prevScore = newItems[newItems.length - 2].initiative;
+        newItems[insertIndex] = {
+          ...newItems[insertIndex],
+          initiative: Math.min(movedItem.initiative, prevScore - 1),
+        };
       } else {
-        calculatedScore = prevScore;
+        const prevScore = newItems[insertIndex - 1].initiative;
+        const nextScore = newItems[insertIndex + 1].initiative;
+        if (prevScore > nextScore + 1) {
+          if (movedItem.initiative < prevScore && movedItem.initiative > nextScore) {
+            newItems[insertIndex] = { ...newItems[insertIndex], initiative: movedItem.initiative };
+          } else {
+            newItems[insertIndex] = { ...newItems[insertIndex], initiative: Math.round((prevScore + nextScore) / 2) };
+          }
+        } else {
+          newItems[insertIndex] = { ...newItems[insertIndex], initiative: prevScore - 1 };
+        }
+      }
+
+      // Cascade adjustments downward so every subsequent item has a strictly smaller initiative score
+      for (let i = 1; i < newItems.length; i++) {
+        if (newItems[i].initiative >= newItems[i - 1].initiative) {
+          newItems[i] = { ...newItems[i], initiative: newItems[i - 1].initiative - 1 };
+        }
+      }
+
+      // If any score dropped below 0, shift all scores up so minimum is 0
+      const minScore = Math.min(...newItems.map((it) => it.initiative));
+      if (minScore < 0) {
+        const offset = Math.abs(minScore);
+        for (let i = 0; i < newItems.length; i++) {
+          newItems[i] = { ...newItems[i], initiative: newItems[i].initiative + offset };
+        }
       }
     }
 
-    newItems[targetIndex] = {
-      ...movedItem,
-      initiative: calculatedScore,
-    };
-
     // Keep turn index tracking the active combatant
     let newTurnIndex = initiative.currentTurnIndex;
-    if (initiative.currentTurnIndex === draggedIndex) {
-      newTurnIndex = targetIndex;
-    } else if (draggedIndex < initiative.currentTurnIndex && targetIndex >= initiative.currentTurnIndex) {
+    if (initiative.currentTurnIndex === fromIndex) {
+      newTurnIndex = insertIndex;
+    } else if (fromIndex < initiative.currentTurnIndex && insertIndex >= initiative.currentTurnIndex) {
       newTurnIndex = initiative.currentTurnIndex - 1;
-    } else if (draggedIndex > initiative.currentTurnIndex && targetIndex <= initiative.currentTurnIndex) {
+    } else if (fromIndex > initiative.currentTurnIndex && insertIndex <= initiative.currentTurnIndex) {
       newTurnIndex = initiative.currentTurnIndex + 1;
     }
 
@@ -109,8 +158,6 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
       items: newItems,
       currentTurnIndex: newTurnIndex,
     });
-
-    setDraggedIndex(null);
   };
 
   const handleNextTurn = () => {
@@ -401,17 +448,25 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                   borderRadius: 'var(--radius-sm)',
                   backgroundColor: isCurrent ? 'rgba(99, 102, 241, 0.25)' : 'var(--bg-surface-elevated)',
                   border: isCurrent ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                  borderTop: dragOverIndex === idx && draggedIndex !== idx ? '2px solid var(--accent-primary)' : undefined,
+                  borderTop:
+                    dragOverInfo?.index === idx && dragOverInfo.placement === 'before' && draggedIndex !== idx
+                      ? '2px solid var(--accent-primary)'
+                      : undefined,
+                  borderBottom:
+                    dragOverInfo?.index === idx && dragOverInfo.placement === 'after' && draggedIndex !== idx
+                      ? '2px solid var(--accent-primary)'
+                      : undefined,
                   boxShadow: isCurrent ? '0 0 10px var(--accent-glow)' : 'none',
                   opacity: draggedIndex === idx ? 0.4 : 1,
                   cursor: 'grab',
+                  userSelect: 'none',
                   transition: 'background-color 0.15s ease',
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <GripVertical
                     size={14}
-                    style={{ color: 'var(--text-muted)', cursor: 'grab', flexShrink: 0 }}
+                    style={{ color: 'var(--text-muted)', cursor: 'grab', flexShrink: 0, pointerEvents: 'none' }}
                   />
 
                   {editingItemId === item.id ? (
