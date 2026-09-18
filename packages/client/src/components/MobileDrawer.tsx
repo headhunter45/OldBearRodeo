@@ -245,6 +245,141 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           </div>
         </div>
 
+        {/* Main Tool Actions (under audio controls) */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginBottom: '1.25rem' }}>
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+            onClick={() => {
+              onClose();
+              onOpenDice();
+            }}
+          >
+            <Dices size={18} color="var(--accent-primary)" /> Dice Roller
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+            onClick={() => {
+              onClose();
+              onOpenCharacter();
+            }}
+          >
+            <User size={18} color="var(--accent-primary)" /> Character Sheet & Spells
+          </button>
+
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+            onClick={() => {
+              onClose();
+              onOpenInitiative();
+            }}
+          >
+            <Swords size={18} color="var(--accent-gold)" /> Initiative Tracker
+          </button>
+
+          {isGm && (
+            <>
+              <button
+                className="btn btn-secondary"
+                style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+                onClick={() => {
+                  onClose();
+                  onOpenMaps();
+                }}
+              >
+                <Map size={18} color="#38bdf8" /> Scene Manager
+              </button>
+
+              {onAddNewToken && (
+                <button
+                  className="btn btn-secondary"
+                  style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+                  onClick={() => {
+                    onClose();
+                    onAddNewToken();
+                  }}
+                >
+                  <Plus size={18} color="#10b981" /> Add Token
+                </button>
+              )}
+            </>
+          )}
+
+          {onOpenBackup && (
+            <button
+              className="btn btn-secondary"
+              style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+              onClick={() => {
+                onClose();
+                onOpenBackup();
+              }}
+            >
+              <Database size={18} color="var(--accent-primary)" /> Backup & Transfer Data
+            </button>
+          )}
+
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+            onClick={() => {
+              onClose();
+              onOpenSoundboard();
+            }}
+          >
+            <Volume2 size={18} color="var(--accent-emerald)" /> Soundboard
+          </button>
+
+          {onToggleChat && (
+            <button
+              className={`btn btn-secondary ${isChatOpen ? 'active' : ''}`}
+              style={{
+                justifyContent: 'flex-start',
+                padding: '0.65rem',
+                position: 'relative',
+                backgroundColor: isChatOpen ? 'rgba(99, 102, 241, 0.2)' : undefined,
+                borderColor: isChatOpen ? 'var(--accent-primary)' : undefined,
+              }}
+              onClick={() => {
+                onClose();
+                onToggleChat();
+              }}
+            >
+              <MessageSquare size={18} color="var(--accent-primary)" />
+              <span style={{ flex: 1, textAlign: 'left' }}>
+                {isChatOpen ? 'Close Chat Window' : 'Chat & Dice Commands'}
+              </span>
+              {unreadChatCount && unreadChatCount > 0 ? (
+                <span
+                  style={{
+                    backgroundColor: 'var(--accent-rose)',
+                    color: '#fff',
+                    borderRadius: '10px',
+                    fontSize: '0.7rem',
+                    padding: '2px 7px',
+                    fontWeight: 800,
+                  }}
+                >
+                  {unreadChatCount} new
+                </span>
+              ) : null}
+            </button>
+          )}
+
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+            onClick={() => {
+              onClose();
+              onOpenVoiceSettings?.();
+            }}
+          >
+            <Radio size={18} color="var(--accent-primary)" /> Voice & Audio Settings
+          </button>
+        </div>
+
         {/* Profile Customization Section */}
         <form
           onSubmit={handleSaveProfile}
@@ -303,141 +438,6 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             </div>
           </div>
         </form>
-
-        {/* Quick Drawer Navigation Buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', flex: 1 }}>
-          <button
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-            onClick={() => {
-              onClose();
-              onOpenVoiceSettings?.();
-            }}
-          >
-            <Radio size={18} color="var(--accent-primary)" /> Voice & Audio Settings
-          </button>
-
-          <button
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-            onClick={() => {
-              onClose();
-              onOpenCharacter();
-            }}
-          >
-            <User size={18} color="var(--accent-primary)" /> Character Sheet & Spells
-          </button>
-
-          {onToggleChat && (
-            <button
-              className={`btn btn-secondary ${isChatOpen ? 'active' : ''}`}
-              style={{
-                justifyContent: 'flex-start',
-                padding: '0.65rem',
-                position: 'relative',
-                backgroundColor: isChatOpen ? 'rgba(99, 102, 241, 0.2)' : undefined,
-                borderColor: isChatOpen ? 'var(--accent-primary)' : undefined,
-              }}
-              onClick={() => {
-                onClose();
-                onToggleChat();
-              }}
-            >
-              <MessageSquare size={18} color="var(--accent-primary)" />
-              <span style={{ flex: 1, textAlign: 'left' }}>
-                {isChatOpen ? 'Close Chat Window' : 'Chat & Dice Commands'}
-              </span>
-              {unreadChatCount && unreadChatCount > 0 ? (
-                <span
-                  style={{
-                    backgroundColor: 'var(--accent-rose)',
-                    color: '#fff',
-                    borderRadius: '10px',
-                    fontSize: '0.7rem',
-                    padding: '2px 7px',
-                    fontWeight: 800,
-                  }}
-                >
-                  {unreadChatCount} new
-                </span>
-              ) : null}
-            </button>
-          )}
-
-          <button
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-            onClick={() => {
-              onClose();
-              onOpenDice();
-            }}
-          >
-            <Dices size={18} color="var(--accent-primary)" /> Dice Roller
-          </button>
-
-          <button
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-            onClick={() => {
-              onClose();
-              onOpenInitiative();
-            }}
-          >
-            <Swords size={18} color="var(--accent-gold)" /> Initiative Tracker
-          </button>
-
-          <button
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-            onClick={() => {
-              onClose();
-              onOpenSoundboard();
-            }}
-          >
-            <Volume2 size={18} color="var(--accent-emerald)" /> Soundboard
-          </button>
-
-          {onOpenBackup && (
-            <button
-              className="btn btn-secondary"
-              style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-              onClick={() => {
-                onClose();
-                onOpenBackup();
-              }}
-            >
-              <Database size={18} color="var(--accent-primary)" /> Backup & Transfer Data
-            </button>
-          )}
-
-          {isGm && (
-            <>
-              <button
-                className="btn btn-secondary"
-                style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-                onClick={() => {
-                  onClose();
-                  onOpenMaps();
-                }}
-              >
-                <Map size={18} color="#38bdf8" /> Maps & Scenes Manager
-              </button>
-
-              {onAddNewToken && (
-                <button
-                  className="btn btn-secondary"
-                  style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-                  onClick={() => {
-                    onClose();
-                    onAddNewToken();
-                  }}
-                >
-                  <Plus size={18} color="#10b981" /> Create / Deploy New Token
-                </button>
-              )}
-            </>
-          )}
-        </div>
 
         {/* Online Players in Drawer */}
         {(() => {

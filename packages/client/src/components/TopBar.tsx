@@ -1,16 +1,8 @@
 import React, { useState } from 'react';
 import {
   Share2,
-  Dices,
-  Swords,
-  User,
-  Map,
-  Volume2,
   Menu,
-  Plus,
-  Copy,
   Check,
-  Database,
 } from 'lucide-react';
 import { Player, GameMap } from '@oldbear/shared';
 import { VoiceState } from '../network/VoiceManager.js';
@@ -216,56 +208,13 @@ export const TopBar: React.FC<TopBarProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         {/* Invite Link Button */}
         <button
-          className="btn btn-secondary topbar-desktop-only"
+          className="btn btn-secondary"
           style={{ fontSize: '0.75rem', padding: '0.35rem 0.6rem' }}
           onClick={copyInviteLink}
         >
           {copied ? <Check size={14} color="#10b981" /> : <Share2 size={14} />}
           <span className="topbar-map-label">{copied ? 'Link Copied!' : 'Invite'}</span>
         </button>
-
-        {/* Dice Roller Toggle */}
-        <button className="btn-icon topbar-desktop-only" onClick={onOpenDice} title="Dice Roller">
-          <Dices size={18} />
-        </button>
-
-        {/* Initiative Tracker Toggle */}
-        <button className="btn-icon topbar-desktop-only" onClick={onOpenInitiative} title="Initiative Tracker">
-          <Swords size={18} />
-        </button>
-
-        {/* Character Sheet Toggle */}
-        <button className="btn-icon topbar-desktop-only" onClick={onOpenCharacter} title="Character Sheet">
-          <User size={18} />
-        </button>
-
-        {/* GM Features */}
-        {isGm && (
-          <>
-            <button className="btn-icon topbar-desktop-only" onClick={onOpenMaps} title="Manage Maps & Scenes">
-              <Map size={18} />
-            </button>
-            <button className="btn-icon topbar-desktop-only" onClick={onAddNewToken} title="Create / Deploy New Token">
-              <Plus size={18} />
-            </button>
-          </>
-        )}
-
-        {/* Soundboard Toggle */}
-        <button className="btn-icon topbar-desktop-only" onClick={onOpenSoundboard} title="Soundboard & Audio">
-          <Volume2 size={18} />
-        </button>
-
-        {/* Backup & Transfer Data Toggle */}
-        {onOpenBackup && (
-          <button
-            className="btn-icon topbar-desktop-only"
-            onClick={onOpenBackup}
-            title="Backup & Transfer Data (Export/Import)"
-          >
-            <Database size={18} />
-          </button>
-        )}
       </div>
     </header>
   );
