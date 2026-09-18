@@ -137,4 +137,87 @@ describe('Dice Parser & Slash Command Utilities', () => {
     assert.ok(invalidAttackMsg.text.includes('Could not find attack'));
     assert.strictEqual(broadcastRolls.length, 0, 'No roll broadcast for invalid attack');
   });
+
+  it('handles /sync command and token selection logic (Bug #55)', async () => {
+    const testPlayer = {
+      id: 'p-1',
+      name: 'Ranger',
+      role: 'player' as const,
+      color: '#10b981',
+      connected: true,
+      assignedTokenIds: [],
+    };
+
+    const mockTokens = [
+      { id: 'tok-1', name: 'Aragorn', x: 0, y: 0, size: 1, currentHp: 20, maxHp: 20, speed: 30 },
+      { id: 'tok-2', name: 'Legolas', x: 5, y: 5, size: 1, currentHp: 15, maxHp: 15, speed: 35 },
+    ];
+
+    const mockChar = {
+      id: '47804290',
+      name: 'Grom',
+      level: 5,
+      classes: 'Barbarian 5',
+      race: 'Orc',
+      currentHp: 55,
+      maxHp: 55,
+      tempHp: 0,
+      speed: 40,
+      armorClass: 15,
+      passivePerception: 14,
+      initiativeBonus: 2,
+    };
+
+    const sentMessages: any[] = [];
+    const updatedTokens: any[] = [];
+    let updatedPlayerChar: any = null;
+
+    const ctx = {
+      player: testPlayer,
+      tokens: mockTokens as any,
+      onSendMessage: (msg: any) => sentMessages.push(msg),
+      onSyncToken: (tokenId: string, updates: any) => updatedTokens.push({ tokenId, updates }),
+      onUpdatePlayerChar: (char: any) => { updatedPlayerChar = char; },
+      fetchCharacterFn: async (idOrUrl: string) => {
+        if (idOrUrl.includes('fail')) throw new Error('Not found');
+        return mockChar as any;
+      },
+    };
+
+    // 1. /sync without parameters shows usage instructions
+    processSlashCommand('/sync', ctx);
+    assert.ok(sentMessages.at(-1)?.text.includes('Usage: /sync'));
+
+    // 2. /sync with multiple tokens but no token index prompts for token index
+    processSlashCommand('/sync 47804290', ctx);
+    assert.ok(sentMessages.at(-1)?.text.includes('Please specify the token index'));
+
+    // 3. /sync with invalid token index shows error
+    processSlashCommand('/sync 47804290 99', ctx);
+    assert.ok(sentMessages.at(-1)?.text.includes('Invalid token index'));
+
+    // 4. /sync with valid token index (e.g. 2 for Legolas)
+    processSlashCommand('/sync 47804290 2', ctx);
+    // Allow the promise in fetchCharacterFn to resolve
+    await new Promise((r) => setTimeout(r, 20));
+
+    assert.strictEqual(updatedPlayerChar?.name, 'Grom');
+    assert.strictEqual(updatedTokens.length, 1);
+    assert.strictEqual(updatedTokens[0].tokenId, 'tok-2');
+    assert.strictEqual(updatedTokens[0].updates.name, 'Grom');
+    assert.strictEqual(updatedTokens[0].updates.currentHp, 55);
+    assert.strictEqual(updatedTokens[0].updates.initiativeBonus, 2);
+    assert.ok(sentMessages.at(-1)?.text.includes('Successfully synced "Grom" to token #2'));
+
+    // 5. /sync with single token automatically targets it without index
+    const singleTokenCtx = {
+      ...ctx,
+      tokens: [mockTokens[0]] as any,
+    };
+    processSlashCommand('/sync 47804290', singleTokenCtx);
+    await new Promise((r) => setTimeout(r, 20));
+
+    assert.strictEqual(updatedTokens.length, 2);
+    assert.strictEqual(updatedTokens[1].tokenId, 'tok-1');
+  });
 });

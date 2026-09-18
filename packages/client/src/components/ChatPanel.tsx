@@ -1,13 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Player, ChatMessage, DiceRollResult, DnDCharacter, DieType, DnDAction } from '@oldbear/shared';
+import { Player, ChatMessage, DiceRollResult, DnDCharacter, DieType, DnDAction, Token } from '@oldbear/shared';
 import { MessageSquare, Send, X, Dices, Sword, Sparkles, HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
 
-interface ChatPanelProps {
+export interface ChatPanelProps {
   player: Player;
   character?: DnDCharacter | null;
+  tokens?: Token[];
   messages: ChatMessage[];
   onSendMessage: (msg: ChatMessage) => void;
   onBroadcastRoll?: (roll: DiceRollResult) => void;
+  onSyncToken?: (tokenId: string, updates: Partial<Token>) => void;
+  onUpdatePlayerChar?: (char: DnDCharacter) => void;
+  fetchCharacterFn?: (charIdOrUrl: string) => Promise<DnDCharacter>;
   isOpen: boolean;
   onToggleOpen: () => void;
 }
@@ -55,14 +59,20 @@ export function parseDiceExpression(expr: string, advMode?: 'normal' | 'advantag
   };
 }
 
+export interface ProcessSlashCommandContext {
+  player: Player;
+  character?: DnDCharacter;
+  tokens?: Token[];
+  onSendMessage: (msg: ChatMessage) => void;
+  onBroadcastRoll?: (roll: DiceRollResult) => void;
+  onSyncToken?: (tokenId: string, updates: Partial<Token>) => void;
+  onUpdatePlayerChar?: (char: DnDCharacter) => void;
+  fetchCharacterFn?: (charIdOrUrl: string) => Promise<DnDCharacter>;
+}
+
 export function processSlashCommand(
   raw: string,
-  context: {
-    player: Player;
-    character?: DnDCharacter;
-    onSendMessage: (msg: ChatMessage) => void;
-    onBroadcastRoll?: (roll: DiceRollResult) => void;
-  }
+  context: ProcessSlashCommandContext
 ): boolean {
   const text = raw.trim();
   if (!text || !text.startsWith('/')) return false;
@@ -72,28 +82,28 @@ export function processSlashCommand(
   const args = parts.slice(1);
   const { player, character, onSendMessage, onBroadcastRoll } = context;
 
-      // Helper to send client-only ephemeral messages for caller
-      const sendPrivateSystemMessage = (msgText: string, title = 'VTT Guide', color = '#6366f1') => {
-        onSendMessage({
-          id: crypto.randomUUID(),
-          senderId: 'system',
-          senderName: title,
-          senderColor: color,
-          text: msgText,
-          timestamp: Date.now(),
-          isCommand: true,
-          isEphemeral: true,
-          recipientId: player.id,
-        });
-      };
+  // Helper to send client-only ephemeral messages for caller
+  const sendPrivateSystemMessage = (msgText: string, title = 'VTT Guide', color = '#6366f1') => {
+    onSendMessage({
+      id: crypto.randomUUID(),
+      senderId: 'system',
+      senderName: title,
+      senderColor: color,
+      text: msgText,
+      timestamp: Date.now(),
+      isCommand: true,
+      isEphemeral: true,
+      recipientId: player.id,
+    });
+  };
 
-      // 1. /help
-      if (cmd === 'help') {
-        sendPrivateSystemMessage(
-          `Available commands:\n• /roll [count]d[sides][+/-mod] [adv|dis] - Roll any dice (e.g. /roll 1d20+5 adv)\n• /attack [weapon] [adv|dis] - Roll to-hit & damage from sheet (e.g. /attack Longsword)\n• /skill [skill] [adv|dis] - Roll a character skill check (e.g. /skill Stealth dis)\n• /spell [spell] [adv|dis] - Roll a spell attack from character sheet`
-        );
-        return true;
-      }
+  // 1. /help
+  if (cmd === 'help') {
+    sendPrivateSystemMessage(
+      `Available commands:\n• /roll [count]d[sides][+/-mod] [adv|dis] - Roll any dice (e.g. /roll 1d20+5 adv)\n• /attack [weapon] [adv|dis] - Roll to-hit & damage from sheet (e.g. /attack Longsword)\n• /skill [skill] [adv|dis] - Roll a character skill check (e.g. /skill Stealth dis)\n• /spell [spell] [adv|dis] - Roll a spell attack from character sheet\n• /sync [url or id] [token index] - Sync character sheet and token with D&D Beyond`
+    );
+    return true;
+  }
 
       // 2. /roll [expr] [adv|dis]
       if (cmd === 'roll') {
@@ -404,15 +414,122 @@ export function processSlashCommand(
         });
         return true;
       }
+
+      // 6. /sync [urlOrId] [tokenIndex]
+      if (cmd === 'sync') {
+        const urlOrId = args[0];
+        const tokenIndexArg = args[1];
+
+        if (!urlOrId) {
+          sendPrivateSystemMessage(
+            `Usage: /sync <dndbeyond url or id> [token index]\nExample: /sync 47804290 or /sync https://www.dndbeyond.com/characters/47804290 1\nUse /tokens to view your available tokens.`,
+            'D&D Beyond Sync'
+          );
+          return true;
+        }
+
+        const syncTokens = context.tokens || [];
+
+        let targetToken: Token | undefined;
+        let tokenIndexNum: number | undefined;
+
+        if (syncTokens.length === 1) {
+          targetToken = syncTokens[0];
+          tokenIndexNum = 1;
+        } else if (syncTokens.length > 1) {
+          if (!tokenIndexArg) {
+            sendPrivateSystemMessage(
+              `You have ${syncTokens.length} tokens. Please specify the token index to sync:\n/sync ${urlOrId} <token index>\n\nUse /tokens to view your token list.`,
+              'D&D Beyond Sync',
+              '#f59e0b'
+            );
+            return true;
+          }
+
+          const parsedIdx = parseInt(tokenIndexArg, 10);
+          if (isNaN(parsedIdx) || parsedIdx < 1 || parsedIdx > syncTokens.length) {
+            sendPrivateSystemMessage(
+              `Invalid token index "${tokenIndexArg}". Please choose an index between 1 and ${syncTokens.length}.\nUse /tokens to view your token list.`,
+              'D&D Beyond Sync',
+              '#f43f5e'
+            );
+            return true;
+          }
+          targetToken = syncTokens[parsedIdx - 1];
+          tokenIndexNum = parsedIdx;
+        }
+
+        sendPrivateSystemMessage(
+          `Fetching character data from D&D Beyond...`,
+          'D&D Beyond Sync',
+          '#3b82f6'
+        );
+
+        const fetchFn = context.fetchCharacterFn || (async (query: string) => {
+          const idMatch = query.match(/characters\/(\d+)/) || query.match(/^(\d+)$/);
+          const charId = idMatch ? idMatch[1] : query.trim();
+          const res = await fetch(`/api/dndbeyond/${encodeURIComponent(charId)}`);
+          if (!res.ok) {
+            const errJson = await res.json().catch(() => ({}));
+            throw new Error(errJson.error || `HTTP error ${res.status}`);
+          }
+          return res.json();
+        });
+
+        fetchFn(urlOrId)
+          .then((char) => {
+            context.onUpdatePlayerChar?.(char);
+
+            if (targetToken) {
+              const updates: Partial<Token> = {
+                name: char.name,
+                currentHp: char.currentHp,
+                maxHp: char.maxHp,
+                speed: char.speed,
+                initiativeBonus: char.initiativeBonus,
+                character: char,
+              };
+              if (char.avatarUrl) {
+                updates.imageUrl = char.avatarUrl;
+              }
+              context.onSyncToken?.(targetToken.id, updates);
+
+              sendPrivateSystemMessage(
+                `Successfully synced "${char.name}" to token #${tokenIndexNum} (${targetToken.name}) and your player sheet!`,
+                'D&D Beyond Sync',
+                '#10b981'
+              );
+            } else {
+              sendPrivateSystemMessage(
+                `Successfully synced "${char.name}" to your character sheet! (No tokens on map to sync)`,
+                'D&D Beyond Sync',
+                '#10b981'
+              );
+            }
+          })
+          .catch((err: any) => {
+            sendPrivateSystemMessage(
+              `Failed to sync character: ${err.message || err}`,
+              'D&D Beyond Sync',
+              '#f43f5e'
+            );
+          });
+
+        return true;
+      }
   return false;
 }
 
 export const ChatPanel: React.FC<ChatPanelProps> = ({
   player,
   character,
+  tokens,
   messages,
   onSendMessage,
   onBroadcastRoll,
+  onSyncToken,
+  onUpdatePlayerChar,
+  fetchCharacterFn,
   isOpen,
   onToggleOpen,
 }) => {
@@ -433,8 +550,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       processSlashCommand(text, {
         player,
         character: character || undefined,
+        tokens,
         onSendMessage,
         onBroadcastRoll,
+        onSyncToken,
+        onUpdatePlayerChar,
+        fetchCharacterFn,
       });
       return;
     }

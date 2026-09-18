@@ -1192,6 +1192,26 @@ export const App: React.FC = () => {
         <ChatPanel
           player={localPlayer}
           character={localPlayer.dndBeyondCharacter}
+          tokens={
+            (() => {
+              const owned = Object.values(session?.tokens || {}).filter(
+                (t) => t.ownerId === localPlayer.id || localPlayer.assignedTokenIds?.includes(t.id)
+              );
+              const list = owned.length > 0 ? owned : (isGm ? Object.values(session?.tokens || {}) : []);
+              return [...list].sort((a, b) => a.name.localeCompare(b.name));
+            })()
+          }
+          onSyncToken={(tokenId, updates) => {
+            handleUpdateToken(tokenId, updates);
+          }}
+          onUpdatePlayerChar={(dndBeyondCharacter) => {
+            setLocalPlayer((p) => (p ? { ...p, dndBeyondCharacter } : p));
+            networkRef.current?.send({
+              type: 'player-update',
+              updates: { dndBeyondCharacter },
+            });
+            saveCharacterToStorage(dndBeyondCharacter, isGm);
+          }}
           messages={chatMessages}
           onSendMessage={(m) => {
             if (m.isEphemeral) {
