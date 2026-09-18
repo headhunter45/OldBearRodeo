@@ -83,7 +83,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       <button
         className={`btn-icon ${activeTool === 'select' ? 'active' : ''}`}
         onClick={() => onSelectTool('select')}
-        title="Select & Move Token (V)"
+        title="Select"
       >
         <MousePointer size={18} />
       </button>
