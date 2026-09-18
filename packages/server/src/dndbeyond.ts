@@ -385,10 +385,95 @@ async function parseDnDData(characterId: string, data: any): Promise<DnDCharacte
     });
   }
 
-  const passivePerception =
-    skills.find((s) => s.name === 'Perception')?.modifier !== undefined
-      ? 10 + (skills.find((s) => s.name === 'Perception')?.modifier || 0)
-      : 10 + Math.floor((stats.wis - 10) / 2);
+  // Saving Throws (Bug #51)
+  const saveProficiencies: string[] = [];
+  const statKeys: Array<'str' | 'dex' | 'con' | 'int' | 'wis' | 'cha'> = [
+    'str',
+    'dex',
+    'con',
+    'int',
+    'wis',
+    'cha',
+  ];
+  const fullStatNames = {
+    str: 'strength',
+    dex: 'dexterity',
+    con: 'constitution',
+    int: 'intelligence',
+    wis: 'wisdom',
+    cha: 'charisma',
+  };
+
+  const savingThrows: {
+    str: number;
+    dex: number;
+    con: number;
+    int: number;
+    wis: number;
+    cha: number;
+    proficiencies?: string[];
+  } = {
+    str: Math.floor((stats.str - 10) / 2),
+    dex: Math.floor((stats.dex - 10) / 2),
+    con: Math.floor((stats.con - 10) / 2),
+    int: Math.floor((stats.int - 10) / 2),
+    wis: Math.floor((stats.wis - 10) / 2),
+    cha: Math.floor((stats.cha - 10) / 2),
+    proficiencies: saveProficiencies,
+  };
+
+  for (const k of statKeys) {
+    const fullName = fullStatNames[k];
+    const isProf = allMods.some(
+      (m) =>
+        m.type === 'proficiency' &&
+        (m.subType === `${fullName}-saving-throws` || m.subType === `${k}-saving-throws`)
+    );
+    if (isProf) {
+      saveProficiencies.push(k);
+      savingThrows[k] += proficiencyBonus;
+    }
+    const bonus = allMods
+      .filter(
+        (m) =>
+          m.type === 'bonus' &&
+          (m.subType === `${fullName}-saving-throws` ||
+            m.subType === `${k}-saving-throws` ||
+            m.subType === 'saving-throws') &&
+          typeof m.value === 'number'
+      )
+      .reduce((sum, m) => sum + m.value, 0);
+    savingThrows[k] += bonus;
+  }
+
+  // Initiative Bonus (Bug #51)
+  const initiativeBonusFromMods = allMods
+    .filter((m) => m.type === 'bonus' && m.subType?.includes('initiative') && typeof m.value === 'number')
+    .reduce((sum, m) => sum + m.value, 0);
+  const initiativeBonus = Math.floor((stats.dex - 10) / 2) + initiativeBonusFromMods;
+
+  // Passives (Bug #51)
+  const percSkill = skills.find((s) => s.name === 'Perception');
+  const invSkill = skills.find((s) => s.name === 'Investigation');
+  const insSkill = skills.find((s) => s.name === 'Insight');
+
+  const passives = {
+    perception: percSkill ? 10 + percSkill.modifier : 10 + Math.floor((stats.wis - 10) / 2),
+    investigation: invSkill ? 10 + invSkill.modifier : 10 + Math.floor((stats.int - 10) / 2),
+    insight: insSkill ? 10 + insSkill.modifier : 10 + Math.floor((stats.wis - 10) / 2),
+  };
+
+  // Currencies (Bug #51)
+  const rawCurrencies = data.currencies || {};
+  const currencies = {
+    cp: Number(rawCurrencies.cp || 0),
+    sp: Number(rawCurrencies.sp || 0),
+    ep: Number(rawCurrencies.ep || 0),
+    gp: Number(rawCurrencies.gp || 0),
+    pp: Number(rawCurrencies.pp || 0),
+  };
+
+  const passivePerception = passives.perception;
 
   return {
     id: characterId,
@@ -403,6 +488,10 @@ async function parseDnDData(characterId: string, data: any): Promise<DnDCharacte
     speed,
     armorClass: 15,
     passivePerception,
+    initiativeBonus,
+    savingThrows,
+    passives,
+    currencies,
     proficiencyBonus,
     stats,
     skills,
@@ -447,6 +536,28 @@ export function getDemoCharacter(): DnDCharacter {
     speed: 30,
     armorClass: 18,
     passivePerception: 14,
+    initiativeBonus: 2,
+    savingThrows: {
+      str: 7,
+      dex: 2,
+      con: 6,
+      int: 0,
+      wis: 1,
+      cha: 0,
+      proficiencies: ['str', 'con'],
+    },
+    passives: {
+      perception: 14,
+      investigation: 10,
+      insight: 11,
+    },
+    currencies: {
+      cp: 15,
+      sp: 32,
+      ep: 0,
+      gp: 125,
+      pp: 2,
+    },
     proficiencyBonus,
     stats,
     skills,

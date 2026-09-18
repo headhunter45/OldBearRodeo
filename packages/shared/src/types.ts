@@ -206,6 +206,28 @@ export interface DnDCharacter {
   speed: number;
   armorClass: number;
   passivePerception: number;
+  initiativeBonus?: number;
+  savingThrows?: {
+    str: number;
+    dex: number;
+    con: number;
+    int: number;
+    wis: number;
+    cha: number;
+    proficiencies?: string[];
+  };
+  passives?: {
+    perception: number;
+    investigation: number;
+    insight: number;
+  };
+  currencies?: {
+    cp: number;
+    sp: number;
+    ep: number;
+    gp: number;
+    pp: number;
+  };
   proficiencyBonus?: number;
   stats: {
     str: number;

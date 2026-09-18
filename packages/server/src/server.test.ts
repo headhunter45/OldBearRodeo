@@ -81,4 +81,25 @@ describe('D&D Beyond Integration', () => {
     assert.strictEqual(unarmed.toHitModifier, 6, 'Unarmed Strike has +6 to hit');
     assert.strictEqual(unarmed.damage, '4 damage', 'Unarmed Strike has 4 damage');
   });
+
+  it('imports initiative bonus, saving throws, passives, and currencies (Bug #51)', async () => {
+    const char = await fetchDnDCharacter('https://www.dndbeyond.com/characters/47804290');
+    assert.ok(char, 'Character retrieved');
+    assert.strictEqual(char.initiativeBonus, 2, 'Initiative bonus is +2 (DEX mod)');
+
+    assert.ok(char.savingThrows, 'Saving throws parsed');
+    assert.strictEqual(char.savingThrows.str, 6, 'STR save: +3 mod + 3 prof = +6');
+    assert.strictEqual(char.savingThrows.dex, 2, 'DEX save: +2 mod');
+    assert.strictEqual(char.savingThrows.con, 7, 'CON save: +4 mod + 3 prof = +7');
+    assert.ok(char.savingThrows.proficiencies?.includes('str'), 'STR proficient in saves');
+    assert.ok(char.savingThrows.proficiencies?.includes('con'), 'CON proficient in saves');
+
+    assert.ok(char.passives, 'Passives parsed');
+    assert.ok(typeof char.passives.perception === 'number', 'Passive perception is a number');
+    assert.ok(typeof char.passives.investigation === 'number', 'Passive investigation is a number');
+    assert.ok(typeof char.passives.insight === 'number', 'Passive insight is a number');
+
+    assert.ok(char.currencies, 'Currencies parsed');
+    assert.strictEqual(char.currencies.gp, 770, 'GP parsed accurately');
+  });
 });

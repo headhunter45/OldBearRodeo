@@ -12,6 +12,8 @@ import {
   ChevronUp,
   Sparkles,
   Link as LinkIcon,
+  Coins,
+  Flame,
 } from 'lucide-react';
 
 interface CharacterFlyoutProps {
@@ -479,13 +481,42 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
               </div>
             </div>
 
-            {/* Combat Vitals (AC, Speed, Prof, Passive) */}
+            {/* Currency Bar (Bug #51) */}
+            {character.currencies && (
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.4rem 0.6rem',
+                  marginBottom: '1rem',
+                  fontSize: '0.75rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '5px', color: '#eab308', fontWeight: 700 }}>
+                  <Coins size={14} />
+                  <span>CURRENCY</span>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', fontWeight: 600 }}>
+                  <span><span style={{ color: '#b45309' }}>{character.currencies.cp ?? 0}</span> CP</span>
+                  <span><span style={{ color: '#94a3b8' }}>{character.currencies.sp ?? 0}</span> SP</span>
+                  <span><span style={{ color: '#0284c7' }}>{character.currencies.ep ?? 0}</span> EP</span>
+                  <span><span style={{ color: '#eab308' }}>{character.currencies.gp ?? 0}</span> GP</span>
+                  <span><span style={{ color: '#cbd5e1' }}>{character.currencies.pp ?? 0}</span> PP</span>
+                </div>
+              </div>
+            )}
+
+            {/* Combat Vitals (AC, Speed, Initiative, Prof) */}
             <div
               style={{
                 display: 'grid',
                 gridTemplateColumns: 'repeat(4, 1fr)',
                 gap: '0.4rem',
-                marginBottom: '1.25rem',
+                marginBottom: '0.5rem',
               }}
             >
               <div
@@ -533,12 +564,16 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
                   border: '1px solid var(--border-subtle)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '3px', color: '#a855f7' }}>
-                  <Sparkles size={12} />
-                  <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>PROF</span>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '3px', color: '#f97316' }}>
+                  <Flame size={12} />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>INITIATIVE</span>
                 </div>
                 <div style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '2px' }}>
-                  +{proficiencyBonus}
+                  {character.initiativeBonus !== undefined
+                    ? character.initiativeBonus >= 0
+                      ? `+${character.initiativeBonus}`
+                      : character.initiativeBonus
+                    : '+0'}
                 </div>
               </div>
 
@@ -551,12 +586,67 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
                   border: '1px solid var(--border-subtle)',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '3px', color: '#f59e0b' }}>
-                  <User size={12} />
-                  <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>PASSIVE</span>
+                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '3px', color: '#a855f7' }}>
+                  <Sparkles size={12} />
+                  <span style={{ fontSize: '0.65rem', fontWeight: 700 }}>PROF</span>
                 </div>
                 <div style={{ fontSize: '1.15rem', fontWeight: 800, marginTop: '2px' }}>
-                  {character.passivePerception}
+                  +{proficiencyBonus}
+                </div>
+              </div>
+            </div>
+
+            {/* Passives Bar (Perception, Investigation, Insight) (Bug #51) */}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '0.4rem',
+                marginBottom: '1.25rem',
+              }}
+            >
+              <div
+                style={{
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.35rem 0.25rem',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-muted)' }}>PASSIVE PERCEPTION</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#f59e0b', marginTop: '1px' }}>
+                  {character.passives?.perception ?? character.passivePerception}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.35rem 0.25rem',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-muted)' }}>PASSIVE INVESTIGATION</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#38bdf8', marginTop: '1px' }}>
+                  {character.passives?.investigation ?? 10}
+                </div>
+              </div>
+
+              <div
+                style={{
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.35rem 0.25rem',
+                  textAlign: 'center',
+                }}
+              >
+                <div style={{ fontSize: '0.6rem', fontWeight: 700, color: 'var(--text-muted)' }}>PASSIVE INSIGHT</div>
+                <div style={{ fontSize: '1rem', fontWeight: 800, color: '#a855f7', marginTop: '1px' }}>
+                  {character.passives?.insight ?? 10}
                 </div>
               </div>
             </div>
@@ -665,6 +755,53 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
                 ))}
               </div>
             </div>
+
+            {/* Saving Throws Section (Bug #51) */}
+            {character.savingThrows && (
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                  SAVING THROWS
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '0.35rem' }}>
+                  {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map((st) => {
+                    const bonus = character.savingThrows![st];
+                    const isProf = character.savingThrows?.proficiencies?.includes(st);
+                    return (
+                      <div
+                        key={st}
+                        style={{
+                          backgroundColor: 'var(--bg-surface-elevated)',
+                          border: isProf ? '1px solid var(--color-primary)' : '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '0.45rem 0.2rem',
+                          textAlign: 'center',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: '0.62rem',
+                            fontWeight: 700,
+                            color: isProf ? 'var(--color-primary)' : 'var(--text-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '2px',
+                          }}
+                        >
+                          {isProf && <span style={{ color: 'var(--color-primary)' }}>●</span>}
+                          {st.toUpperCase()}
+                        </div>
+                        <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '2px' }}>
+                          {bonus >= 0 ? `+${bonus}` : bonus}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Skills & Proficiencies Section */}
             {character.skills && character.skills.length > 0 && (
