@@ -28,6 +28,7 @@ export type ActiveTool =
 export interface CanvasEngineCallbacks {
   onTokenMove?: (id: string, x: number, y: number) => void;
   onTokenSelect?: (token: Token | null) => void;
+  onTokensSelect?: (tokens: Token[]) => void;
   onMarkerAdd?: (marker: ScreenMarker) => void;
   onFogUpdate?: (shape: FogShape) => void;
 }
@@ -48,6 +49,8 @@ export class CanvasEngine {
   snapEnabled: boolean = true;
 
   selectedTokenId: string | null = null;
+  selectedTokenIds: string[] = [];
+  dragGroupInitialPositions: Map<string, Point> = new Map();
   draggingToken: Token | null = null;
   dragStartPos: Point | null = null;
   dragCurrentPos: Point | null = null;
@@ -93,6 +96,12 @@ export class CanvasEngine {
 
   selectToken(id: string | null) {
     this.selectedTokenId = id;
+    this.selectedTokenIds = id ? [id] : [];
+  }
+
+  selectTokens(ids: string[]) {
+    this.selectedTokenIds = ids;
+    this.selectedTokenId = ids[0] || null;
   }
 
   destroy() {
@@ -148,13 +157,13 @@ export class CanvasEngine {
     const characters = tokens.filter((t) => !t.isProp);
 
     for (const prop of props) {
-      const isSelected = prop.id === this.selectedTokenId;
+      const isSelected = this.selectedTokenIds.includes(prop.id) || prop.id === this.selectedTokenId;
       const canControl = isGm || (prop.ownerId === this.localPlayer?.id);
       renderToken(ctx, prop, currentMap.gridSize, isSelected, canControl, isGm);
     }
 
     for (const tok of characters) {
-      const isSelected = tok.id === this.selectedTokenId;
+      const isSelected = this.selectedTokenIds.includes(tok.id) || tok.id === this.selectedTokenId;
       const canControl = isGm || (tok.ownerId === this.localPlayer?.id);
       renderToken(ctx, tok, currentMap.gridSize, isSelected, canControl, isGm);
     }
@@ -289,9 +298,18 @@ export class CanvasEngine {
     if (this.activeTool === 'select') {
       this.handleSelectPointerDown(worldPos);
     } else if (this.activeTool === 'box-select') {
-      this.isDrawing = true;
-      this.drawStart = worldPos;
-      this.drawCurrent = worldPos;
+      const currentMap =
+        this.session?.maps.find((m) => m.id === this.currentMapId) ||
+        this.session?.maps[0];
+      const matching = currentMap ? this.findMatchingTokens(worldPos, currentMap) : [];
+      const alreadySelected = matching.find((t) => this.selectedTokenIds.includes(t.id));
+      if (alreadySelected) {
+        this.handleSelectPointerDown(worldPos);
+      } else {
+        this.isDrawing = true;
+        this.drawStart = worldPos;
+        this.drawCurrent = worldPos;
+      }
     } else if (this.activeTool === 'crosshair') {
       this.broadcastMarker({
         id: crypto.randomUUID(),
@@ -315,21 +333,11 @@ export class CanvasEngine {
     }
   };
 
-  private handleSelectPointerDown(worldPos: Point) {
-    if (!this.session) return;
-    const currentMap =
-      this.session.maps.find((m) => m.id === this.currentMapId) ||
-      this.session.maps[0];
-    if (!currentMap) return;
-
+  private findMatchingTokens(worldPos: Point, currentMap: GameMap): Token[] {
+    if (!this.session) return [];
     const tokens = Object.values(this.session.tokens).filter(
       (t) => t.mapId === currentMap.id
     );
-
-    const isGm = this.localPlayer?.role === 'gm';
-    const localId = this.localPlayer?.id;
-
-    // Find all clicked tokens under coordinate
     const matchingTokens: Token[] = [];
     for (let i = tokens.length - 1; i >= 0; i--) {
       const tok = tokens[i];
@@ -341,28 +349,54 @@ export class CanvasEngine {
         matchingTokens.push(tok);
       }
     }
+    return matchingTokens;
+  }
+
+  private handleSelectPointerDown(worldPos: Point) {
+    if (!this.session) return;
+    const currentMap =
+      this.session.maps.find((m) => m.id === this.currentMapId) ||
+      this.session.maps[0];
+    if (!currentMap) return;
+
+    const isGm = this.localPlayer?.role === 'gm';
+    const localId = this.localPlayer?.id;
+
+    const matchingTokens = this.findMatchingTokens(worldPos, currentMap);
 
     let clickedToken: Token | null = null;
     if (matchingTokens.length > 0) {
-      // Prioritize tokens the player can control first
-      const isControllable = (t: Token) =>
-        isGm || t.ownerId === localId || Boolean(this.localPlayer?.assignedTokenIds?.includes(t.id));
-      const controllableTokens = matchingTokens.filter(isControllable);
-      const candidates = controllableTokens.length > 0 ? controllableTokens : matchingTokens;
-
-      // If a candidate token is already selected, cycle to the next one
-      const currentIndex = candidates.findIndex((t) => t.id === this.selectedTokenId);
-      if (currentIndex !== -1) {
-        clickedToken = candidates[(currentIndex + 1) % candidates.length];
+      // If clicking one of the currently selected tokens in a multi-token group, preserve group selection
+      const alreadySelected = matchingTokens.find((t) => this.selectedTokenIds.includes(t.id));
+      if (alreadySelected && this.selectedTokenIds.length > 1) {
+        clickedToken = alreadySelected;
       } else {
-        clickedToken = candidates[0];
+        // Prioritize tokens the player can control first
+        const isControllable = (t: Token) =>
+          isGm || t.ownerId === localId || Boolean(this.localPlayer?.assignedTokenIds?.includes(t.id));
+        const controllableTokens = matchingTokens.filter(isControllable);
+        const candidates = controllableTokens.length > 0 ? controllableTokens : matchingTokens;
+
+        // If a candidate token is already selected, cycle to the next one
+        const currentIndex = candidates.findIndex((t) => t.id === this.selectedTokenId);
+        if (currentIndex !== -1) {
+          clickedToken = candidates[(currentIndex + 1) % candidates.length];
+        } else {
+          clickedToken = candidates[0];
+        }
       }
     }
 
-    this.selectedTokenId = clickedToken ? clickedToken.id : null;
-    this.callbacks.onTokenSelect?.(clickedToken);
-
     if (clickedToken) {
+      if (!this.selectedTokenIds.includes(clickedToken.id)) {
+        this.selectedTokenId = clickedToken.id;
+        this.selectedTokenIds = [clickedToken.id];
+        this.callbacks.onTokenSelect?.(clickedToken);
+        this.callbacks.onTokensSelect?.([clickedToken]);
+      } else {
+        this.selectedTokenId = clickedToken.id;
+      }
+
       const isControllable =
         isGm || clickedToken.ownerId === localId || Boolean(this.localPlayer?.assignedTokenIds?.includes(clickedToken.id));
 
@@ -371,7 +405,19 @@ export class CanvasEngine {
         this.draggingToken = clickedToken;
         this.dragStartPos = { x: clickedToken.x, y: clickedToken.y };
         this.dragCurrentPos = worldPos;
+        this.dragGroupInitialPositions.clear();
+        for (const id of this.selectedTokenIds) {
+          const t = this.session.tokens[id];
+          if (t) {
+            this.dragGroupInitialPositions.set(id, { x: t.x, y: t.y });
+          }
+        }
       }
+    } else {
+      this.selectedTokenId = null;
+      this.selectedTokenIds = [];
+      this.callbacks.onTokenSelect?.(null);
+      this.callbacks.onTokensSelect?.([]);
     }
   }
 
@@ -446,8 +492,23 @@ export class CanvasEngine {
         newY = snapped.y;
       }
 
+      const deltaX = newX - this.dragStartPos.x;
+      const deltaY = newY - this.dragStartPos.y;
+
       this.draggingToken.x = newX;
       this.draggingToken.y = newY;
+
+      if (this.session && this.selectedTokenIds.length > 1) {
+        for (const id of this.selectedTokenIds) {
+          if (id === this.draggingToken.id) continue;
+          const tok = this.session.tokens[id];
+          const initial = this.dragGroupInitialPositions.get(id);
+          if (tok && initial) {
+            tok.x = initial.x + deltaX;
+            tok.y = initial.y + deltaY;
+          }
+        }
+      }
 
       // Active ruler
       const startCenter: Point = {
@@ -488,10 +549,20 @@ export class CanvasEngine {
 
     // Finish Token Drag
     if (this.draggingToken && this.dragStartPos) {
-      const token = this.draggingToken;
-      this.callbacks.onTokenMove?.(token.id, token.x, token.y);
+      if (this.selectedTokenIds.length > 1 && this.session) {
+        for (const id of this.selectedTokenIds) {
+          const tok = this.session.tokens[id];
+          if (tok) {
+            this.callbacks.onTokenMove?.(tok.id, tok.x, tok.y);
+          }
+        }
+      } else {
+        const token = this.draggingToken;
+        this.callbacks.onTokenMove?.(token.id, token.x, token.y);
+      }
       this.draggingToken = null;
       this.dragStartPos = null;
+      this.dragGroupInitialPositions.clear();
       this.activeRuler = null;
     }
 
@@ -544,9 +615,13 @@ export class CanvasEngine {
         return cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
       });
 
-      const selected = enclosedTokens.find(isControllable) || enclosedTokens[0] || null;
-      this.selectedTokenId = selected ? selected.id : null;
-      this.callbacks.onTokenSelect?.(selected);
+      const controllableEnclosed = enclosedTokens.filter(isControllable);
+      const toSelect = isGm ? enclosedTokens : (controllableEnclosed.length > 0 ? controllableEnclosed : enclosedTokens);
+
+      this.selectedTokenIds = toSelect.map((t) => t.id);
+      this.selectedTokenId = toSelect[0] ? toSelect[0].id : null;
+      this.callbacks.onTokensSelect?.(toSelect);
+      this.callbacks.onTokenSelect?.(toSelect[0] || null);
       return;
     }
 

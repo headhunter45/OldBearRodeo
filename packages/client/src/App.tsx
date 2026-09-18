@@ -61,6 +61,7 @@ export const App: React.FC = () => {
   const [activeTool, setActiveTool] = useState<ActiveTool>('select');
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
+  const [selectedTokens, setSelectedTokens] = useState<Token[]>([]);
 
   // Voice Chat State
   const [voiceState, setVoiceState] = useState<VoiceState>({
@@ -587,6 +588,11 @@ export const App: React.FC = () => {
       },
       onTokenSelect: (tok) => {
         setSelectedToken(tok);
+        setSelectedTokens(tok ? [tok] : []);
+      },
+      onTokensSelect: (toks) => {
+        setSelectedTokens(toks);
+        setSelectedToken(toks[0] || null);
       },
       onMarkerAdd: (marker) => {
         networkRef.current?.send({
@@ -944,6 +950,45 @@ export const App: React.FC = () => {
     });
   };
 
+  const handleDuplicateTokens = (tokensToDup: Token[]) => {
+    if (!session || !localPlayer || tokensToDup.length === 0) return;
+    const currentMapId = tokensToDup[0].mapId;
+    const gridSize = currentMap?.gridSize || 50;
+
+    const duplicatedTokens: Token[] = [];
+    const updatedTokens = { ...session.tokens };
+
+    for (let i = 0; i < tokensToDup.length; i++) {
+      const tok = tokensToDup[i];
+      const pos = findUnoccupiedPosition(currentMapId, tok.x + gridSize, tok.y, gridSize);
+      const nameMatch = tok.name.match(/^(.*?)(?:\s+(\d+))?$/);
+      const baseName = nameMatch && nameMatch[1] ? nameMatch[1].trim() : tok.name;
+      const nextNum = nameMatch && nameMatch[2] ? parseInt(nameMatch[2], 10) + 1 : 2;
+      const newName = `${baseName} ${nextNum}`;
+
+      const duplicated: Token = {
+        ...tok,
+        id: `token-${crypto.randomUUID()}`,
+        name: newName,
+        x: pos.x,
+        y: pos.y,
+      };
+
+      updatedTokens[duplicated.id] = duplicated;
+      duplicatedTokens.push(duplicated);
+
+      networkRef.current?.send({
+        type: 'token-add',
+        token: duplicated,
+      });
+    }
+
+    setSession((prev) => (prev ? { ...prev, tokens: updatedTokens } : prev));
+    setSelectedTokens(duplicatedTokens);
+    setSelectedToken(duplicatedTokens[0] || null);
+    engineRef.current?.selectTokens(duplicatedTokens.map((t) => t.id));
+  };
+
   // Profile Update
   const handleUpdateProfile = (name: string, color: string) => {
     localStorage.setItem('oldbear_player_name', name);
@@ -1178,7 +1223,10 @@ export const App: React.FC = () => {
       }
 
       if (key === 'd' || ((e.ctrlKey || e.metaKey) && key === 'd')) {
-        if (selectedToken) {
+        if (selectedTokens.length > 1) {
+          e.preventDefault();
+          handleDuplicateTokens(selectedTokens);
+        } else if (selectedToken) {
           e.preventDefault();
           handleDuplicateToken(selectedToken);
         }
@@ -1186,7 +1234,7 @@ export const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedToken, session, localPlayer, currentMap, isGm]);
+  }, [selectedToken, selectedTokens, session, localPlayer, currentMap, isGm]);
 
   return (
     <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
@@ -1318,9 +1366,11 @@ export const App: React.FC = () => {
       {selectedToken && session && (
         <TokenControls
           token={selectedToken}
+          selectedTokens={selectedTokens}
           onUpdateToken={handleUpdateToken}
           onDeleteToken={handleDeleteToken}
           onDuplicateToken={handleDuplicateToken}
+          onDuplicateTokens={handleDuplicateTokens}
           onTransferToken={handleTransferToken}
           onSetInitiative={handleSetTokenInitiative}
           onOpenFullEditor={() => {

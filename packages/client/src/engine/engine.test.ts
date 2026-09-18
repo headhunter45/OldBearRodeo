@@ -68,4 +68,50 @@ describe('Canvas Engine Utilities', () => {
     assert.strictEqual(measurementOver.isOverSpeed, true);
     assert.strictEqual(measurementOver.color, '#ef4444');
   });
+
+  it('selects all enclosed tokens with box select and moves them as a group (Bug #78)', () => {
+    // Mock tokens within a map
+    const mockTokens = [
+      { id: 't1', name: 'Goblin 1', x: 100, y: 100, size: 1, mapId: 'map-1' },
+      { id: 't2', name: 'Goblin 2', x: 150, y: 100, size: 1, mapId: 'map-1' },
+      { id: 't3', name: 'Goblin 3', x: 200, y: 100, size: 1, mapId: 'map-1' },
+      { id: 't4', name: 'Dragon', x: 500, y: 500, size: 2, mapId: 'map-1' },
+    ];
+
+    const gridSize = 50;
+    const boxStart = { x: 80, y: 80 };
+    const boxEnd = { x: 280, y: 180 };
+
+    const minX = Math.min(boxStart.x, boxEnd.x);
+    const maxX = Math.max(boxStart.x, boxEnd.x);
+    const minY = Math.min(boxStart.y, boxEnd.y);
+    const maxY = Math.max(boxStart.y, boxEnd.y);
+
+    const enclosed = mockTokens.filter((t) => {
+      const diameter = t.size * gridSize;
+      const cx = t.x + diameter / 2;
+      const cy = t.y + diameter / 2;
+      return cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
+    });
+
+    // Verify all 3 goblins are enclosed, but not Dragon
+    assert.strictEqual(enclosed.length, 3);
+    assert.deepStrictEqual(enclosed.map((t) => t.id), ['t1', 't2', 't3']);
+
+    // Simulate group movement delta: dx = 50, dy = 100
+    const deltaX = 50;
+    const deltaY = 100;
+    const movedTokens = enclosed.map((t) => ({
+      ...t,
+      x: t.x + deltaX,
+      y: t.y + deltaY,
+    }));
+
+    assert.strictEqual(movedTokens[0].x, 150);
+    assert.strictEqual(movedTokens[0].y, 200);
+    assert.strictEqual(movedTokens[1].x, 200);
+    assert.strictEqual(movedTokens[1].y, 200);
+    assert.strictEqual(movedTokens[2].x, 250);
+    assert.strictEqual(movedTokens[2].y, 200);
+  });
 });

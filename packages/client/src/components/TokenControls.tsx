@@ -4,9 +4,11 @@ import { Heart, Shield, Plus, Minus, Settings, Trash2, ArrowRightLeft, Copy, Use
 
 interface TokenControlsProps {
   token: Token;
+  selectedTokens?: Token[];
   onUpdateToken: (id: string, updates: Partial<Token>) => void;
   onDeleteToken: (id: string) => void;
   onDuplicateToken?: (token: Token) => void;
+  onDuplicateTokens?: (tokens: Token[]) => void;
   onTransferToken: (id: string, toMapId: string) => void;
   onSetInitiative?: (token: Token, score: number) => void;
   onOpenFullEditor: () => void;
@@ -24,9 +26,11 @@ const ALL_CONDITIONS = [
 
 export const TokenControls: React.FC<TokenControlsProps> = ({
   token,
+  selectedTokens,
   onUpdateToken,
   onDeleteToken,
   onDuplicateToken,
+  onDuplicateTokens,
   onTransferToken,
   onSetInitiative,
   onOpenFullEditor,
@@ -105,9 +109,27 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
           </div>
         )}
         <div>
-          <div style={{ fontWeight: '600', fontSize: '0.875rem' }}>{token.name}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <span style={{ fontWeight: '600', fontSize: '0.875rem' }}>{token.name}</span>
+            {selectedTokens && selectedTokens.length > 1 && (
+              <span
+                style={{
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  backgroundColor: 'var(--accent-primary)',
+                  color: 'white',
+                  padding: '1px 6px',
+                  borderRadius: '999px',
+                }}
+              >
+                +{selectedTokens.length - 1} more
+              </span>
+            )}
+          </div>
           <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            Speed: {token.speed}ft | Size: {token.size}x
+            {selectedTokens && selectedTokens.length > 1
+              ? `${selectedTokens.length} tokens selected`
+              : `Speed: ${token.speed}ft | Size: ${token.size}x`}
           </div>
         </div>
       </div>
@@ -221,15 +243,12 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
             </button>
           </span>
         ))}
-
         <select
           style={{
-            background: 'var(--bg-surface-elevated)',
+            background: 'transparent',
+            border: 'none',
             color: 'var(--text-secondary)',
-            border: '1px solid var(--border-subtle)',
-            borderRadius: 'var(--radius-sm)',
-            padding: '3px 6px',
-            fontSize: '0.72rem',
+            fontSize: '0.75rem',
             cursor: 'pointer',
             outline: 'none',
           }}
@@ -251,6 +270,8 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
         </select>
       </div>
 
+      <div style={{ width: '1px', height: '32px', background: 'var(--border-subtle)' }} />
+
       {/* Assign to Player (GM Feature) */}
       {isGm && players.length > 0 && (
         <select
@@ -265,14 +286,19 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
           }}
           value={token.ownerId || ''}
           onChange={(e) => {
-            onUpdateToken(token.id, { ownerId: e.target.value || undefined });
+            const newOwner = e.target.value || undefined;
+            if (selectedTokens && selectedTokens.length > 1) {
+              selectedTokens.forEach((t) => onUpdateToken(t.id, { ownerId: newOwner }));
+            } else {
+              onUpdateToken(token.id, { ownerId: newOwner });
+            }
           }}
-          title="Assign control of this token to a player"
+          title={selectedTokens && selectedTokens.length > 1 ? `Assign ${selectedTokens.length} tokens to a player` : "Assign control of this token to a player"}
         >
-          <option value="">Assigned: GM Only</option>
+          <option value="">{selectedTokens && selectedTokens.length > 1 ? `Assign ${selectedTokens.length} Tokens: GM Only` : 'Assigned: GM Only'}</option>
           {players.map((p) => (
             <option key={p.id} value={p.id}>
-              Assigned: {p.name}
+              {selectedTokens && selectedTokens.length > 1 ? `Assign ${selectedTokens.length} to ${p.name}` : `Assigned: ${p.name}`}
             </option>
           ))}
         </select>
@@ -315,12 +341,16 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
           value=""
           onChange={(e) => {
             if (e.target.value) {
-              onTransferToken(token.id, e.target.value);
+              if (selectedTokens && selectedTokens.length > 1) {
+                selectedTokens.forEach((t) => onTransferToken(t.id, e.target.value));
+              } else {
+                onTransferToken(token.id, e.target.value);
+              }
             }
           }}
         >
           <option value="" disabled>
-            Transfer to map...
+            {selectedTokens && selectedTokens.length > 1 ? `Transfer ${selectedTokens.length} tokens to map...` : 'Transfer to map...'}
           </option>
           {maps
             .filter((m) => m.id !== token.mapId)
@@ -337,8 +367,14 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
         {onDuplicateToken && (
           <button
             className="btn-icon"
-            onClick={() => onDuplicateToken(token)}
-            title="Duplicate Token (Ctrl+D)"
+            onClick={() => {
+              if (selectedTokens && selectedTokens.length > 1 && onDuplicateTokens) {
+                onDuplicateTokens(selectedTokens);
+              } else {
+                onDuplicateToken(token);
+              }
+            }}
+            title={selectedTokens && selectedTokens.length > 1 ? `Duplicate ${selectedTokens.length} Tokens (Ctrl+D)` : "Duplicate Token (Ctrl+D)"}
           >
             <Copy size={16} />
           </button>
@@ -349,8 +385,14 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
         {isGm && (
           <button
             className="btn-icon"
-            onClick={() => onDeleteToken(token.id)}
-            title="Delete Token"
+            onClick={() => {
+              if (selectedTokens && selectedTokens.length > 1) {
+                selectedTokens.forEach((t) => onDeleteToken(t.id));
+              } else {
+                onDeleteToken(token.id);
+              }
+            }}
+            title={selectedTokens && selectedTokens.length > 1 ? `Delete ${selectedTokens.length} Tokens` : "Delete Token"}
             style={{ color: '#f43f5e' }}
           >
             <Trash2 size={16} />
