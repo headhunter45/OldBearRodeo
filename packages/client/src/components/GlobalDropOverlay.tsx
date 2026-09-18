@@ -1,5 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { Upload, Map as MapIcon, Shield, Music, FileJson, Skull } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  Upload,
+  Map as MapIcon,
+  Shield,
+  Music,
+  FileJson,
+  Skull,
+  CheckSquare,
+  Square,
+  ChevronDown,
+  Package,
+} from 'lucide-react';
 import { GameMap, Token } from '@oldbear/shared';
 import { saveAsset, StoredAsset } from '../storage/db.js';
 import { importAllData } from '../storage/BackupManager.js';
@@ -9,6 +20,19 @@ import {
   parseTetraCubeMonster,
   createMonsterToken,
 } from '../utils/monsterParser.js';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+type AssetKind = 'token' | 'map' | 'prop';
+
+interface PendingImageEntry {
+  file: File;
+  previewUrl: string;
+  kind: AssetKind;
+  selected: boolean;
+}
 
 interface GlobalDropOverlayProps {
   isGm: boolean;
@@ -21,6 +45,23 @@ interface GlobalDropOverlayProps {
   onDataRestored?: () => void;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+
+function readFileAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────────────────────
+
 export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
   isGm,
   activeMapId,
@@ -32,9 +73,17 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
   onDataRestored,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
-  const [pendingImages, setPendingImages] = useState<File[] | null>(null);
+  const [pendingEntries, setPendingEntries] = useState<PendingImageEntry[] | null>(null);
   const [dropPosition, setDropPosition] = useState<{ x: number; y: number }>({ x: 400, y: 400 });
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const showToast = useCallback((msg: string) => {
+    setToastMessage(msg);
+    setTimeout(() => setToastMessage(null), TOAST_DURATION_MS);
+  }, []);
+
+  // ── drag event listeners ───────────────────────────────────────────────────
 
   useEffect(() => {
     let dragCounter = 0;
@@ -76,7 +125,7 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
       const worldPos = screenToWorld ? screenToWorld(mouseX, mouseY) : { x: mouseX, y: mouseY };
       const existingList = Array.isArray(tokens) ? tokens : Object.values(tokens || {});
 
-      // 0. Check if an internal asset was dragged from Asset Manager (Bug #73)
+      // 0. Internal asset drag from Asset Manager (Bug #73)
       const internalAssetJson = e.dataTransfer?.getData('application/oldbear-asset');
       if (internalAssetJson) {
         try {
@@ -124,7 +173,7 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
         return;
       }
 
-      // 2. JSON Files (Backups or Monster JSON)
+      // 2. JSON files (Backups or Monster JSON)
       const jsonFiles = files.filter((f) => f.name.endsWith('.json'));
       if (jsonFiles.length > 0) {
         for (const jsonFile of jsonFiles) {
@@ -151,42 +200,40 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
         return;
       }
 
-      // 3. Audio Files
+      // 3. Audio files
       const audioFiles = files.filter(
         (f) => f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|ogg|m4a|aac)$/i)
       );
       if (audioFiles.length > 0) {
         for (const file of audioFiles) {
-          const reader = new FileReader();
-          reader.onload = async () => {
-            const dataUrl = reader.result as string;
-            const cleanName = file.name.replace(/\.[^/.]+$/, '');
-            await saveAsset({
-              id: `audio-${crypto.randomUUID()}`,
-              name: cleanName,
-              type: 'audio',
-              dataUrl,
-              createdAt: Date.now(),
-            });
-          };
-          reader.readAsDataURL(file);
+          const dataUrl = await readFileAsDataUrl(file);
+          const cleanName = file.name.replace(/\.[^/.]+$/, '');
+          await saveAsset({
+            id: `audio-${crypto.randomUUID()}`,
+            name: cleanName,
+            type: 'audio',
+            dataUrl,
+            createdAt: Date.now(),
+          });
         }
         showToast(`Saved ${audioFiles.length} sound track(s) to Soundboard!`);
         return;
       }
 
-      // 4. Image Files
+      // 4. Image files — open unified multi-file import modal (Bug #74)
       const imageFiles = files.filter(
         (f) => f.type.startsWith('image/') || f.name.match(/\.(png|jpe?g|webp|gif|svg)$/i)
       );
       if (imageFiles.length > 0) {
-        if (isGm) {
-          // Ask GM whether to import as Token or Map
-          setPendingImages(imageFiles);
-        } else {
-          // Directly import as token for players
-          importImagesAsTokens(imageFiles, mouseX, mouseY);
-        }
+        // Build preview entries; default to Token for non-GMs, else smart-guess
+        const defaultKind: AssetKind = isGm ? 'token' : 'token';
+        const entries: PendingImageEntry[] = await Promise.all(
+          imageFiles.map(async (file) => {
+            const previewUrl = await readFileAsDataUrl(file);
+            return { file, previewUrl, kind: defaultKind, selected: true };
+          })
+        );
+        setPendingEntries(entries);
       }
     };
 
@@ -201,110 +248,146 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
       window.removeEventListener('dragleave', handleDragLeave);
       window.removeEventListener('drop', handleDrop);
     };
-  }, [isGm, activeMapId, gridSize]);
+  }, [isGm, activeMapId, gridSize, screenToWorld, tokens, showToast]);
 
-  const showToast = (msg: string) => {
-    setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), TOAST_DURATION_MS);
+  // ── pending entries helpers ────────────────────────────────────────────────
+
+  const updateEntry = (index: number, patch: Partial<PendingImageEntry>) => {
+    setPendingEntries((prev) =>
+      prev ? prev.map((e, i) => (i === index ? { ...e, ...patch } : e)) : prev
+    );
   };
 
-  const importImagesAsTokens = (files: File[], startX = 400, startY = 400) => {
-    files.forEach((file, index) => {
-      const reader = new FileReader();
-      reader.onload = async () => {
-        const dataUrl = reader.result as string;
-        const cleanName = file.name.replace(/\.[^/.]+$/, '');
-        const tokenId = `token-${crypto.randomUUID()}`;
+  const setAllKind = (kind: AssetKind) => {
+    setPendingEntries((prev) => prev?.map((e) => ({ ...e, kind })) ?? null);
+  };
 
+  const toggleAllSelected = () => {
+    setPendingEntries((prev) => {
+      if (!prev) return prev;
+      const allChecked = prev.every((e) => e.selected);
+      return prev.map((e) => ({ ...e, selected: !allChecked }));
+    });
+  };
+
+  // ── import logic ──────────────────────────────────────────────────────────
+
+  const handleImport = async () => {
+    if (!pendingEntries) return;
+    setIsImporting(true);
+
+    const selected = pendingEntries.filter((e) => e.selected);
+    let tokenCount = 0;
+    let mapCount = 0;
+    let propCount = 0;
+    let tokenIndex = 0;
+
+    for (const entry of selected) {
+      const dataUrl = entry.previewUrl; // already loaded
+      const cleanName = entry.file.name.replace(/\.[^/.]+$/, '');
+      const assetId = `${entry.kind}-${crypto.randomUUID()}`;
+
+      if (entry.kind === 'map') {
+        // Determine image dimensions
+        await new Promise<void>((resolve) => {
+          const img = new Image();
+          img.onload = async () => {
+            const width = img.naturalWidth || 2000;
+            const height = img.naturalHeight || 1500;
+            const defaultTilesX = Math.max(10, Math.round(width / 70));
+            const defaultTilesY = Math.max(10, Math.round(height / 70));
+
+            const newMap: GameMap = {
+              id: assetId,
+              name: cleanName,
+              imageUrl: dataUrl,
+              gridSize: Math.round(width / defaultTilesX),
+              gridType: 'square',
+              gridColor: '#ffffff',
+              gridOpacity: 0.4,
+              showGrid: true,
+              width,
+              height,
+              scaleFtPerCell: 5,
+              tilesX: defaultTilesX,
+              tilesY: defaultTilesY,
+              gridOffsetX: 0,
+              gridOffsetY: 0,
+            };
+
+            await saveAsset({
+              id: assetId,
+              name: cleanName,
+              type: 'map',
+              dataUrl,
+              width,
+              height,
+              createdAt: Date.now(),
+            });
+
+            onAddMap(newMap);
+            mapCount++;
+            resolve();
+          };
+          img.src = dataUrl;
+        });
+      } else {
+        // Token or Prop
+        const isProp = entry.kind === 'prop';
         await saveAsset({
-          id: tokenId,
+          id: assetId,
           name: cleanName,
-          type: 'token',
+          type: isProp ? 'prop' : 'token',
           dataUrl,
           createdAt: Date.now(),
         });
 
         const newToken: Token = {
-          id: tokenId,
+          id: assetId,
           mapId: activeMapId,
           name: cleanName,
           imageUrl: dataUrl,
-          x: startX + index * gridSize,
-          y: startY,
+          x: dropPosition.x + tokenIndex * gridSize,
+          y: dropPosition.y,
           size: 1,
           rotation: 0,
-          ringColor: '#6366f1',
+          ringColor: isProp ? '#94a3b8' : '#6366f1',
           fillColor: '#1e293b',
-          clipCircle: true,
-          currentHp: 25,
-          maxHp: 25,
+          clipCircle: !isProp,
+          currentHp: isProp ? 0 : 25,
+          maxHp: isProp ? 0 : 25,
           tempHp: 0,
           speed: 30,
           conditions: [],
-          isProp: false,
-          layer: 'token',
+          isProp,
+          layer: isProp ? 'prop' : 'token',
         };
 
         onAddToken(newToken);
-      };
-      reader.readAsDataURL(file);
-    });
-    showToast(`Added ${files.length} token(s) to the map!`);
-    setPendingImages(null);
+        tokenIndex++;
+        isProp ? propCount++ : tokenCount++;
+      }
+    }
+
+    setIsImporting(false);
+    setPendingEntries(null);
+
+    const parts: string[] = [];
+    if (tokenCount > 0) parts.push(`${tokenCount} token${tokenCount > 1 ? 's' : ''}`);
+    if (propCount > 0) parts.push(`${propCount} prop${propCount > 1 ? 's' : ''}`);
+    if (mapCount > 0) parts.push(`${mapCount} map${mapCount > 1 ? 's' : ''}`);
+    showToast(`Imported ${parts.join(', ')}!`);
   };
 
-  const importImagesAsMaps = (files: File[]) => {
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const dataUrl = reader.result as string;
-        const img = new Image();
-        img.onload = async () => {
-          const width = img.naturalWidth || 2000;
-          const height = img.naturalHeight || 1500;
-          const defaultTilesX = Math.max(10, Math.round(width / 70));
-          const defaultTilesY = Math.max(10, Math.round(height / 70));
+  // ── derived state ─────────────────────────────────────────────────────────
 
-          const mapId = `map-${crypto.randomUUID()}`;
-          const cleanName = file.name.replace(/\.[^/.]+$/, '');
+  const allSelected = pendingEntries?.every((e) => e.selected) ?? false;
+  const someSelected = pendingEntries?.some((e) => e.selected) ?? false;
+  const selectedCount = pendingEntries?.filter((e) => e.selected).length ?? 0;
 
-          const newMap: GameMap = {
-            id: mapId,
-            name: cleanName,
-            imageUrl: dataUrl,
-            gridSize: Math.round(width / defaultTilesX),
-            gridType: 'square',
-            gridColor: '#ffffff',
-            gridOpacity: 0.4,
-            showGrid: true,
-            width,
-            height,
-            scaleFtPerCell: 5,
-            tilesX: defaultTilesX,
-            tilesY: defaultTilesY,
-            gridOffsetX: 0,
-            gridOffsetY: 0,
-          };
-
-          await saveAsset({
-            id: mapId,
-            name: cleanName,
-            type: 'map',
-            dataUrl,
-            width,
-            height,
-            createdAt: Date.now(),
-          });
-
-          onAddMap(newMap);
-        };
-        img.src = dataUrl;
-      };
-      reader.readAsDataURL(file);
-    });
-    showToast(`Added ${files.length} map(s)!`);
-    setPendingImages(null);
-  };
+  // ─────────────────────────────────────────────────────────────────────────
+  // Render
+  // ─────────────────────────────────────────────────────────────────────────
 
   return (
     <>
@@ -383,13 +466,13 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
 
             <div style={{ display: 'flex', gap: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <MapIcon size={16} /> Maps & Tokens
+                <MapIcon size={16} /> Maps &amp; Tokens
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Skull size={16} /> Monsters (.monster)
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <Music size={16} /> Audio & SFX
+                <Music size={16} /> Audio &amp; SFX
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <FileJson size={16} /> Backup (.json)
@@ -399,73 +482,343 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
         </div>
       )}
 
-      {/* GM Choice Modal: Import as Map or Token */}
-      {pendingImages && (
+      {/* ── Multi-file Image Import Modal (Bug #74) ── */}
+      {pendingEntries && (
         <div
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(0,0,0,0.7)',
-            backdropFilter: 'blur(8px)',
+            backgroundColor: 'rgba(0,0,0,0.75)',
+            backdropFilter: 'blur(10px)',
             zIndex: 95,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: '1rem',
           }}
-          onClick={() => setPendingImages(null)}
+          onClick={() => !isImporting && setPendingEntries(null)}
         >
           <div
             className="glass-panel-elevated animate-fade-in"
             style={{
               width: '100%',
-              maxWidth: '420px',
-              padding: '1.5rem',
+              maxWidth: '680px',
+              maxHeight: '88vh',
               display: 'flex',
               flexDirection: 'column',
-              gap: '1.25rem',
+              gap: 0,
+              overflow: 'hidden',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div>
-              <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.35rem' }}>
-                Import {pendingImages.length} Image{pendingImages.length > 1 ? 's' : ''}
+            {/* Header */}
+            <div
+              style={{
+                padding: '1.25rem 1.5rem 1rem',
+                borderBottom: '1px solid var(--border-subtle)',
+                flexShrink: 0,
+              }}
+            >
+              <h3
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: '1.2rem',
+                  fontWeight: 700,
+                  marginBottom: '0.25rem',
+                }}
+              >
+                Import {pendingEntries.length} Image{pendingEntries.length > 1 ? 's' : ''}
               </h3>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                How would you like to add the dropped image{pendingImages.length > 1 ? 's' : ''}?
+              <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Choose how each file should be added. Use bulk actions to set all at once.
               </p>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+            {/* Bulk action bar */}
+            <div
+              style={{
+                padding: '0.65rem 1.5rem',
+                borderBottom: '1px solid var(--border-subtle)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                flexWrap: 'wrap',
+                backgroundColor: 'rgba(255,255,255,0.02)',
+                flexShrink: 0,
+              }}
+            >
+              {/* Select all checkbox */}
               <button
-                className="btn btn-primary"
-                style={{ padding: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', height: 'auto' }}
-                onClick={() => importImagesAsTokens(pendingImages, dropPosition.x, dropPosition.y)}
+                onClick={toggleAllSelected}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  background: 'none',
+                  border: 'none',
+                  color: allSelected ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  padding: '0.3rem 0.5rem',
+                  borderRadius: 'var(--radius-sm)',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  transition: 'color 0.15s ease',
+                }}
+                title={allSelected ? 'Deselect all' : 'Select all'}
               >
-                <Shield size={20} />
-                <span style={{ fontWeight: 700 }}>Add as Token{pendingImages.length > 1 ? 's' : ''}</span>
-                <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>Place on current map</span>
+                {allSelected ? <CheckSquare size={15} /> : <Square size={15} />}
+                Check all
               </button>
 
-              <button
-                className="btn btn-secondary"
-                style={{ padding: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.4rem', height: 'auto' }}
-                onClick={() => importImagesAsMaps(pendingImages)}
-              >
-                <MapIcon size={20} />
-                <span style={{ fontWeight: 700 }}>Add as Map{pendingImages.length > 1 ? 's' : ''}</span>
-                <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>Add to Map Manager</span>
-              </button>
+              <div
+                style={{
+                  width: '1px',
+                  height: '18px',
+                  backgroundColor: 'var(--border-subtle)',
+                  margin: '0 0.25rem',
+                }}
+              />
+
+              {/* Bulk kind setters */}
+              {(
+                [
+                  { kind: 'token' as AssetKind, icon: <Shield size={14} />, label: 'Set all to Tokens' },
+                  { kind: 'map' as AssetKind, icon: <MapIcon size={14} />, label: 'Set all to Maps' },
+                  { kind: 'prop' as AssetKind, icon: <Package size={14} />, label: 'Set all to Props' },
+                ] as const
+              ).map(({ kind, icon, label }) => (
+                <button
+                  key={kind}
+                  onClick={() => setAllKind(kind)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    background: 'none',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    padding: '0.3rem 0.6rem',
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    transition: 'all 0.15s ease',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-primary)';
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--accent-primary)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.color = 'var(--text-secondary)';
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--border-subtle)';
+                  }}
+                >
+                  {icon}
+                  {label}
+                </button>
+              ))}
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button className="btn btn-secondary" onClick={() => setPendingImages(null)}>
-                Cancel
-              </button>
+            {/* File list */}
+            <div
+              style={{
+                overflowY: 'auto',
+                flex: 1,
+                padding: '0.5rem 1rem',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.5rem',
+              }}
+            >
+              {pendingEntries.map((entry, index) => (
+                <FileImportRow
+                  key={`${entry.file.name}-${index}`}
+                  entry={entry}
+                  isGm={isGm}
+                  onToggleSelected={() => updateEntry(index, { selected: !entry.selected })}
+                  onKindChange={(kind) => updateEntry(index, { kind })}
+                />
+              ))}
+            </div>
+
+            {/* Footer */}
+            <div
+              style={{
+                padding: '0.85rem 1.5rem',
+                borderTop: '1px solid var(--border-subtle)',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexShrink: 0,
+                gap: '0.75rem',
+              }}
+            >
+              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                {selectedCount} of {pendingEntries.length} selected
+              </span>
+              <div style={{ display: 'flex', gap: '0.6rem' }}>
+                <button
+                  className="btn btn-secondary"
+                  onClick={() => setPendingEntries(null)}
+                  disabled={isImporting}
+                >
+                  Cancel
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleImport}
+                  disabled={isImporting || !someSelected}
+                  style={{ minWidth: '110px' }}
+                >
+                  {isImporting ? 'Importing…' : `Import ${selectedCount > 0 ? selectedCount : ''}`}
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
     </>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// FileImportRow sub-component
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface FileImportRowProps {
+  entry: PendingImageEntry;
+  isGm: boolean;
+  onToggleSelected: () => void;
+  onKindChange: (kind: AssetKind) => void;
+}
+
+const KIND_OPTIONS: { value: AssetKind; label: string; icon: React.ReactNode }[] = [
+  { value: 'token', label: 'Token', icon: <Shield size={13} /> },
+  { value: 'map', label: 'Map', icon: <MapIcon size={13} /> },
+  { value: 'prop', label: 'Prop', icon: <Package size={13} /> },
+];
+
+const FileImportRow: React.FC<FileImportRowProps> = ({ entry, isGm, onToggleSelected, onKindChange }) => {
+  const displayName = entry.file.name.replace(/\.[^/.]+$/, '');
+  const fileSizeKb = (entry.file.size / 1024).toFixed(0);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.75rem',
+        padding: '0.55rem 0.75rem',
+        borderRadius: 'var(--radius-md)',
+        border: `1px solid ${entry.selected ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
+        backgroundColor: entry.selected ? 'rgba(99, 102, 241, 0.06)' : 'rgba(255,255,255,0.02)',
+        transition: 'border-color 0.15s ease, background-color 0.15s ease',
+        opacity: entry.selected ? 1 : 0.5,
+      }}
+    >
+      {/* Checkbox */}
+      <button
+        onClick={onToggleSelected}
+        style={{
+          background: 'none',
+          border: 'none',
+          cursor: 'pointer',
+          color: entry.selected ? 'var(--accent-primary)' : 'var(--text-tertiary)',
+          padding: 0,
+          display: 'flex',
+          flexShrink: 0,
+          transition: 'color 0.15s ease',
+        }}
+        title={entry.selected ? 'Deselect' : 'Select'}
+      >
+        {entry.selected ? <CheckSquare size={18} /> : <Square size={18} />}
+      </button>
+
+      {/* Thumbnail */}
+      <div
+        style={{
+          width: '44px',
+          height: '44px',
+          borderRadius: entry.kind === 'token' ? '50%' : '6px',
+          overflow: 'hidden',
+          flexShrink: 0,
+          border: '2px solid var(--border-subtle)',
+          transition: 'border-radius 0.2s ease',
+        }}
+      >
+        <img
+          src={entry.previewUrl}
+          alt={displayName}
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+        />
+      </div>
+
+      {/* File info */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div
+          style={{
+            fontWeight: 600,
+            fontSize: '0.85rem',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+          }}
+          title={entry.file.name}
+        >
+          {displayName}
+        </div>
+        <div style={{ fontSize: '0.73rem', color: 'var(--text-tertiary)' }}>
+          {fileSizeKb} KB · {entry.file.type || 'image'}
+        </div>
+      </div>
+
+      {/* Kind toggle (only full options for GM, players just get token) */}
+      {isGm ? (
+        <div style={{ display: 'flex', gap: '0.3rem', flexShrink: 0 }}>
+          {KIND_OPTIONS.map(({ value, label, icon }) => {
+            const active = entry.kind === value;
+            return (
+              <button
+                key={value}
+                onClick={() => onKindChange(value)}
+                title={label}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  padding: '0.3rem 0.6rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: active
+                    ? '1.5px solid var(--accent-primary)'
+                    : '1.5px solid var(--border-subtle)',
+                  backgroundColor: active ? 'rgba(99, 102, 241, 0.2)' : 'transparent',
+                  color: active ? 'var(--accent-primary)' : 'var(--text-secondary)',
+                  cursor: 'pointer',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {icon}
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <span
+          style={{
+            fontSize: '0.75rem',
+            color: 'var(--accent-primary)',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+          }}
+        >
+          <Shield size={13} /> Token
+        </span>
+      )}
+    </div>
   );
 };

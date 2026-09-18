@@ -19,7 +19,7 @@ import {
   Plus,
   Layers,
 } from 'lucide-react';
-import { GameSession, GameMap } from '@oldbear/shared';
+import { GameSession, GameMap, Token } from '@oldbear/shared';
 import { exportAllData, downloadBackupFile, importAllData } from '../storage/BackupManager.js';
 import {
   StoredAsset,

@@ -108,11 +108,11 @@ function nameGen(type) {
 70. When I'm in the asset manager I want to be able to make a scene from a map directly from there.
 71. When we show a token's attacks can we highlight them if they are reactions or bonus actions. I mainly want the bonus and reaction highlights in the character view and when running `/attack` or `/spell`.
 72. The token image zoom, crop, and pan controls did nothing. Can we integrate them into the image preview better so a user can see the cropping shape and drag/pinch to adjust the zoom and offset.
-73. Support importing TetraCube `.monster` files as monster/NPC assets with full stats, AC, HP, speed, and actions. Setup dual-drop support for monster files:
+73. ✅ Support importing TetraCube `.monster` files as monster/NPC assets with full stats, AC, HP, speed, and actions. Setup dual-drop support for monster files:
     - Drop `.monster` onto the Battlemap directly: It saves the creature to the Asset Manager and instantly drops a ready-to-fight token at the mouse cursor.
     - Drop `.monster` into the Asset Manager: It saves to the library for encounter prep without cluttering the current map.
     - When a GM drags a monster from the Asset Manager onto the map, it spawns a token with those settings, art, and auto-numbered names (e.g. Ankheg 1, Ankheg 2), with clickable statblock attacks and actions.
-74. Multi-file image drag-and-drop import: when image files are dragged in, prompt the user with a single unified view listing all dropped files. Allow toggling/selecting each file as a Map, Token, or Prop. Include bulk-selection aids ("Set all to Tokens", "Set all to Maps", "Set all to Props", "Check all") since users may import many images at once.
+74. ✅ Multi-file image drag-and-drop import: when image files are dragged in, prompt the user with a single unified view listing all dropped files. Allow toggling/selecting each file as a Map, Token, or Prop. Include bulk-selection aids ("Set all to Tokens", "Set all to Maps", "Set all to Props", "Check all") since users may import many images at once.
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
 - **Discord Activity Integration**: Embed OldBearRodeo directly inside Discord voice channels using the Discord Embedded App SDK so players can launch and join sessions with a single click from their voice call, without needing room codes or link sharing.
