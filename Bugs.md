@@ -1,51 +1,51 @@
-1. In voice and audio settings the 4th button for streaming is mostly off screen.
-2. When adding a new token to the board try to not put it on top of an existing one.
-3. When uploading files I want to be able to select multiple files at once.
-4. When uploading files I want to be able to drag and drop the files onto the window.
-5. Nothing seems to happen when I upload a map either.
-6. When syncing dndbeyond with a token the image is not carried over.
-7. I would like to save the user's characters in their local storage and in the gms local storage when they use this import.
-8. For ability scores please show the modifier large and the score small.
-9. Please add trained and expertise skills to the character sheet.
-10. Please add proficiency bonus to the character sheet.
-11. Please add an export/import option for all data, characters, uploaded files, maps, tokens, etc.. I want to be able to use this to switch browsers or computers for gms and players.
-12. The initiative tracker button does nothing.
-13. The dice roller button does nothing.
-14. Where in the source code can I configure the available colors?
-15. As a gm user how can I add sounds to the soundboard?
-16. When I have a token selected I want a way to duplicate it.
-17. I want to be able to give a player control over multiple tokens.
-18. The bar at the bottom that describes my current token has an icon at the left that looks like a squished copy of the token image. Can you make that square.
-19. If there are multiple tokens in the same spot I want a way to select ones other than the top one. Maybe keep clicking/tapping until I get the one I want. If I can't control them then don't select them at first. 
-20. When importing a map I want to be able to specify the size in tiles of the map or the size of a tile and the offset of the grid.
-21. My maps mostly don't have grids rendered. Please give me a way to show a grid on top of the map, but under the tokens.
-22. When I'm sending audio or receiving audio I want the mic and headphone icons in the top bar to animate somehow to show this.
-23. GM View on a map works, but send players does the same thing and does not send the players.
-24. When I click the gear to edit a map the edit map component shows up at the top of the list and I have to scroll to find it. Can we make that a modal or make the edit component below or to the right of the map itself.
-25. when I click in the box to edit the grid size and hit backspace to clear it the value keeps going to 1 so if it starts with 15 and I hit backspace 2 times expecting it to clear and then type 24 the size becomes 124. When we open this component can we focus on that component for tiles wide and select all of the text? can we make it so the text allows an empty value, but save settings will show an error if it is invalid? Can we make it so clicking in the field selects all of the text?
-26. Can we flow these components differently. I like the checkbox first. Grid type should be next. then color then opacity, then width, heightm and tile size in px side by side like one component for layout. then offset x and y side by side like another component for offset. I think two columns with the checkbox, grid type, grid color, opacity in the first and tiles wide, tiles high, tile size, grid offset x, and grid offset y in the other column. I don't see how to delete a map.
-27. The Back to Maps List button doesn't make sense unless this is a modal or something. Having the button while the editor is already in the list doesn't make sense.
-28. Give me a way to delete a map and a way to edit a map's name.
-29. separate maps from scenes and allow the same map to be used in multiple scenes.
-30. Add an asset manager to list tokens, maps, and sounds that have been uploaded. When the user tries to add something that already exists (by file size and simple hash or crc) tell them it already exists and do whatever we would do after they upload with the original file.
-31. Keep the icon, but have the export and import buttons at the bottom under the rest of the asset manager. List assets with previews above them grouped by type (maps, tokens, sounds). The user should be able to rename or delete assets from here. Allow multiselect for delete.
-32. When I add a token to the map with the + button ask me which token image I want to use.
-33. in settings for token assets allow me to pick a border and clip/zoom/pan the token to circle, square, rounded square, hexagon, or octagon.
-34. for maps allow selecting a background color either for imageless grid maps or for the area outside of a map.
-35. If grid type is set to hex and the snap to grid option is on does the snapping work correctly on the hexes or does it still snap to squares?
-36. I want a quick way to set fog over the whole map.
-37. Fog doesn't seem to persist after dragging the rectangle. In the gm view the fog should be visible but transparent.
-38. When I pinch I can zoom on the map, but when I two finger drag like I would to scroll it zooms instead. Can we make that work without breaking phone/tablets?
-39. Bind the 5 highlight controls to the number keys. Bind h to pan and v to the arrow that interacts with things. Bind fog to f and reveal to r. bind d to duplicate token.
-40. Give me an easy way to move a group of tokens to another map. Mostly this will be the player tokens.
-41. When a player syncs their character create their token and place it just off the map near the bottom. I also want to be able to select an owned token and use the D&D Beyond import to update it.
-42. Let me create player tokens to be available when a player joins so they can pick theirs. Only player controllable tokens should show up.
-43. Add some kind of animation when someone rolls that announces who rolled what dice and modifier they rolled and the result.
-44. remember in the player's local storage the characters they have used so they can pick one as their character. List them on the character sheet import page.
-45. Tell me how we can create a chat system with simple commands like /roll or /attack /skill and maybe /spell, but that could be /attack or an alias for it then roll that check as if they chose the correct dice and modifiers from their character sheet. allow appending adv or dis to roll with advantage or disadvantage on any d20 in the roll.
-46. Move the ports for client, server, and nginx to a .env file and create a .env.example file with the same ports listed. Is there anything else we should move to the .env file?
-47. User's mic should be muted by default and we shouldn't request the permission unless they unmute it.
-48. Give users a randomly generated name from this list ```var nm1 = ["A", "Ara", "Alfo", "Bari", "Be", "Bo", "Bha", "Bu", "Ba", "Bra", "Bro", "Brou", "Bru", "Da", "Dalo", "Dare", "De", "Dhu", "Dho", "Do", "Dora", "Dwo", "Dou", "Duri", "Du", "El", "Eri", "Fi", "Fo", "Fo", "Ga", "Gi", "Gla", "Glori", "Go", "Gra", "Gro", "Groo", "Gru", "Grou", "Ha", "Ha", "He", "He", "Ho", "Hou", "Hu", "Ja", "Jo", "Ka", "Khe", "Khu", "Khou", "Ko", "Ku", "Ki", "Kra", "Kro", "Lo", "Lu", "Lo", "Ma", "Mo", "Mu", "Na", "No", "Nu", "Nora", "Nura", "Ne", "No", "O", "Ori", "Rei", "Ra", "Ru", "Sa", "Si", "Sna", "Sko", "Ska", "Stro", "The", "Thi", "Tho", "Thra", "Tha", "Tore", "Tha", "Thra", "Thro", "Thu", "Tu", "U", "Umi", "Va", "Vo", "Whu", "We", "Wera", "Yu", "Yo", "Ya"];
+1. ✅ In voice and audio settings the 4th button for streaming is mostly off screen.
+2. ✅ When adding a new token to the board try to not put it on top of an existing one.
+3. ✅ When uploading files I want to be able to select multiple files at once.
+4. ✅ When uploading files I want to be able to drag and drop the files onto the window.
+5. ✅ Nothing seems to happen when I upload a map either.
+6. ✅ When syncing dndbeyond with a token the image is not carried over.
+7. ✅ I would like to save the user's characters in their local storage and in the gms local storage when they use this import.
+8. ✅ For ability scores please show the modifier large and the score small.
+9. ✅ Please add trained and expertise skills to the character sheet.
+10. ✅ Please add proficiency bonus to the character sheet.
+11. ✅ Please add an export/import option for all data, characters, uploaded files, maps, tokens, etc.. I want to be able to use this to switch browsers or computers for gms and players.
+12. ✅ The initiative tracker button does nothing.
+13. ✅ The dice roller button does nothing.
+14. ✅ Where in the source code can I configure the available colors?
+15. ✅ As a gm user how can I add sounds to the soundboard?
+16. ✅ When I have a token selected I want a way to duplicate it.
+17. ✅ I want to be able to give a player control over multiple tokens.
+18. ✅ The bar at the bottom that describes my current token has an icon at the left that looks like a squished copy of the token image. Can you make that square.
+19. ✅ If there are multiple tokens in the same spot I want a way to select ones other than the top one. Maybe keep clicking/tapping until I get the one I want. If I can't control them then don't select them at first. 
+20. ✅ When importing a map I want to be able to specify the size in tiles of the map or the size of a tile and the offset of the grid.
+21. ✅ My maps mostly don't have grids rendered. Please give me a way to show a grid on top of the map, but under the tokens.
+22. ✅ When I'm sending audio or receiving audio I want the mic and headphone icons in the top bar to animate somehow to show this.
+23. ✅ GM View on a map works, but send players does the same thing and does not send the players.
+24. ✅ When I click the gear to edit a map the edit map component shows up at the top of the list and I have to scroll to find it. Can we make that a modal or make the edit component below or to the right of the map itself.
+25. ✅ when I click in the box to edit the grid size and hit backspace to clear it the value keeps going to 1 so if it starts with 15 and I hit backspace 2 times expecting it to clear and then type 24 the size becomes 124. ✅ When we open this component can we focus on that component for tiles wide and select all of the text? can we make it so the text allows an empty value, but save settings will show an error if it is invalid? Can we make it so clicking in the field selects all of the text?
+26. ✅ Can we flow these components differently. I like the checkbox first. Grid type should be next. then color then opacity, then width, heightm and tile size in px side by side like one component for layout. then offset x and y side by side like another component for offset. I think two columns with the checkbox, grid type, grid color, opacity in the first and tiles wide, tiles high, tile size, grid offset x, and grid offset y in the other column. I don't see how to delete a map.
+27. ✅ The Back to Maps List button doesn't make sense unless this is a modal or something. Having the button while the editor is already in the list doesn't make sense.
+28. ✅ Give me a way to delete a map and a way to edit a map's name.
+29. ✅ separate maps from scenes and allow the same map to be used in multiple scenes.
+30. ✅ Add an asset manager to list tokens, maps, and sounds that have been uploaded. When the user tries to add something that already exists (by file size and simple hash or crc) tell them it already exists and do whatever we would do after they upload with the original file.
+31. ✅ Keep the icon, but have the export and import buttons at the bottom under the rest of the asset manager. List assets with previews above them grouped by type (maps, tokens, sounds). The user should be able to rename or delete assets from here. Allow multiselect for delete.
+32. ✅ When I add a token to the map with the + button ask me which token image I want to use.
+33. ✅ in settings for token assets allow me to pick a border and clip/zoom/pan the token to circle, square, rounded square, hexagon, or octagon.
+34. ✅ for maps allow selecting a background color either for imageless grid maps or for the area outside of a map.
+35. ✅ If grid type is set to hex and the snap to grid option is on does the snapping work correctly on the hexes or does it still snap to squares?
+36. ✅ I want a quick way to set fog over the whole map.
+37. ✅ Fog doesn't seem to persist after dragging the rectangle. In the gm view the fog should be visible but transparent.
+38. ✅ When I pinch I can zoom on the map, but when I two finger drag like I would to scroll it zooms instead. Can we make that work without breaking phone/tablets?
+39. ✅ Bind the 5 highlight controls to the number keys. Bind h to pan and v to the arrow that interacts with things. Bind fog to f and reveal to r. bind d to duplicate token.
+40. ✅ Give me an easy way to move a group of tokens to another map. Mostly this will be the player tokens.
+41. ✅ When a player syncs their character create their token and place it just off the map near the bottom. I also want to be able to select an owned token and use the D&D Beyond import to update it.
+42. ✅ Let me create player tokens to be available when a player joins so they can pick theirs. Only player controllable tokens should show up.
+43. ✅ Add some kind of animation when someone rolls that announces who rolled what dice and modifier they rolled and the result.
+44. ✅ remember in the player's local storage the characters they have used so they can pick one as their character. List them on the character sheet import page.
+45. ✅ Tell me how we can create a chat system with simple commands like /roll or /attack /skill and maybe /spell, but that could be /attack or an alias for it then roll that check as if they chose the correct dice and modifiers from their character sheet. allow appending adv or dis to roll with advantage or disadvantage on any d20 in the roll.
+46. ✅ Move the ports for client, server, and nginx to a .env file and create a .env.example file with the same ports listed. Is there anything else we should move to the .env file?
+47. ✅ User's mic should be muted by default and we shouldn't request the permission unless they unmute it.
+48. ✅ Give users a randomly generated name from this list ```var nm1 = ["A", "Ara", "Alfo", "Bari", "Be", "Bo", "Bha", "Bu", "Ba", "Bra", "Bro", "Brou", "Bru", "Da", "Dalo", "Dare", "De", "Dhu", "Dho", "Do", "Dora", "Dwo", "Dou", "Duri", "Du", "El", "Eri", "Fi", "Fo", "Fo", "Ga", "Gi", "Gla", "Glori", "Go", "Gra", "Gro", "Groo", "Gru", "Grou", "Ha", "Ha", "He", "He", "Ho", "Hou", "Hu", "Ja", "Jo", "Ka", "Khe", "Khu", "Khou", "Ko", "Ku", "Ki", "Kra", "Kro", "Lo", "Lu", "Lo", "Ma", "Mo", "Mu", "Na", "No", "Nu", "Nora", "Nura", "Ne", "No", "O", "Ori", "Rei", "Ra", "Ru", "Sa", "Si", "Sna", "Sko", "Ska", "Stro", "The", "Thi", "Tho", "Thra", "Tha", "Tore", "Tha", "Thra", "Thro", "Thu", "Tu", "U", "Umi", "Va", "Vo", "Whu", "We", "Wera", "Yu", "Yo", "Ya"];
 var nm2 = ["b", "br", "dd", "d", "dr", "dm", "dgr", "f", "fr", "gr", "gg", "gh", "gn", "k", "kh", "kgr", "kdr", "kk", "kh", "kr", "l", "lg", "lgr", "ldr", "lm", "md", "mn", "m", "mm", "mr", "n", "nd", "ndr", "ngr", "nm", "r", "rr", "rgr", "rdr", "rb", "rg", "rn", "rh", "rd", "rm", "rs", "rf", "s", "ss", "sdr", "slkgr", "st", "str", "t", "tr", "tm", "th", "tdr", "tgr", "v", "vr", "z", "zm", "zn", "zz"];
 var nm3 = ["ac", "aic", "aec", "ec", "eac", "ic", "oc", "oic", "ouc", "ack", "aeck", "eck", "eack", "ick", "ock", "oick", "ouck", "uck", "uc", "ad", "aed", "ed", "ead", "id", "od", "oid", "oud", "ud", "uid", "ag", "aeg", "eg", "eag", "ig", "og", "oug", "ug", "ak", "aek", "ek", "eak", "ik", "ok", "oki", "uk", "uik", "ouk", "uki", "al", "ael", "el", "eal", "il", "ol", "oli", "olin", "olim", "olir", "oul", "ul", "uli", "ulim", "ulir", "uil", "am", "ami", "amli", "amri", "aem", "em", "eam", "im", "om", "omli", "omri", "omi", "oum", "um", "umi", "umir", "umin", "umli", "umlir", "umlin", "umri", "an", "aen", "en", "ean", "in", "on", "onlim", "onlir", "oun", "un", "unli", "unri", "ar", "arlum", "arlun", "arlug", "arlig", "aer", "er", "erlum", "erlun", "erlug", "erlig", "ear", "ir", "irlum", "irlun", "or", "orli", "orlim", "orlum", "orlun", "orlig", "orlug", "oir", "our", "ur", "uri", "urim", "urum", "us", "as", "ous", "aes", "eas", "at", "atir", "atum", "atin", "aet", "et", "eat", "it", "ot", "otir", "atin", "otum", "out", "ut", "ath", "aeth", "eth", "eath", "ith", "oth", "outh", "uth"];
 var nm4 = ["A", "Ara", "Alfo", "Bari", "Be", "Bo", "Bha", "Bu", "Ba", "Bra", "Bro", "Brou", "Bru", "Da", "Dalo", "Dare", "De", "Dhu", "Dho", "Do", "Dora", "Dwo", "Dou", "Duri", "Du", "El", "Eri", "Fi", "Fo", "Fo", "Ga", "Gi", "Gla", "Glori", "Go", "Gra", "Gro", "Groo", "Gru", "Grou", "Ha", "Ha", "He", "He", "Ho", "Hou", "Hu", "Ja", "Jo", "Ka", "Khe", "Khu", "Khou", "Ko", "Ku", "Ki", "Kra", "Kro", "Lo", "Lu", "Lo", "Ma", "Mo", "Mu", "Na", "No", "Nu", "Nora", "Nura", "Ne", "No", "O", "Ori", "Rei", "Ra", "Ru", "Sa", "Si", "Sna", "Sko", "Ska", "Stro", "The", "Thi", "Tho", "Thra", "Tha", "Tore", "Tha", "Thra", "Thro", "Thu", "Tu", "U", "Umi", "Va", "Vo", "Whu", "We", "Wera", "Yu", "Yo", "Ya"];
@@ -81,33 +81,33 @@ function nameGen(type) {
 }
 ```
 
-49. When the GM joins name them GM instead of Adventurer.
-50. Missing spells and actions This profile https://www.dndbeyond.com/characters/47804290 should have
+49. ✅ When the GM joins name them GM instead of Adventurer.
+50. ✅ Missing spells and actions This profile https://www.dndbeyond.com/characters/47804290 should have
 * Greataxe +1 5 ft. reach +1 to hit 1d12+4 damage
 * Javelin range 30 ft. (120 ft.) +6 to hit 1d6+3 damage
 * Unarmed Strike 5ft. reach +6 to hit 4 damage
-51. We should import and show initiative bonus, saving throws, passive (perception, investigation, insight), and currency.
-52. Use a character's initiative bonus if available when rolling initiative for them.
-53. How do we actually use the initiative tracker. can you give me a way to set the initiative score for a token/player as the gm?
+51. ✅ We should import and show initiative bonus, saving throws, passive (perception, investigation, insight), and currency.
+52. ✅ Use a character's initiative bonus if available when rolling initiative for them.
+53. ✅ How do we actually use the initiative tracker. can you give me a way to set the initiative score for a token/player as the gm?
 54. /attack, /spell, and /skill should not make a roll if no name is provided. Without parameters or with invalid parameters it should list the available options. If possible this message should only show for the user that used the command. /help should only show for the user that ran the command.
-55. Users should be able to use /sync to sync their character with the dndbeyond url or character id. If they have more than one token then they should specify the token index in their list of tokens.
+55. ✅ Users should be able to use /sync to sync their character with the dndbeyond url or character id. If they have more than one token then they should specify the token index in their list of tokens.
 56. /tokens should list all of the tokens and their index number that a user can sync.
-57. move the hamburger menu to the far left of the top bar.
-58. Make the fog controls be a sub menu of a single fog button where they are.
-59. Move the highlights like the laser pointer and the other 4 we bound to the number keys under a single button too.
-60. Make the select tool bound to s instead of v and change the tooltip to select.
-61. make the hand tool bound to g and change the tooltip to grab.
-62. Add a box select tool below the hand tool and bind it to b.
-63. The text in the chat bubble is black for me I think it was white before. This could be some light/dark mode thing or it just got changed. since we have a chat button in the top bar get rid of that whole capsule for chat on the bottom left.
-64. covered entire map with fog and cleared all fog from map messages don't go away. They should only stay as long as the attack toasts do.
-65. The top and left toolbars should be more adaptive to smaller screens. compress everything on the top bar into the hamburger menu if we have to and make the left toolbar wrap into a second column or scroll. if it is too short.
-66. Non-modal windows like the initiative tracker and chat should be draggable to move them and should have a minimize button next to close that vertically shrinks them to just their title bar and keeps them in the same position on the screen. They should still be able to be brought back to their original size by clicking on the minimize button. Make the icon v like chevrons pointing up and down. animate the opening and closing and the icon spinning 180 degrees clockwise to expand and anti-clockwise to shrink. It should point up to indicate minimized and down to indicate expanded.
-67. I want to be able to drag items in the initiative tracker to reorder them and have the numbers update to fit. I want to be able to edit the number on the row. When we move to another turn I want a message like when we make rolls to indicate who is up next.
-68. I like the list of roles in the dice roller. I want it to be per user and scrollable so everyone can see their own rolls there.
-69. Make toast length be configurable in .env for now
-70. When I'm in the asset manager I want to be able to make a scene from a map directly from there.
-71. When we show a token's attacks can we highlight them if they are reactions or bonus actions. I mainly want the bonus and reaction highlights in the character view and when running `/attack` or `/spell`.
-72. The token image zoom, crop, and pan controls did nothing. Can we integrate them into the image preview better so a user can see the cropping shape and drag/pinch to adjust the zoom and offset.
+57. ✅ move the hamburger menu to the far left of the top bar.
+58. ✅ Make the fog controls be a sub menu of a single fog button where they are.
+59. ✅ Move the highlights like the laser pointer and the other 4 we bound to the number keys under a single button too.
+60. ✅ Make the select tool bound to s instead of v and change the tooltip to select.
+61. ✅ make the hand tool bound to g and change the tooltip to grab.
+62. ✅ Add a box select tool below the hand tool and bind it to b.
+63. ✅ The text in the chat bubble is black for me I think it was white before. This could be some light/dark mode thing or it just got changed. since we have a chat button in the top bar get rid of that whole capsule for chat on the bottom left.
+64. ✅ covered entire map with fog and cleared all fog from map messages don't go away. They should only stay as long as the attack toasts do.
+65. ✅ The top and left toolbars should be more adaptive to smaller screens. compress everything on the top bar into the hamburger menu if we have to and make the left toolbar wrap into a second column or scroll. if it is too short.
+66. ✅ Non-modal windows like the initiative tracker and chat should be draggable to move them and should have a minimize button next to close that vertically shrinks them to just their title bar and keeps them in the same position on the screen. They should still be able to be brought back to their original size by clicking on the minimize button. Make the icon v like chevrons pointing up and down. animate the opening and closing and the icon spinning 180 degrees clockwise to expand and anti-clockwise to shrink. It should point up to indicate minimized and down to indicate expanded.
+67. ✅ I want to be able to drag items in the initiative tracker to reorder them and have the numbers update to fit. I want to be able to edit the number on the row. When we move to another turn I want a message like when we make rolls to indicate who is up next.
+68. ✅ I like the list of roles in the dice roller. I want it to be per user and scrollable so everyone can see their own rolls there.
+69. ✅ Make toast length be configurable in .env for now
+70. ✅ When I'm in the asset manager I want to be able to make a scene from a map directly from there.
+71. ✅ When we show a token's attacks can we highlight them if they are reactions or bonus actions. I mainly want the bonus and reaction highlights in the character view and when running `/attack` or `/spell`.
+72. ✅ The token image zoom, crop, and pan controls did nothing. Can we integrate them into the image preview better so a user can see the cropping shape and drag/pinch to adjust the zoom and offset.
 73. ✅ Support importing TetraCube `.monster` files as monster/NPC assets with full stats, AC, HP, speed, and actions. Setup dual-drop support for monster files:
     - Drop `.monster` onto the Battlemap directly: It saves the creature to the Asset Manager and instantly drops a ready-to-fight token at the mouse cursor.
     - Drop `.monster` into the Asset Manager: It saves to the library for encounter prep without cluttering the current map.
