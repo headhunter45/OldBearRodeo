@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   X,
   User,
@@ -65,9 +65,25 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   onOpenVoiceSettings,
   isGm,
 }) => {
-  const [name, setName] = useState(localPlayer?.name || (isGm ? 'GM' : 'Player'));
-  const [color, setColor] = useState(localPlayer?.color || '#6366f1');
+  const [name, setName] = useState(
+    localPlayer?.name || localStorage.getItem('oldbear_player_name') || (isGm ? 'GM' : 'Player')
+  );
+  const [color, setColor] = useState(
+    localPlayer?.color || localStorage.getItem('oldbear_player_color') || '#6366f1'
+  );
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    if (localPlayer) {
+      setName(localPlayer.name);
+      setColor(localPlayer.color);
+    } else {
+      const savedName = localStorage.getItem('oldbear_player_name');
+      if (savedName) setName(savedName);
+      const savedColor = localStorage.getItem('oldbear_player_color');
+      if (savedColor) setColor(savedColor);
+    }
+  }, [localPlayer, isOpen]);
 
   if (!isOpen) return null;
 
@@ -387,34 +403,38 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
               ONLINE PLAYERS ({players.length})
             </label>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-              {players.map((p) => (
-                <div
-                  key={p.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                    padding: '0.2rem 0.5rem',
-                    borderRadius: 'var(--radius-full)',
-                    backgroundColor: 'var(--bg-surface)',
-                    border: `1px solid ${p.color}44`,
-                    fontSize: '0.75rem',
-                  }}
-                >
+              {players.map((p) => {
+                const isSelf = p.id === localPlayer?.id;
+                const effectivePlayer = isSelf && localPlayer ? localPlayer : p;
+                return (
                   <div
+                    key={effectivePlayer.id}
                     style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor: p.color,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      padding: '0.2rem 0.5rem',
+                      borderRadius: 'var(--radius-full)',
+                      backgroundColor: 'var(--bg-surface)',
+                      border: `1px solid ${effectivePlayer.color}44`,
+                      fontSize: '0.75rem',
                     }}
-                  />
-                  <span style={{ color: 'white', fontWeight: 600 }}>{p.name}</span>
-                  {p.role === 'gm' && (
-                    <span style={{ fontSize: '0.65rem', color: 'var(--accent-gold)' }}>GM</span>
-                  )}
-                </div>
-              ))}
+                  >
+                    <div
+                      style={{
+                        width: '10px',
+                        height: '10px',
+                        borderRadius: '50%',
+                        backgroundColor: effectivePlayer.color,
+                      }}
+                    />
+                    <span style={{ color: 'white', fontWeight: 600 }}>{effectivePlayer.name}</span>
+                    {effectivePlayer.role === 'gm' && (
+                      <span style={{ fontSize: '0.65rem', color: 'var(--accent-gold)' }}>GM</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
