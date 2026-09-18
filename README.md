@@ -7,8 +7,9 @@ A lightweight, zero-install, mobile-friendly virtual tabletop (VTT) and tactical
 ## Table of Contents
 1. [Key Features](#key-features)
 2. [Quickstart with Docker (Recommended)](#quickstart-with-docker-recommended)
-3. [Native Local Development](#native-local-development)
-4. [User Manual & App Guide](#user-manual--app-guide)
+3. [Building, Pushing & Production Deployment](#building-pushing--production-deployment)
+4. [Native Local Development](#native-local-development)
+5. [User Manual & App Guide](#user-manual--app-guide)
    - [Starting a Game & Inviting Players](#starting-a-game--inviting-players)
    - [Map Management & Grid Alignment](#map-management--grid-alignment)
    - [Tokens & Combat Management](#tokens--combat-management)
@@ -18,8 +19,8 @@ A lightweight, zero-install, mobile-friendly virtual tabletop (VTT) and tactical
    - [Dice Roller & Initiative Tracker](#dice-roller--initiative-tracker)
    - [Full Data Backup & Browser Migration](#full-data-backup--browser-migration)
    - [Global Drag and Drop](#global-drag-and-drop)
-5. [Configuring Available Colors](#configuring-available-colors)
-6. [Architecture & Technology Stack](#architecture--technology-stack)
+6. [Configuring Available Colors](#configuring-available-colors)
+7. [Architecture & Technology Stack](#architecture--technology-stack)
 
 ---
 
@@ -61,12 +62,12 @@ Old Bear Rodeo provides a complete multi-container setup via Docker Compose, inc
    - **Direct Server API**: [http://localhost:3001](http://localhost:3001)
 
 ### Docker Service Topology
-| Container Name | Service | Internal Port | Exposed Port | Description |
-|---|---|---|---|---|
-| `oldbear_nginx` | Reverse Proxy | `80` | `80:80` | Unified gateway routing web traffic and WebSocket signaling |
-| `oldbear_client` | Frontend SPA | `80` | — | Nginx serving production Vite build |
-| `oldbear_server` | Backend API | `3001` | `3001:3001` | Node.js WebSocket signaling and D&D Beyond proxy |
-| `oldbear_postgres` | Database | `5432` | `5432:5432` | Persistent campaign storage |
+| Container Name | Service | Dockerfile | Internal Port | Exposed Port | Description |
+|---|---|---|---|---|---|
+| `oldbear_nginx` | Ingress Reverse Proxy | `docker/Dockerfile.nginx` | `80` | `80:80` | Baked-in gateway routing `/`, `/api/`, `/health`, and WebSocket `/ws` |
+| `oldbear_client` | Frontend SPA | `docker/Dockerfile.client` | `80` | — | Nginx serving production Vite build |
+| `oldbear_server` | Backend API & WebSocket | `docker/Dockerfile.server` | `3001` | `3001:3001` | Node.js 22 WebSocket signaling and D&D Beyond proxy |
+| `oldbear_postgres` | Database | Upstream `postgres:16-alpine` | `5432` | `5432:5432` | Persistent campaign storage |
 
 ### Useful Docker Commands
 - **View live logs**:
@@ -81,6 +82,151 @@ Old Bear Rodeo provides a complete multi-container setup via Docker Compose, inc
   ```bash
   docker compose down -v
   ```
+
+---
+
+## Building, Pushing & Production Deployment
+
+Old Bear Rodeo is packaged into three self-contained container images (`oldbear_server`, `oldbear_client`, and `oldbear_nginx`), allowing 1-step builds and zero-configuration remote deployments.
+
+### 1. The Container Images
+
+- **`oldbear_server`** (`docker/Dockerfile.server`): Multi-stage Node.js 22 Alpine build compiling `@oldbear/shared` and `@oldbear/server`, running the WebSocket signaling and REST server with production dependencies.
+- **`oldbear_client`** (`docker/Dockerfile.client`): Multi-stage build running `vite build`, serving the optimized SPA bundle via Nginx Alpine.
+- **`oldbear_nginx`** (`docker/Dockerfile.nginx`): Nginx Alpine gateway with the reverse proxy configuration (`docker/nginx.conf`) baked into `/etc/nginx/nginx.conf`. It routes static traffic to `client:80`, API traffic to `server:3001`, and manages the WebSocket `101 Switching Protocols` handshake with keep-alive timeouts.
+
+> [!TIP]
+> Because `nginx.conf` is baked into `oldbear_nginx`, you **do not** need to copy configuration files or map volume paths on your production host!
+
+### 2. Building & Tagging for a Container Registry
+
+You can build and tag all three images for your private or public registry (e.g., `registry.tomusan.com/` or `ghcr.io/username/`) using the `IMAGE_REGISTRY` environment variable:
+
+```bash
+# Build all 3 images with your registry prefix
+IMAGE_REGISTRY=registry.tomusan.com/ docker compose build
+```
+
+This compiles and tags:
+- `registry.tomusan.com/oldbear_server:latest`
+- `registry.tomusan.com/oldbear_client:latest`
+- `registry.tomusan.com/oldbear_nginx:latest`
+
+### 3. Pushing Images to Your Registry
+
+Push all images with a single command:
+
+```bash
+IMAGE_REGISTRY=registry.tomusan.com/ docker compose push
+```
+
+### 4. Deploying on Your Production Server
+
+On your production server (e.g. behind Nginx Proxy Manager, Portainer, or standard Docker Compose):
+
+#### Option A: Using `docker-compose.yml` with `.env` (Recommended)
+
+Place `docker-compose.yml` on the server and create a `.env` file with your settings:
+
+```env
+# 1. Container Registry
+IMAGE_REGISTRY=registry.tomusan.com/
+IMAGE_TAG=latest
+
+# 2. Ports
+NGINX_PORT=20001
+SERVER_PORT=3001
+
+# 3. Persistent Host Storage
+PGDATA_PATH=/mnt/Data/Apps/oldbear-vtt/pgdata
+
+# 4. Database Credentials
+POSTGRES_DB=oldbear_vtt
+POSTGRES_USER=oldbear
+POSTGRES_PASSWORD=oldbear_secret_password
+
+# 5. Security & Network
+NODE_ENV=production
+SESSION_SECRET=generate_a_secure_random_secret_for_production
+CORS_ORIGIN=*
+MAX_UPLOAD_SIZE_MB=50
+```
+
+Deploy or update:
+```bash
+docker compose pull
+docker compose up -d
+```
+
+#### Option B: Standalone Production Compose File (e.g., for Portainer Stacks)
+
+If using Portainer, Dockge, or a single standalone file, no configuration files need to be copied to the host:
+
+```yaml
+services:
+  client:
+    container_name: oldbear_client
+    image: registry.tomusan.com/oldbear_client:latest
+    restart: unless-stopped
+    depends_on:
+      - server
+
+  nginx:
+    container_name: oldbear_nginx
+    image: registry.tomusan.com/oldbear_nginx:latest
+    restart: unless-stopped
+    ports:
+      - '20001:80'
+    depends_on:
+      - client
+      - server
+
+  postgres:
+    container_name: oldbear_postgres
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: oldbear_vtt
+      POSTGRES_PASSWORD: oldbear_secret_password
+      POSTGRES_USER: oldbear
+    healthcheck:
+      interval: 3s
+      retries: 5
+      test:
+        - CMD-SHELL
+        - pg_isready -U oldbear -d oldbear_vtt
+      timeout: 3s
+    volumes:
+      - /mnt/Data/Apps/oldbear-vtt/pgdata:/var/lib/postgresql/data
+
+  server:
+    container_name: oldbear_server
+    image: registry.tomusan.com/oldbear_server:latest
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CORS_ORIGIN: '*'
+      DATABASE_URL: postgres://oldbear:oldbear_secret_password@postgres:5432/oldbear_vtt
+      LOG_LEVEL: info
+      MAX_UPLOAD_SIZE_MB: 50
+      NODE_ENV: production
+      PORT: 3001
+      SESSION_SECRET: oldbear_session_development_secret_change_in_production
+      STUN_SERVER_URL: stun:stun.l.google.com:19302
+```
+
+### 5. Reverse Proxy & Nginx Proxy Manager (NPM) Configuration
+
+When hosting behind an upstream reverse proxy (like Nginx Proxy Manager, Cloudflare, Traefik, or Caddy):
+
+- **Forward Host / IP**: IP address or hostname of your Docker host.
+- **Forward Port**: Port mapped to `oldbear_nginx` (e.g. `20001` or `80`).
+- **Websockets Support**: **MUST BE ENABLED (ON)**.
+  > [!IMPORTANT]
+  > In Nginx Proxy Manager, toggle **Websockets Support: ON** in the Proxy Host Details tab. If disabled, Nginx Proxy Manager strips the `Upgrade: websocket` and `Connection: Upgrade` headers, causing the WebSocket connection to `/ws` to fail with `404 Not Found`.
+
 
 ---
 
