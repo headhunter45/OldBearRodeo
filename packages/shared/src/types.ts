@@ -221,6 +221,14 @@ export function getActivationCategory(item?: {
   return 'other';
 }
 
+export interface DnDItem {
+  id?: string;
+  name: string;
+  description?: string;
+  quantity?: number;
+  dndBeyondUrl?: string;
+}
+
 export interface DnDCharacter {
   id: string;
   name: string;
@@ -268,6 +276,7 @@ export interface DnDCharacter {
   skills?: CharacterSkill[];
   spells: DnDSpell[];
   actions?: DnDAction[];
+  items?: DnDItem[];
 }
 
 export interface SoundTrack {

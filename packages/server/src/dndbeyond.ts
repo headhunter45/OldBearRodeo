@@ -1,4 +1,4 @@
-import { DnDCharacter, DnDSpell, CharacterSkill, DnDAction } from '@oldbear/shared';
+import { DnDCharacter, DnDSpell, CharacterSkill, DnDAction, DnDItem } from '@oldbear/shared';
 
 const SKILL_DEFINITIONS: Array<{
   name: string;
@@ -515,6 +515,16 @@ async function parseDnDData(characterId: string, data: any): Promise<DnDCharacte
     skills,
     spells,
     actions,
+    items: inventoryItems.map((it: any) => {
+      const def = it.definition || {};
+      return {
+        id: String(def.id || it.id || ''),
+        name: def.name || 'Item',
+        description: def.description ? def.description.replace(/<[^>]*>/g, '').trim() : undefined,
+        quantity: it.quantity || 1,
+        dndBeyondUrl: def.id ? `https://www.dndbeyond.com/magic-items/${def.id}` : undefined,
+      };
+    }),
   };
 }
 
@@ -632,6 +642,12 @@ export function getDemoCharacter(): DnDCharacter {
         damageDice: '5',
         damage: '5 damage',
       },
+    ],
+    items: [
+      { name: 'Potion of Healing', description: 'A character who drinks the magical red fluid in this vial regains 2d4 + 2 hit points.', quantity: 2 },
+      { name: 'Rope (hempen, 50 feet)', description: '50 feet of hempen rope, burst DC 17.', quantity: 1 },
+      { name: 'Torch', description: 'Burns for 1 hour, shedding bright light in a 20-foot radius and dim light for an additional 20 feet.', quantity: 5 },
+      { name: 'Rations (1 day)', description: 'Consists of dry foods suitable for travel.', quantity: 10 },
     ],
   };
 }

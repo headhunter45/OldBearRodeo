@@ -304,4 +304,72 @@ describe('Dice Parser & Slash Command Utilities', () => {
     assert.ok(spellMsg.text.includes('Shield [Reaction]'), 'Shield has Reaction tag');
     assert.ok(!spellMsg.text.includes('Fireball [Bonus Action]'));
   });
+
+  it('supports 1-based index selection and index listing for spell, skill, attack, and item (Bug #91)', () => {
+    const testPlayer = {
+      id: 'test-player-91',
+      name: 'Rogue',
+      role: 'player' as const,
+      color: '#3b82f6',
+      connected: true,
+      assignedTokenIds: [],
+    };
+
+    const testChar = {
+      id: 'char-91',
+      name: 'Shadow',
+      actions: [
+        { name: 'Dagger', type: 'melee', toHitModifier: 6, damageDice: '1d4+3' },
+        { name: 'Shortbow', type: 'ranged', toHitModifier: 5, damageDice: '1d6+3' },
+      ],
+      spells: [
+        { id: 'sp-1', name: 'Invisibility', level: 2, school: 'Illusion', castingTime: '1 action' },
+      ],
+      skills: [
+        { name: 'Acrobatics', stat: 'dex' as const, modifier: 5, proficiency: 'proficient' as const },
+        { name: 'Stealth', stat: 'dex' as const, modifier: 7, proficiency: 'expertise' as const },
+      ],
+      items: [
+        { name: 'Smoke Bomb', description: 'Creates a 15ft cloud of smoke.', quantity: 3 },
+      ],
+      stats: { str: 10, dex: 18, con: 14, int: 12, wis: 10, cha: 12 },
+    };
+
+    const sentMessages: any[] = [];
+    const broadcastRolls: any[] = [];
+    const ctx = {
+      player: testPlayer,
+      character: testChar as any,
+      onSendMessage: (msg: any) => sentMessages.push(msg),
+      onBroadcastRoll: (roll: any) => broadcastRolls.push(roll),
+    };
+
+    // 1. Bare commands include 1-based index numbers
+    processSlashCommand('/attack', ctx);
+    assert.ok(sentMessages[0].text.includes('1. Dagger'));
+    assert.ok(sentMessages[0].text.includes('2. Shortbow'));
+
+    processSlashCommand('/spell', ctx);
+    assert.ok(sentMessages[1].text.includes('1. Invisibility'));
+
+    processSlashCommand('/skill', ctx);
+    assert.ok(sentMessages[2].text.includes('1. Acrobatics'));
+    assert.ok(sentMessages[2].text.includes('2. Stealth'));
+
+    processSlashCommand('/item', ctx);
+    assert.ok(sentMessages[3].text.includes('1. Smoke Bomb'));
+
+    // 2. Invoking with index 1 works
+    processSlashCommand('/attack 1', ctx);
+    assert.ok(sentMessages[4].text.includes('attacks with Dagger'));
+
+    processSlashCommand('/spell 1', ctx);
+    assert.ok(sentMessages[5].text.includes('casts Invisibility'));
+
+    processSlashCommand('/skill 2', ctx);
+    assert.ok(sentMessages[6].text.includes('checks Stealth'));
+
+    processSlashCommand('/item 1', ctx);
+    assert.ok(sentMessages[7].text.includes('Smoke Bomb'));
+  });
 });

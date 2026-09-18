@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Player, ChatMessage, DiceRollResult, DnDCharacter, DieType, DnDAction, Token, getActivationCategory } from '@oldbear/shared';
+import { Player, ChatMessage, DiceRollResult, DnDCharacter, DieType, DnDAction, DnDSpell, Token, getActivationCategory } from '@oldbear/shared';
 import { MessageSquare, Send, X, Dices, Sword, Sparkles, HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import { useDraggableWindow } from '../hooks/useDraggableWindow.js';
 
@@ -101,7 +101,7 @@ export function processSlashCommand(
   // 1. /help
   if (cmd === 'help') {
     sendPrivateSystemMessage(
-      `Available commands:\n• /roll [count]d[sides][+/-mod] [adv|dis] - Roll any dice (e.g. /roll 1d20+5 adv)\n• /attack [weapon] [adv|dis] - Roll to-hit & damage from sheet (e.g. /attack Longsword)\n• /skill [skill] [adv|dis] - Roll a character skill check (e.g. /skill Stealth dis)\n• /spell [spell] [adv|dis] - Roll a spell attack from character sheet\n• /sync [url or id] [token index] - Sync character sheet and token with D&D Beyond\n• /tokens - List all tokens and their index number available to sync`
+      `Available commands:\n• /roll [count]d[sides][+/-mod] [adv|dis] - Roll any dice (e.g. /roll 1d20+5 adv)\n• /attack [weapon or index] [adv|dis] - Roll to-hit & damage from sheet (e.g. /attack 1 or /attack Longsword)\n• /skill [skill or index] [adv|dis] - Roll a character skill check (e.g. /skill 1 or /skill Stealth dis)\n• /spell [spell or index] [adv|dis] - Roll a spell attack from character sheet (e.g. /spell 1)\n• /item [item or index] - Use/inspect item from inventory (e.g. /item 1)\n• /sync [url or id] [token index] - Sync character sheet and token with D&D Beyond\n• /tokens - List all tokens and their index number available to sync`
     );
     return true;
   }
@@ -179,29 +179,35 @@ export function processSlashCommand(
         // Bug #54 & #71: No name provided -> list options, do not roll
         if (!attackQuery) {
           const listText = availableAttacks
-            .map((a) => {
+            .map((a, idx) => {
               const cat = getActivationCategory(a);
               const badge = cat === 'bonus' ? ' [Bonus Action]' : cat === 'reaction' ? ' [Reaction]' : '';
-              return `• ${a.name}${badge}${a.reach ? ` (${a.reach})` : a.range ? ` (${a.range})` : ''} [${a.toHitModifier !== undefined ? (a.toHitModifier >= 0 ? `+${a.toHitModifier}` : a.toHitModifier) + ' to hit' : ''}${a.damage ? `, ${a.damage}` : a.damageDice ? `, ${a.damageDice}` : ''}]`;
+              return `${idx + 1}. ${a.name}${badge}${a.reach ? ` (${a.reach})` : a.range ? ` (${a.range})` : ''} [${a.toHitModifier !== undefined ? (a.toHitModifier >= 0 ? `+${a.toHitModifier}` : a.toHitModifier) + ' to hit' : ''}${a.damage ? `, ${a.damage}` : a.damageDice ? `, ${a.damageDice}` : ''}]`;
             })
             .join('\n');
           sendPrivateSystemMessage(
-            `No attack specified. Available attacks${character ? ` for ${character.name}` : ''}:\n${listText}\n\nUsage: /attack [name] [adv|dis]`
+            `No attack specified. Available attacks${character ? ` for ${character.name}` : ''}:\n${listText}\n\nUsage: /attack [name or index] [adv|dis]`
           );
           return true;
         }
 
-        // Search matching attack
-        const found = availableAttacks.find((a) =>
-          a.name.toLowerCase().includes(attackQuery.toLowerCase())
-        );
+        // Search matching attack by 1-based index or name
+        let found: DnDAction | undefined;
+        const numIdx = parseInt(attackQuery, 10);
+        if (!isNaN(numIdx) && String(numIdx) === attackQuery && numIdx >= 1 && numIdx <= availableAttacks.length) {
+          found = availableAttacks[numIdx - 1];
+        } else {
+          found = availableAttacks.find((a) =>
+            a.name.toLowerCase().includes(attackQuery.toLowerCase())
+          );
+        }
 
         if (!found) {
           const listText = availableAttacks
-            .map((a) => {
+            .map((a, idx) => {
               const cat = getActivationCategory(a);
               const badge = cat === 'bonus' ? ' [Bonus Action]' : cat === 'reaction' ? ' [Reaction]' : '';
-              return `• ${a.name}${badge}`;
+              return `${idx + 1}. ${a.name}${badge}`;
             })
             .join('\n');
           sendPrivateSystemMessage(
@@ -281,30 +287,36 @@ export function processSlashCommand(
             return true;
           }
           const listText = availableSpells
-            .map((s) => {
+            .map((s, idx) => {
               const cat = getActivationCategory(s);
               const badge = cat === 'bonus' ? ' [Bonus Action]' : cat === 'reaction' ? ' [Reaction]' : '';
-              return `• ${s.name}${badge} (${s.level === 0 ? 'Cantrip' : `Level ${s.level}`}${s.school ? `, ${s.school}` : ''}${s.castingTime ? ` • ${s.castingTime}` : ''})`;
+              return `${idx + 1}. ${s.name}${badge} (${s.level === 0 ? 'Cantrip' : `Level ${s.level}`}${s.school ? `, ${s.school}` : ''}${s.castingTime ? ` • ${s.castingTime}` : ''})`;
             })
             .join('\n');
           sendPrivateSystemMessage(
-            `No spell specified. Available spells for ${character?.name || 'character'}:\n${listText}\n\nUsage: /spell [name] [adv|dis]`
+            `No spell specified. Available spells for ${character?.name || 'character'}:\n${listText}\n\nUsage: /spell [name or index] [adv|dis]`
           );
           return true;
         }
 
-        // Search matching spell
-        const found = availableSpells.find((s) =>
-          s.name.toLowerCase().includes(spellQuery.toLowerCase())
-        );
+        // Search matching spell by 1-based index or name
+        let found: DnDSpell | undefined;
+        const numIdx = parseInt(spellQuery, 10);
+        if (!isNaN(numIdx) && String(numIdx) === spellQuery && numIdx >= 1 && numIdx <= availableSpells.length) {
+          found = availableSpells[numIdx - 1];
+        } else {
+          found = availableSpells.find((s) =>
+            s.name.toLowerCase().includes(spellQuery.toLowerCase())
+          );
+        }
 
         if (!found) {
           const listText = availableSpells.length > 0
             ? availableSpells
-                .map((s) => {
+                .map((s, idx) => {
                   const cat = getActivationCategory(s);
                   const badge = cat === 'bonus' ? ' [Bonus Action]' : cat === 'reaction' ? ' [Reaction]' : '';
-                  return `• ${s.name}${badge}`;
+                  return `${idx + 1}. ${s.name}${badge}`;
                 })
                 .join('\n')
             : '(No spells available)';
@@ -378,29 +390,34 @@ export function processSlashCommand(
           'Stealth', 'Survival'
         ];
 
-        // Bug #54: No skill specified -> list options, do not roll
+        const skillsList = character?.skills && character.skills.length > 0
+          ? character.skills
+          : ALL_SKILLS.map((s) => ({ name: s, modifier: 0, proficiency: 'none' as const }));
+
+        // Bug #54 & #91: No skill specified -> list options with 1-based index, do not roll
         if (!skillQuery) {
-          const listText = character?.skills && character.skills.length > 0
-            ? character.skills
-                .map((s) => `• ${s.name} (${s.modifier >= 0 ? `+${s.modifier}` : s.modifier}${s.proficiency !== 'none' ? ' • Proficient' : ''})`)
-                .join('\n')
-            : ALL_SKILLS.map((s) => `• ${s}`).join('\n');
+          const listText = skillsList
+            .map((s, idx) => `${idx + 1}. ${s.name} (${s.modifier >= 0 ? `+${s.modifier}` : s.modifier}${s.proficiency !== 'none' ? ' • Proficient' : ''})`)
+            .join('\n');
           sendPrivateSystemMessage(
-            `No skill specified. Available skills${character ? ` for ${character.name}` : ''}:\n${listText}\n\nUsage: /skill [skill] [adv|dis]`
+            `No skill specified. Available skills${character ? ` for ${character.name}` : ''}:\n${listText}\n\nUsage: /skill [skill or index] [adv|dis]`
           );
           return true;
         }
 
-        // Search matching skill
-        const charSkill = character?.skills?.find((s) =>
-          s.name.toLowerCase().includes(skillQuery.toLowerCase())
-        );
-        const standardSkillName = ALL_SKILLS.find((s) =>
-          s.toLowerCase().includes(skillQuery.toLowerCase())
-        );
+        // Search matching skill by 1-based index or name
+        let foundSkill: { name: string; modifier: number; proficiency: string } | undefined;
+        const numIdx = parseInt(skillQuery, 10);
+        if (!isNaN(numIdx) && String(numIdx) === skillQuery && numIdx >= 1 && numIdx <= skillsList.length) {
+          foundSkill = skillsList[numIdx - 1];
+        } else {
+          foundSkill = skillsList.find((s) =>
+            s.name.toLowerCase().includes(skillQuery.toLowerCase())
+          );
+        }
 
-        if (!charSkill && !standardSkillName) {
-          const listText = (character?.skills?.map((s) => `• ${s.name}`) || ALL_SKILLS.map((s) => `• ${s}`)).join('\n');
+        if (!foundSkill) {
+          const listText = skillsList.map((s, idx) => `${idx + 1}. ${s.name}`).join('\n');
           sendPrivateSystemMessage(
             `Could not find skill matching "${skillQuery}". Available skills:\n${listText}`,
             'System',
@@ -409,8 +426,8 @@ export function processSlashCommand(
           return true;
         }
 
-        const skillName = charSkill ? charSkill.name : standardSkillName!;
-        const skillMod = charSkill?.modifier ?? 0;
+        const skillName = foundSkill.name;
+        const skillMod = foundSkill.modifier;
         const d20 = parseDiceExpression('1d20', advMode)!;
         const total = (d20.keptRoll ?? d20.rolls[0]) + skillMod;
 
@@ -438,6 +455,60 @@ export function processSlashCommand(
           text: `checks ${skillName}! Result: ${total} (${d20.rolls.join('/')}${skillMod >= 0 ? `+${skillMod}` : skillMod})${advMode !== 'normal' ? ` (${advMode})` : ''}`,
           timestamp: Date.now(),
           roll: rollResult,
+        });
+        return true;
+      }
+
+      // 5.5 /item [name or index]
+      if (cmd === 'item') {
+        const itemQuery = args.join(' ').trim();
+        const availableItems: Array<{ id?: string; name: string; description?: string; quantity?: number }> =
+          (character?.items && character.items.length > 0)
+            ? character.items
+            : [
+                { name: 'Potion of Healing', description: 'Regains 2d4 + 2 hit points when consumed.', quantity: 2 },
+                { name: 'Rope (hempen, 50 feet)', description: '50 feet of hempen rope, burst DC 17.', quantity: 1 },
+                { name: 'Torch', description: 'Burns for 1 hour, shedding bright light in 20ft radius.', quantity: 5 },
+                { name: 'Rations (1 day)', description: 'Consists of dry foods suitable for travel.', quantity: 10 },
+              ];
+
+        // Bare command -> list options with 1-based index
+        if (!itemQuery) {
+          const listText = availableItems
+            .map((it, idx) => `${idx + 1}. ${it.name}${it.quantity ? ` (x${it.quantity})` : ''}${it.description ? ` - ${it.description}` : ''}`)
+            .join('\n');
+          sendPrivateSystemMessage(
+            `No item specified. Available items${character ? ` for ${character.name}` : ''}:\n${listText}\n\nUsage: /item [name or index]`
+          );
+          return true;
+        }
+
+        // Search matching item by 1-based index or name
+        let found: typeof availableItems[0] | undefined;
+        const numIdx = parseInt(itemQuery, 10);
+        if (!isNaN(numIdx) && String(numIdx) === itemQuery && numIdx >= 1 && numIdx <= availableItems.length) {
+          found = availableItems[numIdx - 1];
+        } else {
+          found = availableItems.find((it) => it.name.toLowerCase().includes(itemQuery.toLowerCase()));
+        }
+
+        if (!found) {
+          const listText = availableItems.map((it, idx) => `${idx + 1}. ${it.name}`).join('\n');
+          sendPrivateSystemMessage(
+            `Could not find item matching "${itemQuery}". Available options:\n${listText}`,
+            'System',
+            '#f43f5e'
+          );
+          return true;
+        }
+
+        onSendMessage({
+          id: crypto.randomUUID(),
+          senderId: player.id,
+          senderName: player.name,
+          senderColor: player.color,
+          text: `uses/inspects item: ${found.name}${found.quantity ? ` (x${found.quantity})` : ''}${found.description ? `\n"${found.description}"` : ''}`,
+          timestamp: Date.now(),
         });
         return true;
       }
