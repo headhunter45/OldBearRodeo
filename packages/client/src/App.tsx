@@ -47,7 +47,7 @@ export const App: React.FC = () => {
   sessionRef.current = session;
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const showToast = (msg: string, durationMs = 3500) => {
+  const showToast = (msg: string, durationMs = 4500) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage((cur) => (cur === msg ? null : cur));
@@ -1018,7 +1018,7 @@ export const App: React.FC = () => {
       globalCovered: true,
       clearShapes: true,
     });
-    setToastMessage('Covered entire map with fog');
+    showToast('Covered entire map with fog');
   };
 
   const handleClearAllFog = () => {
@@ -1044,7 +1044,7 @@ export const App: React.FC = () => {
       globalCovered: false,
       clearShapes: true,
     });
-    setToastMessage('Cleared all fog from map');
+    showToast('Cleared all fog from map');
   };
 
   const assignedToken = localPlayer
