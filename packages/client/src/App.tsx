@@ -951,6 +951,20 @@ export const App: React.FC = () => {
     if (localPlayer) {
       const updated = { ...localPlayer, name, color };
       setLocalPlayer(updated);
+      setSession((prev) => {
+        if (!prev || !prev.players[localPlayer.id]) return prev;
+        return {
+          ...prev,
+          players: {
+            ...prev.players,
+            [localPlayer.id]: {
+              ...prev.players[localPlayer.id],
+              name,
+              color,
+            },
+          },
+        };
+      });
       networkRef.current?.send({
         type: 'player-update',
         updates: { name, color },

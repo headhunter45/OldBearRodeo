@@ -180,18 +180,19 @@ export const TopBar: React.FC<TopBarProps> = ({
       <div className="topbar-players-list" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
         {players.map((p) => {
           const isSelf = p.id === localPlayer?.id;
-          const isSpeaking = isSelf ? (voiceState?.isSpeaking || false) : (p.isSpeaking || false);
-          const isMuted = isSelf ? (voiceState?.isMuted || voiceState?.isForceMuted) : (p.isMuted || p.isForceMuted);
+          const currentPlayer = isSelf && localPlayer ? localPlayer : p;
+          const isSpeaking = isSelf ? (voiceState?.isSpeaking || false) : (currentPlayer.isSpeaking || false);
+          const isMuted = isSelf ? (voiceState?.isMuted || voiceState?.isForceMuted) : (currentPlayer.isMuted || currentPlayer.isForceMuted);
 
           return (
             <div
-              key={p.id}
-              title={`${p.name} (${p.role.toUpperCase()})${isSpeaking ? ' - Speaking' : ''}${p.isForceMuted ? ' - Force Muted by GM' : isMuted ? ' - Muted' : ''}`}
+              key={currentPlayer.id}
+              title={`${currentPlayer.name} (${currentPlayer.role.toUpperCase()})${isSpeaking ? ' - Speaking' : ''}${currentPlayer.isForceMuted ? ' - Force Muted by GM' : isMuted ? ' - Muted' : ''}`}
               style={{
                 width: '28px',
                 height: '28px',
                 borderRadius: '50%',
-                backgroundColor: p.color,
+                backgroundColor: currentPlayer.color,
                 border: isSpeaking ? '2.5px solid #10b981' : '2px solid rgba(255, 255, 255, 0.65)',
                 boxShadow: isSpeaking ? '0 0 12px #10b981, inset 0 0 4px #10b981' : 'none',
                 display: 'flex',
@@ -204,7 +205,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 transition: 'all 0.15s ease',
               }}
             >
-              {p.name[0]?.toUpperCase() || '?'}
+              {currentPlayer.name[0]?.toUpperCase() || '?'}
               {isMuted && (
                 <div
                   style={{

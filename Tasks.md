@@ -89,9 +89,9 @@ function nameGen(type) {
 51. ✅ We should import and show initiative bonus, saving throws, passive (perception, investigation, insight), and currency.
 52. ✅ Use a character's initiative bonus if available when rolling initiative for them.
 53. ✅ How do we actually use the initiative tracker. can you give me a way to set the initiative score for a token/player as the gm?
-54. /attack, /spell, and /skill should not make a roll if no name is provided. Without parameters or with invalid parameters it should list the available options. If possible this message should only show for the user that used the command. /help should only show for the user that ran the command.
+54. ✅ /attack, /spell, and /skill should not make a roll if no name is provided. Without parameters or with invalid parameters it should list the available options. If possible this message should only show for the user that used the command. /help should only show for the user that ran the command.
 55. ✅ Users should be able to use /sync to sync their character with the dndbeyond url or character id. If they have more than one token then they should specify the token index in their list of tokens.
-56. /tokens should list all of the tokens and their index number that a user can sync.
+56. ✅ /tokens should list all of the tokens and their index number that a user can sync.
 57. ✅ move the hamburger menu to the far left of the top bar.
 58. ✅ Make the fog controls be a sub menu of a single fog button where they are.
 59. ✅ Move the highlights like the laser pointer and the other 4 we bound to the number keys under a single button too.
@@ -113,7 +113,7 @@ function nameGen(type) {
     - Drop `.monster` into the Asset Manager: It saves to the library for encounter prep without cluttering the current map.
     - When a GM drags a monster from the Asset Manager onto the map, it spawns a token with those settings, art, and auto-numbered names (e.g. Ankheg 1, Ankheg 2), with clickable statblock attacks and actions.
 74. ✅ Multi-file image drag-and-drop import: when image files are dragged in, prompt the user with a single unified view listing all dropped files. Allow toggling/selecting each file as a Map, Token, or Prop. Include bulk-selection aids ("Set all to Tokens", "Set all to Maps", "Set all to Props", "Check all") since users may import many images at once.
-75. When I change my player name it doesn't update in the icons at the top. The letter stays at what it was before until I refresh.
+75. ✅ When I change my player name it doesn't update in the icons at the top. The letter stays at what it was before until I refresh.
 76. When I open settings the nickname is "Player" and not the random nickname I was assigned. When I click save after typing in a different name the new name does not take effect for the icons at the bottom that show connected players or when I go back to the main screen the connected players at the top until I refresh the page.
 77. The hamburger menu animates in and out from the right instead of the left.
 78. Box select still only selects one token. I want it to select all tokens in the box so I can move them as a group, Assign them as a group, or duplicate them as a group.
