@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   MousePointer,
   Hand,
@@ -46,6 +46,20 @@ export const ToolBar: React.FC<ToolBarProps> = ({
   onCoverAllFog,
   onClearAllFog,
 }) => {
+  const [showFogMenu, setShowFogMenu] = useState(false);
+  const fogMenuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (fogMenuRef.current && !fogMenuRef.current.contains(e.target as Node)) {
+        setShowFogMenu(false);
+      }
+    };
+    if (showFogMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showFogMenu]);
   return (
     <div
       className="floating-hud floating-hud-toolbar glass-panel"
@@ -117,42 +131,126 @@ export const ToolBar: React.FC<ToolBarProps> = ({
         <Square size={18} />
       </button>
 
-      {/* GM Fog of War Tools */}
+      {/* GM Fog of War Tools Sub-menu (Bug #58) */}
       {isGm && (
         <>
           <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.2rem 0' }} />
-          <button
-            className={`btn-icon ${activeTool === 'fog-reveal' ? 'active' : ''}`}
-            onClick={() => onSelectTool('fog-reveal')}
-            title="Fog Reveal - Drag rectangle to clear fog (R)"
-            style={{ color: '#10b981' }}
-          >
-            <Eye size={18} />
-          </button>
-          <button
-            className={`btn-icon ${activeTool === 'fog-hide' ? 'active' : ''}`}
-            onClick={() => onSelectTool('fog-hide')}
-            title="Fog Hide - Drag rectangle to obscure fog (F)"
-            style={{ color: '#f43f5e' }}
-          >
-            <EyeOff size={18} />
-          </button>
-          <button
-            className="btn-icon"
-            onClick={onCoverAllFog}
-            title="Cover Entire Map with Fog"
-            style={{ color: '#94a3b8' }}
-          >
-            <CloudFog size={18} />
-          </button>
-          <button
-            className="btn-icon"
-            onClick={onClearAllFog}
-            title="Clear All Fog from Map (Reveal All)"
-            style={{ color: '#38bdf8' }}
-          >
-            <CloudOff size={18} />
-          </button>
+          <div ref={fogMenuRef} style={{ position: 'relative' }}>
+            <button
+              className={`btn-icon ${activeTool === 'fog-reveal' || activeTool === 'fog-hide' || showFogMenu ? 'active' : ''}`}
+              onClick={() => setShowFogMenu((v) => !v)}
+              title="Fog of War Controls"
+              style={{
+                color: activeTool === 'fog-reveal' ? '#10b981' : activeTool === 'fog-hide' ? '#f43f5e' : undefined,
+              }}
+            >
+              {activeTool === 'fog-reveal' ? <Eye size={18} /> : activeTool === 'fog-hide' ? <EyeOff size={18} /> : <CloudFog size={18} />}
+            </button>
+
+            {showFogMenu && (
+              <div
+                className="glass-panel"
+                style={{
+                  position: 'absolute',
+                  left: 'calc(100% + 8px)',
+                  top: '0',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.35rem',
+                  padding: '0.4rem',
+                  zIndex: 100,
+                  boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+                  minWidth: '150px',
+                }}
+              >
+                <button
+                  className={`btn btn-secondary ${activeTool === 'fog-reveal' ? 'active' : ''}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.35rem 0.6rem',
+                    fontSize: '0.8rem',
+                    justifyContent: 'flex-start',
+                    color: '#10b981',
+                  }}
+                  onClick={() => {
+                    onSelectTool('fog-reveal');
+                    setShowFogMenu(false);
+                  }}
+                  title="Drag rectangle to reveal fog (R)"
+                >
+                  <Eye size={16} />
+                  <span>Reveal Fog (R)</span>
+                </button>
+
+                <button
+                  className={`btn btn-secondary ${activeTool === 'fog-hide' ? 'active' : ''}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.35rem 0.6rem',
+                    fontSize: '0.8rem',
+                    justifyContent: 'flex-start',
+                    color: '#f43f5e',
+                  }}
+                  onClick={() => {
+                    onSelectTool('fog-hide');
+                    setShowFogMenu(false);
+                  }}
+                  title="Drag rectangle to hide fog (F)"
+                >
+                  <EyeOff size={16} />
+                  <span>Hide Fog (F)</span>
+                </button>
+
+                <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.1rem 0' }} />
+
+                <button
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.35rem 0.6rem',
+                    fontSize: '0.8rem',
+                    justifyContent: 'flex-start',
+                    color: '#94a3b8',
+                  }}
+                  onClick={() => {
+                    onCoverAllFog?.();
+                    setShowFogMenu(false);
+                  }}
+                  title="Cover entire map with fog"
+                >
+                  <CloudFog size={16} />
+                  <span>Cover All Fog</span>
+                </button>
+
+                <button
+                  className="btn btn-secondary"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.35rem 0.6rem',
+                    fontSize: '0.8rem',
+                    justifyContent: 'flex-start',
+                    color: '#38bdf8',
+                  }}
+                  onClick={() => {
+                    onClearAllFog?.();
+                    setShowFogMenu(false);
+                  }}
+                  title="Clear all fog from map (Reveal all)"
+                >
+                  <CloudOff size={16} />
+                  <span>Clear All Fog</span>
+                </button>
+              </div>
+            )}
+          </div>
         </>
       )}
 
