@@ -161,33 +161,34 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0,0,0,0.75)',
-        backdropFilter: 'blur(8px)',
-        zIndex: 50,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '1rem',
-      }}
-      onClick={onClose}
-    >
+    <>
       <div
-        className="glass-panel-elevated animate-fade-in"
         style={{
-          width: '100%',
-          maxWidth: '750px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          padding: '1.5rem',
-          backgroundColor: 'rgba(17, 24, 39, 0.95)',
-          border: '1px solid var(--border-strong)',
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem',
         }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={onClose}
       >
+        <div
+          className="glass-panel-elevated animate-fade-in"
+          style={{
+            width: '100%',
+            maxWidth: '750px',
+            maxHeight: '90vh',
+            overflowY: selectedMapForEdit || showNewSceneModal ? 'hidden' : 'auto',
+            padding: '1.5rem',
+            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+            border: '1px solid var(--border-strong)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
@@ -229,20 +230,6 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
             </button>
           )}
         </div>
-
-        {/* Map Settings Modal Dialog (Items 24, 25, 26, 27, 28, 34) */}
-        {selectedMapForEdit && (
-          <MapSettingsModal
-            map={selectedMapForEdit}
-            canDelete={maps.length > 1}
-            onSave={(updates) => handleUpdateEditMap(updates)}
-            onDelete={(mapId) => {
-              onDeleteMap(mapId);
-              setSelectedMapForEdit(null);
-            }}
-            onClose={() => setSelectedMapForEdit(null)}
-          />
-        )}
 
         {/* Map Cards Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '1rem' }}>
@@ -415,144 +402,159 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
             );
           })}
         </div>
+      </div>
+    </div>
 
-        {/* Create Scene from Map Dialog (Bug #29) */}
-        {showNewSceneModal && (
+      {/* Map Settings Modal Dialog (fixes double scrollbar #94) */}
+      {selectedMapForEdit && (
+        <MapSettingsModal
+          map={selectedMapForEdit}
+          canDelete={maps.length > 1}
+          onSave={(updates) => handleUpdateEditMap(updates)}
+          onDelete={(mapId) => {
+            onDeleteMap(mapId);
+            setSelectedMapForEdit(null);
+          }}
+          onClose={() => setSelectedMapForEdit(null)}
+        />
+      )}
+
+      {/* Create Scene from Map Dialog (Bug #29) */}
+      {showNewSceneModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0,0,0,0.8)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 70,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem',
+          }}
+          onClick={() => setShowNewSceneModal(false)}
+        >
           <div
+            className="glass-panel-elevated animate-fade-in"
             style={{
-              position: 'fixed',
-              inset: 0,
-              backgroundColor: 'rgba(0,0,0,0.8)',
-              backdropFilter: 'blur(4px)',
-              zIndex: 70,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '1rem',
+              width: '100%',
+              maxWidth: '520px',
+              padding: '1.5rem',
+              backgroundColor: 'rgba(17, 24, 39, 0.98)',
+              border: '1px solid var(--border-strong)',
+              borderRadius: 'var(--radius-lg)',
             }}
-            onClick={() => setShowNewSceneModal(false)}
+            onClick={(e) => e.stopPropagation()}
           >
-            <div
-              className="glass-panel-elevated animate-fade-in"
-              style={{
-                width: '100%',
-                maxWidth: '520px',
-                padding: '1.5rem',
-                backgroundColor: 'rgba(17, 24, 39, 0.98)',
-                border: '1px solid var(--border-strong)',
-                borderRadius: 'var(--radius-lg)',
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '1.1rem' }}>
-                  <Layers size={20} color="var(--accent-primary)" /> Create Scene from Map
-                </h3>
-                <button className="btn-icon" onClick={() => setShowNewSceneModal(false)}>
-                  <X size={16} />
-                </button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0, fontSize: '1.1rem' }}>
+                <Layers size={20} color="var(--accent-primary)" /> Create Scene from Map
+              </h3>
+              <button className="btn-icon" onClick={() => setShowNewSceneModal(false)}>
+                <X size={16} />
+              </button>
+            </div>
+
+            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
+              Scenes allow you to use the same map across multiple encounters with independent tokens, fog, and settings.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.4rem' }}>
+                  Scene Name
+                </label>
+                <input
+                  type="text"
+                  className="input"
+                  value={newSceneName}
+                  onChange={(e) => setNewSceneName(e.target.value)}
+                  placeholder="e.g. Castle Courtyard - Night Ambush"
+                  style={{ width: '100%' }}
+                />
               </div>
 
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1.25rem' }}>
-                Scenes allow you to use the same map across multiple encounters with independent tokens, fog, and settings.
-              </p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.4rem' }}>
-                    Scene Name
-                  </label>
-                  <input
-                    type="text"
-                    className="input"
-                    value={newSceneName}
-                    onChange={(e) => setNewSceneName(e.target.value)}
-                    placeholder="e.g. Castle Courtyard - Night Ambush"
-                    style={{ width: '100%' }}
-                  />
-                </div>
-
-                <div>
-                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.4rem' }}>
-                    Choose Base Map Asset
-                  </label>
-                  <div
-                    style={{
-                      maxHeight: '220px',
-                      overflowY: 'auto',
-                      border: '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '0.5rem',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '0.4rem',
-                    }}
-                  >
-                    {[
-                      ...mapAssets.map((a) => ({ id: a.id, name: a.name, imageUrl: a.dataUrl })),
-                      ...maps
-                        .filter((m) => !mapAssets.some((a) => a.id === m.baseMapId || a.id === m.id))
-                        .map((m) => ({ id: m.id, name: m.name, imageUrl: m.imageUrl })),
-                    ].map((m) => {
-                      const isSelected = selectedAssetId === m.id;
-                      return (
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.4rem' }}>
+                  Choose Base Map Asset
+                </label>
+                <div
+                  style={{
+                    maxHeight: '220px',
+                    overflowY: 'auto',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '0.5rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.4rem',
+                  }}
+                >
+                  {[
+                    ...mapAssets.map((a) => ({ id: a.id, name: a.name, imageUrl: a.dataUrl })),
+                    ...maps
+                      .filter((m) => !mapAssets.some((a) => a.id === m.baseMapId || a.id === m.id))
+                      .map((m) => ({ id: m.id, name: m.name, imageUrl: m.imageUrl })),
+                  ].map((m) => {
+                    const isSelected = selectedAssetId === m.id;
+                    return (
+                      <div
+                        key={m.id}
+                        onClick={() => {
+                          setSelectedAssetId(m.id);
+                          if (!newSceneName || newSceneName.endsWith(' Scene')) {
+                            setNewSceneName(`${m.name} Scene`);
+                          }
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem',
+                          padding: '0.5rem',
+                          borderRadius: 'var(--radius-sm)',
+                          backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.03)',
+                          border: isSelected ? '1px solid var(--accent-primary)' : '1px solid transparent',
+                          cursor: 'pointer',
+                        }}
+                      >
                         <div
-                          key={m.id}
-                          onClick={() => {
-                            setSelectedAssetId(m.id);
-                            if (!newSceneName || newSceneName.endsWith(' Scene')) {
-                              setNewSceneName(`${m.name} Scene`);
-                            }
-                          }}
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            padding: '0.5rem',
-                            borderRadius: 'var(--radius-sm)',
-                            backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                            border: isSelected ? '1px solid var(--accent-primary)' : '1px solid transparent',
-                            cursor: 'pointer',
+                            width: '44px',
+                            height: '32px',
+                            borderRadius: '4px',
+                            backgroundImage: m.imageUrl ? `url("${m.imageUrl}")` : 'none',
+                            backgroundColor: '#1e293b',
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            flexShrink: 0,
                           }}
-                        >
-                          <div
-                            style={{
-                              width: '44px',
-                              height: '32px',
-                              borderRadius: '4px',
-                              backgroundImage: m.imageUrl ? `url("${m.imageUrl}")` : 'none',
-                              backgroundColor: '#1e293b',
-                              backgroundSize: 'cover',
-                              backgroundPosition: 'center',
-                              flexShrink: 0,
-                            }}
-                          />
-                          <span style={{ fontWeight: 600, fontSize: '0.85rem', flex: 1 }}>{m.name}</span>
-                          {isSelected && <Check size={16} color="var(--accent-primary)" />}
-                        </div>
-                      );
-                    })}
-                  </div>
+                        />
+                        <span style={{ fontWeight: 600, fontSize: '0.85rem', flex: 1 }}>{m.name}</span>
+                        {isSelected && <Check size={16} color="var(--accent-primary)" />}
+                      </div>
+                    );
+                  })}
                 </div>
+              </div>
 
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
-                  <button type="button" className="btn btn-secondary" onClick={() => setShowNewSceneModal(false)}>
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={handleCreateSceneFromSelectedMap}
-                    disabled={!selectedAssetId}
-                  >
-                    <Check size={14} /> Create Scene
-                  </button>
-                </div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '0.5rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setShowNewSceneModal(false)}>
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleCreateSceneFromSelectedMap}
+                  disabled={!selectedAssetId}
+                >
+                  <Check size={14} /> Create Scene
+                </button>
               </div>
             </div>
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 };

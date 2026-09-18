@@ -132,7 +132,7 @@ function nameGen(type) {
 91. ✅ Let spell/skill/attack/item commands use the index from 1 of the results suggested with the bare command and include that index in the message that lists them.
 92. ✅ At the top of chat between /skill and /help include /spell now that /spell looks for spells on the character.
 93. ✅ When an asset is dragged in and added to the asset manager the asset manager display does not update to show it. I have to close and reopen it again.
-94. When editing a scene in the settings for it I have two vertical scrollbars.
+94. ✅ When editing a scene in the settings for it I have two vertical scrollbars.
 95. When I change grid type in a scene settings it chagnes the type value for all scenes, but the grid drawn and snapped to is still squeare not hexagonal
 96. I don't see anything showing my imported monsters and characters. Please add them to the asset manager.
 
