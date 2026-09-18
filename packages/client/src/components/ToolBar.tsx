@@ -49,17 +49,25 @@ export const ToolBar: React.FC<ToolBarProps> = ({
   const [showFogMenu, setShowFogMenu] = useState(false);
   const fogMenuRef = useRef<HTMLDivElement>(null);
 
+  const [showHighlightMenu, setShowHighlightMenu] = useState(false);
+  const highlightMenuRef = useRef<HTMLDivElement>(null);
+
+  const isHighlightTool = ['laser', 'arrow', 'crosshair', 'circle', 'rectangle'].includes(activeTool);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (fogMenuRef.current && !fogMenuRef.current.contains(e.target as Node)) {
         setShowFogMenu(false);
       }
+      if (highlightMenuRef.current && !highlightMenuRef.current.contains(e.target as Node)) {
+        setShowHighlightMenu(false);
+      }
     };
-    if (showFogMenu) {
+    if (showFogMenu || showHighlightMenu) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showFogMenu]);
+  }, [showFogMenu, showHighlightMenu]);
   return (
     <div
       className="floating-hud floating-hud-toolbar glass-panel"
@@ -90,46 +98,144 @@ export const ToolBar: React.FC<ToolBarProps> = ({
 
       <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.2rem 0' }} />
 
-      {/* Ephemeral Screen Indicators */}
-      <button
-        className={`btn-icon ${activeTool === 'laser' ? 'active' : ''}`}
-        onClick={() => onSelectTool('laser')}
-        title="Laser Pointer (1)"
-      >
-        <Sparkles size={18} />
-      </button>
+      {/* Ephemeral Screen Indicators Sub-menu (Bug #59) */}
+      <div ref={highlightMenuRef} style={{ position: 'relative' }}>
+        <button
+          className={`btn-icon ${isHighlightTool || showHighlightMenu ? 'active' : ''}`}
+          onClick={() => setShowHighlightMenu((v) => !v)}
+          title="Highlights & Markers (1-5)"
+        >
+          {activeTool === 'arrow' ? (
+            <ArrowUpRight size={18} />
+          ) : activeTool === 'crosshair' ? (
+            <Crosshair size={18} />
+          ) : activeTool === 'circle' ? (
+            <Circle size={18} />
+          ) : activeTool === 'rectangle' ? (
+            <Square size={18} />
+          ) : (
+            <Sparkles size={18} />
+          )}
+        </button>
 
-      <button
-        className={`btn-icon ${activeTool === 'arrow' ? 'active' : ''}`}
-        onClick={() => onSelectTool('arrow')}
-        title="Arrow Marker (2)"
-      >
-        <ArrowUpRight size={18} />
-      </button>
+        {showHighlightMenu && (
+          <div
+            className="glass-panel"
+            style={{
+              position: 'absolute',
+              left: 'calc(100% + 8px)',
+              top: '0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.35rem',
+              padding: '0.4rem',
+              zIndex: 100,
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+              minWidth: '160px',
+            }}
+          >
+            <button
+              className={`btn btn-secondary ${activeTool === 'laser' ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.35rem 0.6rem',
+                fontSize: '0.8rem',
+                justifyContent: 'flex-start',
+              }}
+              onClick={() => {
+                onSelectTool('laser');
+                setShowHighlightMenu(false);
+              }}
+              title="Laser Pointer (1)"
+            >
+              <Sparkles size={16} />
+              <span>Laser Pointer (1)</span>
+            </button>
 
-      <button
-        className={`btn-icon ${activeTool === 'crosshair' ? 'active' : ''}`}
-        onClick={() => onSelectTool('crosshair')}
-        title="Crosshair Ping (3)"
-      >
-        <Crosshair size={18} />
-      </button>
+            <button
+              className={`btn btn-secondary ${activeTool === 'arrow' ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.35rem 0.6rem',
+                fontSize: '0.8rem',
+                justifyContent: 'flex-start',
+              }}
+              onClick={() => {
+                onSelectTool('arrow');
+                setShowHighlightMenu(false);
+              }}
+              title="Arrow Marker (2)"
+            >
+              <ArrowUpRight size={16} />
+              <span>Arrow Marker (2)</span>
+            </button>
 
-      <button
-        className={`btn-icon ${activeTool === 'circle' ? 'active' : ''}`}
-        onClick={() => onSelectTool('circle')}
-        title="Circle Radius Area (4)"
-      >
-        <Circle size={18} />
-      </button>
+            <button
+              className={`btn btn-secondary ${activeTool === 'crosshair' ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.35rem 0.6rem',
+                fontSize: '0.8rem',
+                justifyContent: 'flex-start',
+              }}
+              onClick={() => {
+                onSelectTool('crosshair');
+                setShowHighlightMenu(false);
+              }}
+              title="Crosshair Ping (3)"
+            >
+              <Crosshair size={16} />
+              <span>Crosshair Ping (3)</span>
+            </button>
 
-      <button
-        className={`btn-icon ${activeTool === 'rectangle' ? 'active' : ''}`}
-        onClick={() => onSelectTool('rectangle')}
-        title="Rectangle Zone (5)"
-      >
-        <Square size={18} />
-      </button>
+            <button
+              className={`btn btn-secondary ${activeTool === 'circle' ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.35rem 0.6rem',
+                fontSize: '0.8rem',
+                justifyContent: 'flex-start',
+              }}
+              onClick={() => {
+                onSelectTool('circle');
+                setShowHighlightMenu(false);
+              }}
+              title="Circle Radius Area (4)"
+            >
+              <Circle size={16} />
+              <span>Circle Radius (4)</span>
+            </button>
+
+            <button
+              className={`btn btn-secondary ${activeTool === 'rectangle' ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.35rem 0.6rem',
+                fontSize: '0.8rem',
+                justifyContent: 'flex-start',
+              }}
+              onClick={() => {
+                onSelectTool('rectangle');
+                setShowHighlightMenu(false);
+              }}
+              title="Rectangle Zone (5)"
+            >
+              <Square size={16} />
+              <span>Rectangle Zone (5)</span>
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* GM Fog of War Tools Sub-menu (Bug #58) */}
       {isGm && (
