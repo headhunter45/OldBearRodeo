@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { InitiativeItem } from '@oldbear/shared';
 import { Swords, X, ShieldAlert } from 'lucide-react';
+import { TOAST_DURATION_MS } from '../config/toast.js';
 
 export interface TurnAnnouncement {
   combatant: InitiativeItem;
@@ -25,7 +26,7 @@ export const TurnAnnouncementBanner: React.FC<TurnAnnouncementBannerProps> = ({
     const timer = setTimeout(() => {
       setAnimating(false);
       setTimeout(onDismiss, 300); // allow fade out
-    }, 4500);
+    }, TOAST_DURATION_MS);
 
     return () => clearTimeout(timer);
   }, [announcement, onDismiss]);

@@ -3,6 +3,7 @@ import { Upload, Map as MapIcon, Shield, Music, FileJson } from 'lucide-react';
 import { GameMap, Token } from '@oldbear/shared';
 import { saveAsset } from '../storage/db.js';
 import { importAllData } from '../storage/BackupManager.js';
+import { TOAST_DURATION_MS } from '../config/toast.js';
 
 interface GlobalDropOverlayProps {
   isGm: boolean;
@@ -135,7 +136,7 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    setTimeout(() => setToastMessage(null), TOAST_DURATION_MS);
   };
 
   const importImagesAsTokens = (files: File[], startX = 400, startY = 400) => {

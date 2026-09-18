@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { DiceRollResult } from '@oldbear/shared';
 import { Sparkles, Dices, X } from 'lucide-react';
+import { TOAST_DURATION_MS } from '../config/toast.js';
 
 interface RollAnnouncementBannerProps {
   roll: DiceRollResult | null;
@@ -17,7 +18,7 @@ export const RollAnnouncementBanner: React.FC<RollAnnouncementBannerProps> = ({ 
     const timer = setTimeout(() => {
       setAnimating(false);
       setTimeout(onDismiss, 300); // allow fade out
-    }, 4500);
+    }, TOAST_DURATION_MS);
 
     return () => clearTimeout(timer);
   }, [roll, onDismiss]);

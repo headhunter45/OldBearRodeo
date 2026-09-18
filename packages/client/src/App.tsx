@@ -34,6 +34,7 @@ import { PlayerTokenPickerModal } from './components/PlayerTokenPickerModal.js';
 import { RollAnnouncementBanner } from './components/RollAnnouncementBanner.js';
 import { TurnAnnouncementBanner, TurnAnnouncement } from './components/TurnAnnouncementBanner.js';
 import { ChatPanel } from './components/ChatPanel.js';
+import { TOAST_DURATION_MS } from './config/toast.js';
 import { Mic, Radio, Compass, Check, AlertTriangle, RefreshCw } from 'lucide-react';
 
 export const App: React.FC = () => {
@@ -48,7 +49,7 @@ export const App: React.FC = () => {
   sessionRef.current = session;
 
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const showToast = (msg: string, durationMs = 4500) => {
+  const showToast = (msg: string, durationMs = TOAST_DURATION_MS) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage((cur) => (cur === msg ? null : cur));
