@@ -206,8 +206,40 @@ html, body, #root {
   display: flex;
 }
 
-/* Responsive & Portrait Layouts */
-@media (max-width: 768px), (orientation: portrait) {
+/* Floating HUD Left Toolbar */
+.floating-hud-toolbar {
+  display: flex;
+  flex-direction: column;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 0.35rem;
+  padding: 0.4rem;
+  max-height: calc(100vh - 6.5rem);
+  max-width: calc(100vw - 2rem);
+  overflow-y: auto;
+  overflow-x: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-subtle) transparent;
+}
+
+.floating-hud-toolbar::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.floating-hud-toolbar::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 4px;
+}
+
+@media (max-width: 1100px) {
+  .topbar-players-list {
+    display: none !important;
+  }
+}
+
+/* Responsive & Smaller Screens / Portrait Layouts */
+@media (max-width: 900px), (orientation: portrait) {
   .topbar-desktop-only {
     display: none !important;
   }
@@ -247,11 +279,20 @@ html, body, #root {
     left: 0.5rem !important;
     padding: 0.25rem !important;
     gap: 0.25rem !important;
+    max-height: calc(100vh - 5rem) !important;
   }
 
   .floating-hud-toolbar .btn-icon {
     width: 36px !important;
     height: 36px !important;
+  }
+}
+
+@media (max-height: 650px) {
+  .floating-hud-toolbar {
+    max-height: calc(100vh - 4.5rem) !important;
+    flex-wrap: wrap !important;
+    align-content: flex-start !important;
   }
 }
 

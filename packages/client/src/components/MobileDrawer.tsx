@@ -15,6 +15,7 @@ import {
   Radio,
   Database,
   MessageSquare,
+  Plus,
 } from 'lucide-react';
 import { Player } from '@oldbear/shared';
 import { VoiceState } from '../network/VoiceManager.js';
@@ -25,7 +26,9 @@ interface MobileDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   localPlayer: Player | null;
+  players?: Player[];
   onUpdatePlayerName: (name: string, color: string) => void;
+  onAddNewToken?: () => void;
   onOpenDice: () => void;
   onOpenInitiative: () => void;
   onOpenCharacter: () => void;
@@ -46,7 +49,9 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   isOpen,
   onClose,
   localPlayer,
+  players,
   onUpdatePlayerName,
+  onAddNewToken,
   onOpenDice,
   onOpenInitiative,
   onOpenCharacter,
@@ -347,18 +352,72 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           )}
 
           {isGm && (
-            <button
-              className="btn btn-secondary"
-              style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-              onClick={() => {
-                onClose();
-                onOpenMaps();
-              }}
-            >
-              <Map size={18} color="#38bdf8" /> Maps & Scenes Manager
-            </button>
+            <>
+              <button
+                className="btn btn-secondary"
+                style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+                onClick={() => {
+                  onClose();
+                  onOpenMaps();
+                }}
+              >
+                <Map size={18} color="#38bdf8" /> Maps & Scenes Manager
+              </button>
+
+              {onAddNewToken && (
+                <button
+                  className="btn btn-secondary"
+                  style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+                  onClick={() => {
+                    onClose();
+                    onAddNewToken();
+                  }}
+                >
+                  <Plus size={18} color="#10b981" /> Create / Deploy New Token
+                </button>
+              )}
+            </>
           )}
         </div>
+
+        {/* Online Players in Drawer */}
+        {players && players.length > 0 && (
+          <div style={{ marginTop: '0.75rem', marginBottom: '0.75rem', padding: '0.6rem', background: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
+            <label style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem', letterSpacing: '0.05em' }}>
+              ONLINE PLAYERS ({players.length})
+            </label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+              {players.map((p) => (
+                <div
+                  key={p.id}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: 'var(--radius-full)',
+                    backgroundColor: 'var(--bg-surface)',
+                    border: `1px solid ${p.color}44`,
+                    fontSize: '0.75rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      width: '10px',
+                      height: '10px',
+                      borderRadius: '50%',
+                      backgroundColor: p.color,
+                    }}
+                  />
+                  <span style={{ color: 'white', fontWeight: 600 }}>{p.name}</span>
+                  {p.role === 'gm' && (
+                    <span style={{ fontSize: '0.65rem', color: 'var(--accent-gold)' }}>GM</span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Footer: Share invite */}
         <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>

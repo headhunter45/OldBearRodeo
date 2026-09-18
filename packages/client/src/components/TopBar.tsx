@@ -229,7 +229,7 @@ export const TopBar: React.FC<TopBarProps> = ({
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
         {/* Invite Link Button */}
         <button
-          className="btn btn-secondary"
+          className="btn btn-secondary topbar-desktop-only"
           style={{ fontSize: '0.75rem', padding: '0.35rem 0.6rem' }}
           onClick={copyInviteLink}
         >

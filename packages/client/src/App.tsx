@@ -1537,7 +1537,9 @@ export const App: React.FC = () => {
         isOpen={showMobileDrawer}
         onClose={() => setShowMobileDrawer(false)}
         localPlayer={localPlayer}
+        players={session ? Object.values(session.players) : []}
         onUpdatePlayerName={handleUpdateProfile}
+        onAddNewToken={() => setShowTokenPickerModal(true)}
         onOpenDice={() => setShowDiceRoller(true)}
         onOpenInitiative={() => setShowInitiative(true)}
         onOpenCharacter={() => setShowCharacterFlyout(true)}

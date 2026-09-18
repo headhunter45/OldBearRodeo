@@ -75,10 +75,6 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       style={{
         left: '1rem',
         top: '5rem',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '0.35rem',
-        padding: '0.4rem',
       }}
     >
       <button
