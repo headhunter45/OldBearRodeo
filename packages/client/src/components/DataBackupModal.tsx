@@ -30,6 +30,7 @@ import {
   deleteMultipleAssets,
   computeContentHash,
   findDuplicateAsset,
+  ASSET_UPDATED_EVENT,
 } from '../storage/db.js';
 import {
   isTetraCubeMonsterFile,
@@ -88,7 +89,12 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
 
   useEffect(() => {
     loadAssets();
+    const handleAssetUpdated = () => {
+      loadAssets();
+    };
+    window.addEventListener(ASSET_UPDATED_EVENT, handleAssetUpdated);
     return () => {
+      window.removeEventListener(ASSET_UPDATED_EVENT, handleAssetUpdated);
       if (audioPlayerRef.current) {
         audioPlayerRef.current.pause();
         audioPlayerRef.current = null;
@@ -203,7 +209,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     if (files.length === 0) return;
 
     for (const file of files) {
-      if (file.name.toLowerCase().endsWith('.monster') || file.name.toLowerCase().endsWith('.json')) {
+      if (file.name.toLowerCase().endsWith('.monster') || (file.name.endsWith('.json') && !file.name.includes('backup'))) {
         try {
           const text = await file.text();
           if (isTetraCubeMonsterFile(text, file.name)) {
@@ -212,15 +218,56 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             await loadAssets();
             setResultMessage({
               type: 'success',
-              text: `Saved monster "${asset.name}" to library for encounter prep!`,
+              text: `Saved monster "${asset.name}" to Asset Manager library!`,
             });
-            return;
+            continue;
           }
         } catch (err: any) {
           setResultMessage({ type: 'error', text: `Failed to import monster: ${err.message}` });
-          return;
+          continue;
         }
       }
+
+      if (file.name.endsWith('.json') && file.name.includes('backup')) {
+        try {
+          const text = await file.text();
+          await importAllData(text);
+          await loadAssets();
+          setResultMessage({ type: 'success', text: 'Restored backup successfully!' });
+          continue;
+        } catch (err: any) {
+          setResultMessage({ type: 'error', text: `Failed to restore backup: ${err.message}` });
+          continue;
+        }
+      }
+
+      const reader = new FileReader();
+      reader.onload = async () => {
+        const dataUrl = reader.result as string;
+        const hash = computeContentHash(dataUrl);
+        const existing = await findDuplicateAsset(file.size, hash);
+
+        if (existing) {
+          setDuplicateWarning(`Asset already exists: "${existing.name}".`);
+          return;
+        }
+
+        let assetType: 'map' | 'token' | 'audio' = 'token';
+        if (activeTab === 'maps' || file.name.includes('map')) assetType = 'map';
+        else if (activeTab === 'audio' || file.type.startsWith('audio/')) assetType = 'audio';
+
+        await saveAsset({
+          id: crypto.randomUUID(),
+          name: file.name.replace(/\.[^/.]+$/, ''),
+          type: assetType,
+          dataUrl,
+          fileSize: file.size,
+          fileHash: hash,
+          createdAt: Date.now(),
+        });
+        await loadAssets();
+      };
+      reader.readAsDataURL(file);
     }
   };
 

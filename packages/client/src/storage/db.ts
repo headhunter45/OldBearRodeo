@@ -81,19 +81,30 @@ export async function getAllAssets(): Promise<StoredAsset[]> {
   return db.getAll('assets');
 }
 
+export const ASSET_UPDATED_EVENT = 'oldbear:asset-updated';
+
+export function notifyAssetUpdated(asset?: StoredAsset) {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent(ASSET_UPDATED_EVENT, { detail: { asset } }));
+  }
+}
+
 export async function saveAsset(asset: StoredAsset): Promise<void> {
   const db = await getDB();
   if (!asset.fileHash && asset.dataUrl) {
     asset.fileHash = computeContentHash(asset.dataUrl);
   }
   await db.put('assets', asset);
+  notifyAssetUpdated(asset);
 }
 
 export async function updateAsset(id: string, updates: Partial<StoredAsset>): Promise<void> {
   const db = await getDB();
   const existing = await db.get('assets', id);
   if (existing) {
-    await db.put('assets', { ...existing, ...updates });
+    const updated = { ...existing, ...updates };
+    await db.put('assets', updated);
+    notifyAssetUpdated(updated);
   }
 }
 
@@ -110,6 +121,7 @@ export async function getAsset(id: string): Promise<StoredAsset | undefined> {
 export async function deleteAsset(id: string): Promise<void> {
   const db = await getDB();
   await db.delete('assets', id);
+  notifyAssetUpdated();
 }
 
 export async function deleteMultipleAssets(ids: string[]): Promise<void> {
@@ -119,6 +131,7 @@ export async function deleteMultipleAssets(ids: string[]): Promise<void> {
     await tx.store.delete(id);
   }
   await tx.done;
+  notifyAssetUpdated();
 }
 
 export async function saveSetting(key: string, value: any): Promise<void> {
