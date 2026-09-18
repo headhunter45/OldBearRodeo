@@ -340,3 +340,32 @@ html, body, #root {
   background-color: rgba(56, 189, 248, 0.25) !important;
   border-color: #38bdf8 !important;
 }
+
+/* Draggable & Minimizable Floating Windows (Bug #66) */
+.chevron-minimize {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: rotate(0deg); /* points down when expanded */
+}
+
+.chevron-minimize.minimized {
+  transform: rotate(-180deg); /* spins 180deg anti-clockwise to point up */
+}
+
+.draggable-window-body {
+  transition: max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+  max-height: 600px;
+  opacity: 1;
+  overflow: hidden;
+}
+
+.draggable-window-body.minimized {
+  max-height: 0px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+

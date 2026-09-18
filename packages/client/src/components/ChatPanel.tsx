@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Player, ChatMessage, DiceRollResult, DnDCharacter, DieType, DnDAction, Token } from '@oldbear/shared';
 import { MessageSquare, Send, X, Dices, Sword, Sparkles, HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
+import { useDraggableWindow } from '../hooks/useDraggableWindow.js';
 
 export interface ChatPanelProps {
   player: Player;
@@ -558,13 +559,17 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onToggleOpen,
 }) => {
   const [inputText, setInputText] = useState('');
+  const [isMinimized, setIsMinimized] = useState(false);
+  const { windowRef, position, isDragging, handleMouseDown } = useDraggableWindow({
+    storageKey: 'obr_chat_pos',
+  });
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && !isMinimized) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages, isOpen]);
+  }, [messages, isOpen, isMinimized]);
 
   const handleCommand = (raw: string) => {
     const text = raw.trim();
@@ -607,42 +612,75 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
       {/* Expanded Chat & Commands Drawer */}
       {isOpen && (
         <div
-          className="glass-panel-elevated animate-slide-up"
+          ref={windowRef}
+          className="glass-panel-elevated animate-slide-up draggable-window"
           style={{
             position: 'fixed',
-            bottom: '1.25rem',
-            left: '1.25rem',
+            left: position ? `${position.x}px` : '1.25rem',
+            top: position ? `${position.y}px` : undefined,
+            bottom: position ? undefined : '1.25rem',
             width: '360px',
-            height: '420px',
+            maxHeight: isMinimized ? '46px' : '440px',
+            height: isMinimized ? '46px' : '420px',
             zIndex: 46,
             borderRadius: 'var(--radius-lg)',
             display: 'flex',
             flexDirection: 'column',
             overflow: 'hidden',
-            boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
+            boxShadow: isDragging ? '0 24px 48px rgba(0,0,0,0.8)' : '0 20px 40px rgba(0,0,0,0.7)',
             border: '1px solid var(--border-subtle)',
             color: '#ffffff',
+            transition: isDragging ? 'none' : 'max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
           {/* Header */}
           <div
+            onMouseDown={handleMouseDown}
             style={{
               padding: '0.75rem 1rem',
-              borderBottom: '1px solid var(--border-subtle)',
+              borderBottom: isMinimized ? 'none' : '1px solid var(--border-subtle)',
               display: 'flex',
               justifyContent: 'space-between',
               alignItems: 'center',
               backgroundColor: 'var(--bg-surface)',
+              cursor: isDragging ? 'grabbing' : 'grab',
+              userSelect: 'none',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <MessageSquare size={16} color="var(--accent-primary)" />
               <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>Table Chat & Dice</span>
             </div>
-            <button className="btn-icon" onClick={onToggleOpen} style={{ width: '24px', height: '24px' }}>
-              <X size={15} />
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+              <button
+                className="btn-icon"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMinimized((v) => !v);
+                }}
+                title={isMinimized ? 'Expand Chat' : 'Minimize Chat'}
+                style={{ width: '24px', height: '24px' }}
+              >
+                <ChevronDown
+                  size={16}
+                  className={`chevron-minimize ${isMinimized ? 'minimized' : ''}`}
+                />
+              </button>
+              <button className="btn-icon" onClick={onToggleOpen} style={{ width: '24px', height: '24px' }}>
+                <X size={15} />
+              </button>
+            </div>
           </div>
+
+          <div
+            className={`draggable-window-body ${isMinimized ? 'minimized' : ''}`}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              flex: 1,
+              overflow: 'hidden',
+            }}
+          >
 
           {/* Quick Command Hints */}
           <div
@@ -777,6 +815,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
               <Send size={14} />
             </button>
           </form>
+          </div>
         </div>
       )}
     </>

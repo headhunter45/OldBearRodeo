@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { InitiativeState, InitiativeItem, Token, Player } from '@oldbear/shared';
-import { Swords, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Trash2, X, Dices, HelpCircle } from 'lucide-react';
+import { Swords, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Trash2, X, Dices, HelpCircle, ChevronDown } from 'lucide-react';
+import { useDraggableWindow } from '../hooks/useDraggableWindow.js';
 
 interface InitiativeTrackerProps {
   initiative: InitiativeState;
@@ -26,6 +27,10 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
   const [editingItemId, setEditingItemId] = useState<string | null>(null);
   const [editScore, setEditScore] = useState<number>(0);
   const [selectedInitScore, setSelectedInitScore] = useState<string>('');
+  const [isMinimized, setIsMinimized] = useState(false);
+  const { windowRef, position, isDragging, handleMouseDown } = useDraggableWindow({
+    storageKey: 'obr_init_tracker_pos',
+  });
 
   const handleNextTurn = () => {
     if (initiative.items.length === 0) return;
@@ -148,18 +153,37 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
 
   return (
     <div
-      className="glass-panel-elevated animate-fade-in"
+      ref={windowRef}
+      className="glass-panel-elevated animate-fade-in draggable-window"
       style={{
+        position: 'fixed',
+        left: position ? `${position.x}px` : undefined,
+        top: position ? `${position.y}px` : '4.5rem',
+        right: position ? 'auto' : '1rem',
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
-        maxHeight: '520px',
+        height: isMinimized ? 'auto' : '100%',
+        maxHeight: isMinimized ? '46px' : '520px',
         width: '320px',
-        padding: '1rem',
+        padding: '0.75rem 1rem',
+        zIndex: 45,
+        boxShadow: isDragging ? '0 16px 36px rgba(0,0,0,0.6)' : '0 10px 25px rgba(0,0,0,0.4)',
+        transition: isDragging ? 'none' : 'max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        overflow: 'hidden',
       }}
     >
       {/* Header & Round Counter */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+      <div
+        onMouseDown={handleMouseDown}
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: isMinimized ? '0' : '0.75rem',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Swords size={20} color="var(--accent-gold)" />
           <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem' }}>
@@ -178,13 +202,38 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
               <ArrowUpDown size={16} />
             </button>
           )}
+          {/* Minimize button */}
+          <button
+            className="btn-icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMinimized((v) => !v);
+            }}
+            title={isMinimized ? 'Expand window' : 'Minimize window'}
+            style={{ width: '24px', height: '24px' }}
+          >
+            <ChevronDown
+              size={16}
+              className={`chevron-minimize ${isMinimized ? 'minimized' : ''}`}
+            />
+          </button>
           {onClose && (
-            <button className="btn-icon" onClick={onClose}>
+            <button className="btn-icon" onClick={onClose} style={{ width: '24px', height: '24px' }}>
               <X size={16} />
             </button>
           )}
         </div>
       </div>
+
+      <div
+        className={`draggable-window-body ${isMinimized ? 'minimized' : ''}`}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          overflow: 'hidden',
+        }}
+      >
 
       {/* Turn Navigation */}
       {isGm && (
@@ -409,6 +458,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
           </button>
         </form>
       )}
+      </div>
     </div>
   );
 };
