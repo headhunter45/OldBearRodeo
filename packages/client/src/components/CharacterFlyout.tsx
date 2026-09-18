@@ -126,6 +126,8 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
       currentHp: char.currentHp,
       maxHp: char.maxHp,
       speed: char.speed,
+      initiativeBonus: char.initiativeBonus,
+      character: char,
     };
     if (char.avatarUrl) {
       updates.imageUrl = char.avatarUrl;

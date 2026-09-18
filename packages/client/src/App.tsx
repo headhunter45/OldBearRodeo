@@ -1242,6 +1242,7 @@ export const App: React.FC = () => {
             }}
             tokens={session.tokens}
             selectedToken={selectedToken}
+            players={session.players}
             isGm={isGm}
             onClose={() => setShowInitiative(false)}
           />

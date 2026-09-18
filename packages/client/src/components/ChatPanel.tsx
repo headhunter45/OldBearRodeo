@@ -99,7 +99,11 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
       // 2. /roll [expr] [adv|dis]
       if (cmd === 'roll') {
-        const expr = args[0] || '1d20';
+        let expr = args[0] || '1d20';
+        if (expr.toLowerCase() === 'init' || expr.toLowerCase() === 'initiative') {
+          const bonus = character?.initiativeBonus ?? 0;
+          expr = `1d20${bonus >= 0 ? `+${bonus}` : bonus}`;
+        }
         const advArg = args[1]?.toLowerCase();
         const advMode = advArg === 'adv' || advArg === 'advantage' ? 'advantage' : advArg === 'dis' || advArg === 'disadvantage' ? 'disadvantage' : 'normal';
 

@@ -87,6 +87,8 @@ export interface Token {
   isProp: boolean; // props are decorative items on map
   layer: 'map' | 'token' | 'prop';
   elevation?: number; // e.g. flying +10ft
+  initiativeBonus?: number;
+  character?: DnDCharacter;
 }
 
 export interface FogPoint {

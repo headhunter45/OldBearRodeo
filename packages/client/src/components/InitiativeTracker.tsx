@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import { InitiativeState, InitiativeItem, Token } from '@oldbear/shared';
-import { Swords, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Trash2, X } from 'lucide-react';
+import { InitiativeState, InitiativeItem, Token, Player } from '@oldbear/shared';
+import { Swords, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Trash2, X, Dices } from 'lucide-react';
 
 interface InitiativeTrackerProps {
   initiative: InitiativeState;
   onUpdateInitiative: (state: InitiativeState) => void;
   tokens: Record<string, Token>;
   selectedToken?: Token | null;
+  players?: Record<string, Player> | Player[];
   isGm: boolean;
   onClose?: () => void;
 }
@@ -16,6 +17,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
   onUpdateInitiative,
   tokens,
   selectedToken,
+  players,
   isGm,
   onClose,
 }) => {
@@ -78,9 +80,36 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
     setNewInit(10);
   };
 
+  const getTokenInitiativeBonus = (token?: Token | null, itemName?: string): number => {
+    const playerList: Player[] = Array.isArray(players) ? players : Object.values(players || {});
+    if (token) {
+      if (typeof token.initiativeBonus === 'number') return token.initiativeBonus;
+      if (typeof token.character?.initiativeBonus === 'number') return token.character.initiativeBonus;
+      if (token.ownerId && playerList.length > 0) {
+        const owner = playerList.find((p) => p.id === token.ownerId);
+        if (typeof owner?.dndBeyondCharacter?.initiativeBonus === 'number') {
+          return owner.dndBeyondCharacter.initiativeBonus;
+        }
+      }
+    }
+    const nameToMatch = (token?.name || itemName || '').toLowerCase();
+    if (nameToMatch && playerList.length > 0) {
+      for (const p of playerList) {
+        if (token && p.assignedTokenIds?.includes(token.id) && typeof p.dndBeyondCharacter?.initiativeBonus === 'number') {
+          return p.dndBeyondCharacter.initiativeBonus;
+        }
+        if (p.dndBeyondCharacter?.name?.toLowerCase() === nameToMatch && typeof p.dndBeyondCharacter?.initiativeBonus === 'number') {
+          return p.dndBeyondCharacter.initiativeBonus;
+        }
+      }
+    }
+    return 0;
+  };
+
   const handleAddSelectedToken = () => {
     if (!selectedToken) return;
-    const roll = Math.floor(Math.random() * 20) + 1;
+    const bonus = getTokenInitiativeBonus(selectedToken);
+    const roll = Math.floor(Math.random() * 20) + 1 + bonus;
     const item: InitiativeItem = {
       id: crypto.randomUUID(),
       tokenId: selectedToken.id,
@@ -92,6 +121,16 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
     };
 
     const items = [...initiative.items, item].sort((a, b) => b.initiative - a.initiative);
+    onUpdateInitiative({ ...initiative, items });
+  };
+
+  const handleRerollItem = (item: InitiativeItem) => {
+    const token = item.tokenId ? tokens[item.tokenId] : Object.values(tokens).find((t) => t.name.toLowerCase() === item.name.toLowerCase());
+    const bonus = getTokenInitiativeBonus(token, item.name);
+    const roll = Math.floor(Math.random() * 20) + 1 + bonus;
+    const items = initiative.items
+      .map((i) => (i.id === item.id ? { ...i, initiative: roll } : i))
+      .sort((a, b) => b.initiative - a.initiative);
     onUpdateInitiative({ ...initiative, items });
   };
 
@@ -211,15 +250,27 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                   </div>
                 </div>
 
-                {isGm && (
-                  <button
-                    className="btn-icon"
-                    style={{ width: '24px', height: '24px', color: '#f43f5e' }}
-                    onClick={() => handleRemove(item.id)}
-                  >
-                    <Trash2 size={13} />
-                  </button>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  {isGm && (
+                    <button
+                      className="btn-icon"
+                      title="Reroll Initiative (using character bonus)"
+                      style={{ width: '24px', height: '24px', color: 'var(--text-secondary)' }}
+                      onClick={() => handleRerollItem(item)}
+                    >
+                      <Dices size={13} />
+                    </button>
+                  )}
+                  {isGm && (
+                    <button
+                      className="btn-icon"
+                      style={{ width: '24px', height: '24px', color: '#f43f5e' }}
+                      onClick={() => handleRemove(item.id)}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })
