@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { InitiativeState, InitiativeItem, Token, Player } from '@oldbear/shared';
-import { Swords, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Trash2, X, Dices } from 'lucide-react';
+import { Swords, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Trash2, X, Dices, HelpCircle } from 'lucide-react';
 
 interface InitiativeTrackerProps {
   initiative: InitiativeState;
@@ -23,6 +23,9 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
 }) => {
   const [newName, setNewName] = useState('');
   const [newInit, setNewInit] = useState(10);
+  const [editingItemId, setEditingItemId] = useState<string | null>(null);
+  const [editScore, setEditScore] = useState<number>(0);
+  const [selectedInitScore, setSelectedInitScore] = useState<string>('');
 
   const handleNextTurn = () => {
     if (initiative.items.length === 0) return;
@@ -163,7 +166,13 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
             Round {initiative.round}
           </h3>
         </div>
-        <div style={{ display: 'flex', gap: '0.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <div
+            title="Initiative Tracker Guide:&#10;• Click Next/Prev Turn to advance rounds&#10;• Click Add (with optional score) to add token&#10;• As GM, click any initiative circle to edit score directly&#10;• Click dice icon to reroll using character bonus"
+            style={{ color: 'var(--text-muted)', cursor: 'help', display: 'flex', alignItems: 'center', padding: '0 4px' }}
+          >
+            <HelpCircle size={15} />
+          </div>
           {isGm && (
             <button className="btn-icon" onClick={handleSort} title="Sort Highest to Lowest">
               <ArrowUpDown size={16} />
@@ -189,15 +198,52 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
         </div>
       )}
 
-      {/* Add Selected Token Button */}
+      {/* Add Selected Token Button with optional custom score (Bug #53) */}
       {isGm && selectedToken && (
-        <button
-          className="btn btn-secondary"
-          style={{ width: '100%', marginBottom: '0.75rem', fontSize: '0.8rem' }}
-          onClick={handleAddSelectedToken}
-        >
-          <Plus size={14} /> Add Selected: {selectedToken.name}
-        </button>
+        <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.75rem' }}>
+          <button
+            className="btn btn-secondary"
+            style={{ flex: 1, fontSize: '0.8rem', justifyContent: 'center' }}
+            onClick={() => {
+              if (selectedInitScore.trim() !== '') {
+                const score = Number(selectedInitScore);
+                const item: InitiativeItem = {
+                  id: crypto.randomUUID(),
+                  tokenId: selectedToken.id,
+                  name: selectedToken.name,
+                  initiative: isNaN(score) ? 10 : score,
+                  hp: selectedToken.currentHp,
+                  maxHp: selectedToken.maxHp,
+                  color: selectedToken.ringColor,
+                };
+                const items = [...initiative.items, item].sort((a, b) => b.initiative - a.initiative);
+                onUpdateInitiative({ ...initiative, items });
+                setSelectedInitScore('');
+              } else {
+                handleAddSelectedToken();
+              }
+            }}
+          >
+            <Plus size={14} /> Add: {selectedToken.name}
+          </button>
+          <input
+            type="number"
+            placeholder="Score"
+            value={selectedInitScore}
+            onChange={(e) => setSelectedInitScore(e.target.value)}
+            title="Optional manual initiative score for token (leave blank to roll with character bonus)"
+            style={{
+              width: '56px',
+              padding: '0.35rem 0.4rem',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-subtle)',
+              color: 'white',
+              fontSize: '0.8rem',
+              textAlign: 'center',
+            }}
+          />
+        </div>
       )}
 
       {/* Combatants List */}
@@ -224,22 +270,69 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      backgroundColor: item.color || '#6366f1',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 700,
-                      fontSize: '0.8rem',
-                    }}
-                  >
-                    {item.initiative}
-                  </div>
+                  {editingItemId === item.id ? (
+                    <input
+                      type="number"
+                      autoFocus
+                      value={editScore}
+                      onChange={(e) => setEditScore(Number(e.target.value))}
+                      onBlur={() => {
+                        const items = initiative.items
+                          .map((it) => (it.id === item.id ? { ...it, initiative: editScore } : it))
+                          .sort((a, b) => b.initiative - a.initiative);
+                        onUpdateInitiative({ ...initiative, items });
+                        setEditingItemId(null);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          const items = initiative.items
+                            .map((it) => (it.id === item.id ? { ...it, initiative: editScore } : it))
+                            .sort((a, b) => b.initiative - a.initiative);
+                          onUpdateInitiative({ ...initiative, items });
+                          setEditingItemId(null);
+                        }
+                        if (e.key === 'Escape') setEditingItemId(null);
+                      }}
+                      style={{
+                        width: '32px',
+                        height: '28px',
+                        borderRadius: 'var(--radius-sm)',
+                        backgroundColor: 'var(--bg-surface)',
+                        border: '1px solid var(--accent-primary)',
+                        color: 'white',
+                        fontWeight: 700,
+                        fontSize: '0.85rem',
+                        textAlign: 'center',
+                        padding: 0,
+                      }}
+                    />
+                  ) : (
+                    <div
+                      onClick={() => {
+                        if (isGm) {
+                          setEditingItemId(item.id);
+                          setEditScore(item.initiative);
+                        }
+                      }}
+                      title={isGm ? 'Click to set initiative score as GM' : undefined}
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        backgroundColor: item.color || '#6366f1',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: isGm ? 'pointer' : 'default',
+                        userSelect: 'none',
+                      }}
+                    >
+                      {item.initiative}
+                    </div>
+                  )}
                   <div>
                     <div style={{ fontWeight: isCurrent ? 700 : 500, fontSize: '0.85rem' }}>{item.name}</div>
                     {item.hp !== undefined && item.maxHp !== undefined && (

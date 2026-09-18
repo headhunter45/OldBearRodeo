@@ -6,6 +6,7 @@ import {
   Token,
   DiceRollResult,
   InitiativeState,
+  InitiativeItem,
   DnDCharacter,
   ScreenMarker,
   ChatMessage,
@@ -915,6 +916,34 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleSetTokenInitiative = (tok: Token, score: number) => {
+    setSession((prev) => {
+      if (!prev) return prev;
+      const existing = prev.initiative.items.find((it) => it.tokenId === tok.id);
+      let items: InitiativeItem[];
+      if (existing) {
+        items = prev.initiative.items.map((it) =>
+          it.tokenId === tok.id ? { ...it, initiative: score } : it
+        );
+      } else {
+        const newItem: InitiativeItem = {
+          id: crypto.randomUUID(),
+          tokenId: tok.id,
+          name: tok.name,
+          initiative: score,
+          hp: tok.currentHp,
+          maxHp: tok.maxHp,
+          color: tok.ringColor,
+        };
+        items = [...prev.initiative.items, newItem];
+      }
+      items.sort((a, b) => b.initiative - a.initiative);
+      const updated = { ...prev.initiative, items };
+      networkRef.current?.send({ type: 'initiative-update', initiative: updated });
+      return { ...prev, initiative: updated };
+    });
+  };
+
   const handleAddMap = (newMap: GameMap) => {
     setSession((prev) => (prev ? { ...prev, maps: [...prev.maps, newMap] } : prev));
     setGmPreviewMapId(newMap.id);
@@ -1199,6 +1228,7 @@ export const App: React.FC = () => {
           onDeleteToken={handleDeleteToken}
           onDuplicateToken={handleDuplicateToken}
           onTransferToken={handleTransferToken}
+          onSetInitiative={handleSetTokenInitiative}
           onOpenFullEditor={() => {
             setTokenToEdit(selectedToken);
             setShowTokenEditor(true);

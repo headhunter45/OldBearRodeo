@@ -1,6 +1,6 @@
 import React from 'react';
 import { Token, Player, GameMap } from '@oldbear/shared';
-import { Heart, Shield, Plus, Minus, Settings, Trash2, ArrowRightLeft, Copy, UserCheck } from 'lucide-react';
+import { Heart, Shield, Plus, Minus, Settings, Trash2, ArrowRightLeft, Copy, UserCheck, Swords } from 'lucide-react';
 
 interface TokenControlsProps {
   token: Token;
@@ -8,6 +8,7 @@ interface TokenControlsProps {
   onDeleteToken: (id: string) => void;
   onDuplicateToken?: (token: Token) => void;
   onTransferToken: (id: string, toMapId: string) => void;
+  onSetInitiative?: (token: Token, score: number) => void;
   onOpenFullEditor: () => void;
   canControl: boolean;
   isGm: boolean;
@@ -27,6 +28,7 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
   onDeleteToken,
   onDuplicateToken,
   onTransferToken,
+  onSetInitiative,
   onOpenFullEditor,
   canControl,
   isGm,
@@ -274,6 +276,28 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
             </option>
           ))}
         </select>
+      )}
+
+      {/* Set Initiative Score (GM Feature - Bug #53) */}
+      {isGm && onSetInitiative && (
+        <button
+          className="btn-icon"
+          title="Set initiative score for this token in Initiative Tracker"
+          onClick={() => {
+            const current = token.initiativeBonus ?? 10;
+            const input = window.prompt(`Set initiative score for "${token.name}":`, String(current));
+            if (input !== null && input.trim() !== '') {
+              const val = Number(input);
+              if (!isNaN(val)) {
+                onSetInitiative(token, val);
+              }
+            }
+          }}
+          style={{ padding: '4px 8px', fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '4px', width: 'auto', background: 'var(--bg-surface-elevated)' }}
+        >
+          <Swords size={14} color="#f59e0b" />
+          <span>Init</span>
+        </button>
       )}
 
       {/* Move/Copy Token to Another Map (GM Feature) */}
