@@ -11,6 +11,7 @@ interface InitiativeTrackerProps {
   players?: Record<string, Player> | Player[];
   isGm: boolean;
   onClose?: () => void;
+  onSelectToken?: (tokenId: string) => void;
 }
 
 export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
@@ -21,6 +22,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
   players,
   isGm,
   onClose,
+  onSelectToken,
 }) => {
   const [newName, setNewName] = useState('');
   const [newInit, setNewInit] = useState(10);
@@ -440,6 +442,12 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                 onDragOver={(e) => handleDragOver(e, idx)}
                 onDragEnd={handleDragEnd}
                 onDrop={(e) => handleDrop(e, idx)}
+                onClick={() => {
+                  if (item.tokenId && onSelectToken) {
+                    onSelectToken(item.tokenId);
+                  }
+                }}
+                title={item.tokenId ? 'Click to select and focus token' : undefined}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -458,7 +466,7 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                       : undefined,
                   boxShadow: isCurrent ? '0 0 10px var(--accent-glow)' : 'none',
                   opacity: draggedIndex === idx ? 0.4 : 1,
-                  cursor: 'grab',
+                  cursor: item.tokenId ? 'pointer' : 'default',
                   userSelect: 'none',
                   transition: 'background-color 0.15s ease',
                 }}

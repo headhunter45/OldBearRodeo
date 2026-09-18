@@ -1419,6 +1419,29 @@ export const App: React.FC = () => {
             players={session.players}
             isGm={isGm}
             onClose={() => setShowInitiative(false)}
+            onSelectToken={(tokenId) => {
+              const token = session.tokens[tokenId];
+              if (!token) return;
+              if (token.mapId && currentMap && token.mapId !== currentMap.id) {
+                if (isGm) {
+                  setGmPreviewMapId(token.mapId);
+                  engineRef.current?.setActiveMap(token.mapId);
+                } else {
+                  return;
+                }
+              }
+              setSelectedToken(token);
+              setSelectedTokens([token]);
+              if (engineRef.current) {
+                engineRef.current.selectToken(token.id);
+                engineRef.current.viewport.centerOn(
+                  token.x,
+                  token.y,
+                  window.innerWidth,
+                  window.innerHeight
+                );
+              }
+            }}
           />
         </div>
       )}
