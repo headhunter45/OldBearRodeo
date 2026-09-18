@@ -91,7 +91,7 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       <button
         className={`btn-icon ${activeTool === 'pan' ? 'active' : ''}`}
         onClick={() => onSelectTool('pan')}
-        title="Pan Viewport (H)"
+        title="Grab"
       >
         <Hand size={18} />
       </button>

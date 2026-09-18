@@ -1051,9 +1051,9 @@ export const App: React.FC = () => {
     ? Object.values(session?.tokens || {}).find((t) => t.ownerId === localPlayer.id)
     : null;
 
-  // Keyboard shortcuts (Bugs #16, #39, #60):
+  // Keyboard shortcuts (Bugs #16, #39, #60, #61):
   // 1-5: Ephemeral highlight tools (laser, arrow, crosshair, circle, rectangle)
-  // h: Pan viewport
+  // g: Grab tool (pan viewport)
   // s: Select tool
   // f: Fog hide (GM only)
   // r: Fog reveal (GM only)
@@ -1093,7 +1093,7 @@ export const App: React.FC = () => {
       }
 
       const key = e.key.toLowerCase();
-      if (key === 'h') {
+      if (key === 'g') {
         e.preventDefault();
         setActiveTool('pan');
         return;
