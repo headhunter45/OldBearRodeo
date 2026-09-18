@@ -47,28 +47,36 @@ export const ToolBar: React.FC<ToolBarProps> = ({
   onCoverAllFog,
   onClearAllFog,
 }) => {
+  const [showSelectMenu, setShowSelectMenu] = useState(false);
+  const selectMenuRef = useRef<HTMLDivElement>(null);
+
   const [showFogMenu, setShowFogMenu] = useState(false);
   const fogMenuRef = useRef<HTMLDivElement>(null);
 
   const [showHighlightMenu, setShowHighlightMenu] = useState(false);
   const highlightMenuRef = useRef<HTMLDivElement>(null);
 
+  const isSelectTool = ['select', 'box-select', 'pan'].includes(activeTool);
   const isHighlightTool = ['laser', 'arrow', 'crosshair', 'circle', 'rectangle'].includes(activeTool);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
-      if (fogMenuRef.current && !fogMenuRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      if (selectMenuRef.current && !selectMenuRef.current.contains(target)) {
+        setShowSelectMenu(false);
+      }
+      if (fogMenuRef.current && !fogMenuRef.current.contains(target)) {
         setShowFogMenu(false);
       }
-      if (highlightMenuRef.current && !highlightMenuRef.current.contains(e.target as Node)) {
+      if (highlightMenuRef.current && !highlightMenuRef.current.contains(target)) {
         setShowHighlightMenu(false);
       }
     };
-    if (showFogMenu || showHighlightMenu) {
+    if (showSelectMenu || showFogMenu || showHighlightMenu) {
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showFogMenu, showHighlightMenu]);
+  }, [showSelectMenu, showFogMenu, showHighlightMenu]);
   return (
     <div
       className="floating-hud floating-hud-toolbar glass-panel"
@@ -77,30 +85,104 @@ export const ToolBar: React.FC<ToolBarProps> = ({
         top: '5rem',
       }}
     >
-      <button
-        className={`btn-icon ${activeTool === 'select' ? 'active' : ''}`}
-        onClick={() => onSelectTool('select')}
-        title="Select"
-      >
-        <MousePointer size={18} />
-      </button>
+      {/* Selection Tools Sub-menu (Flyout) */}
+      <div ref={selectMenuRef} style={{ position: 'relative' }}>
+        <button
+          className={`btn-icon ${isSelectTool || showSelectMenu ? 'active' : ''}`}
+          onClick={() => {
+            setShowSelectMenu((v) => !v);
+            setShowHighlightMenu(false);
+            setShowFogMenu(false);
+          }}
+          title="Selection Tools (S / B / G)"
+        >
+          {activeTool === 'box-select' ? (
+            <BoxSelect size={18} />
+          ) : activeTool === 'pan' ? (
+            <Hand size={18} />
+          ) : (
+            <MousePointer size={18} />
+          )}
+        </button>
 
-      <button
-        className={`btn-icon ${activeTool === 'pan' ? 'active' : ''}`}
-        onClick={() => onSelectTool('pan')}
-        title="Grab"
-      >
-        <Hand size={18} />
-      </button>
+        {showSelectMenu && (
+          <div
+            className="glass-panel"
+            style={{
+              position: 'absolute',
+              left: 'calc(100% + 8px)',
+              top: '0',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.35rem',
+              padding: '0.4rem',
+              zIndex: 100,
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
+              minWidth: '160px',
+            }}
+          >
+            <button
+              className={`btn btn-secondary ${activeTool === 'select' ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.35rem 0.6rem',
+                fontSize: '0.8rem',
+                justifyContent: 'flex-start',
+              }}
+              onClick={() => {
+                onSelectTool('select');
+                setShowSelectMenu(false);
+              }}
+              title="Select Token (S)"
+            >
+              <MousePointer size={16} />
+              <span>Select (S)</span>
+            </button>
 
-      {/* Box Select Tool (Bug #62) */}
-      <button
-        className={`btn-icon ${activeTool === 'box-select' ? 'active' : ''}`}
-        onClick={() => onSelectTool('box-select')}
-        title="Box Select (B)"
-      >
-        <BoxSelect size={18} />
-      </button>
+            <button
+              className={`btn btn-secondary ${activeTool === 'box-select' ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.35rem 0.6rem',
+                fontSize: '0.8rem',
+                justifyContent: 'flex-start',
+              }}
+              onClick={() => {
+                onSelectTool('box-select');
+                setShowSelectMenu(false);
+              }}
+              title="Box Select Multiple Tokens (B)"
+            >
+              <BoxSelect size={16} />
+              <span>Box Select (B)</span>
+            </button>
+
+            <button
+              className={`btn btn-secondary ${activeTool === 'pan' ? 'active' : ''}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.35rem 0.6rem',
+                fontSize: '0.8rem',
+                justifyContent: 'flex-start',
+              }}
+              onClick={() => {
+                onSelectTool('pan');
+                setShowSelectMenu(false);
+              }}
+              title="Grab / Pan Map (G)"
+            >
+              <Hand size={16} />
+              <span>Grab / Pan (G)</span>
+            </button>
+          </div>
+        )}
+      </div>
 
       <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.2rem 0' }} />
 
@@ -108,7 +190,11 @@ export const ToolBar: React.FC<ToolBarProps> = ({
       <div ref={highlightMenuRef} style={{ position: 'relative' }}>
         <button
           className={`btn-icon ${isHighlightTool || showHighlightMenu ? 'active' : ''}`}
-          onClick={() => setShowHighlightMenu((v) => !v)}
+          onClick={() => {
+            setShowHighlightMenu((v) => !v);
+            setShowSelectMenu(false);
+            setShowFogMenu(false);
+          }}
           title="Highlights & Markers (1-5)"
         >
           {activeTool === 'arrow' ? (
@@ -250,7 +336,11 @@ export const ToolBar: React.FC<ToolBarProps> = ({
           <div ref={fogMenuRef} style={{ position: 'relative' }}>
             <button
               className={`btn-icon ${activeTool === 'fog-reveal' || activeTool === 'fog-hide' || showFogMenu ? 'active' : ''}`}
-              onClick={() => setShowFogMenu((v) => !v)}
+              onClick={() => {
+                setShowFogMenu((v) => !v);
+                setShowSelectMenu(false);
+                setShowHighlightMenu(false);
+              }}
               title="Fog of War Controls"
               style={{
                 color: activeTool === 'fog-reveal' ? '#10b981' : activeTool === 'fog-hide' ? '#f43f5e' : undefined,

@@ -237,16 +237,9 @@ html, body, #root {
 .floating-hud-toolbar {
   display: flex;
   flex-direction: column;
-  flex-wrap: wrap;
-  align-content: flex-start;
   gap: 0.35rem;
   padding: 0.4rem;
-  max-height: calc(100vh - 6.5rem);
-  max-width: calc(100vw - 2rem);
-  overflow-y: auto;
-  overflow-x: auto;
-  scrollbar-width: thin;
-  scrollbar-color: var(--border-subtle) transparent;
+  overflow: visible !important;
 }
 
 .floating-hud-toolbar::-webkit-scrollbar {
