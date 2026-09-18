@@ -66,7 +66,8 @@ export function renderGrid(
   canvasWidth: number,
   canvasHeight: number
 ) {
-  if (map.showGrid === false || map.gridType === 'none' || map.gridSize <= 0) return;
+  const gridType = map.gridType || 'square';
+  if (map.showGrid === false || gridType === 'none' || map.gridSize <= 0) return;
 
   const { gridSize, gridColor, gridOpacity, width: mapWidth, height: mapHeight } = map;
 
@@ -90,7 +91,7 @@ export function renderGrid(
 
   ctx.beginPath();
 
-  if (map.gridType === 'square') {
+  if (gridType === 'square') {
     // Vertical grid lines with offset
     const firstLineX = startX + (((offsetX - (startX % gridSize)) % gridSize) + gridSize) % gridSize;
     for (let x = firstLineX; x <= endX; x += gridSize) {
@@ -103,17 +104,23 @@ export function renderGrid(
       ctx.moveTo(Math.max(0, startX), y);
       ctx.lineTo(Math.min(mapWidth, endX), y);
     }
-  } else if (map.gridType === 'hex') {
-    // Hexagonal grid points
+  } else if (gridType === 'hex') {
+    // Hexagonal grid
     const hexRadius = gridSize / Math.sqrt(3);
     const hexHeight = gridSize;
     const horizDist = hexRadius * 1.5;
     const vertDist = hexHeight;
 
-    for (let col = Math.floor(startX / horizDist); col * horizDist <= endX; col++) {
-      for (let row = Math.floor(startY / vertDist); row * vertDist <= endY; row++) {
+    const minCol = Math.floor(startX / horizDist) - 1;
+    const maxCol = Math.ceil(endX / horizDist) + 1;
+    const minRow = Math.floor(startY / vertDist) - 1;
+    const maxRow = Math.ceil(endY / vertDist) + 1;
+
+    for (let col = minCol; col <= maxCol; col++) {
+      const colOffset = Math.abs(col) % 2 === 1 ? hexHeight / 2 : 0;
+      for (let row = minRow; row <= maxRow; row++) {
         const cx = col * horizDist + offsetX;
-        const cy = row * vertDist + (col % 2 ? hexHeight / 2 : 0) + offsetY;
+        const cy = row * vertDist + colOffset + offsetY;
         drawHexagon(ctx, cx, cy, hexRadius);
       }
     }
@@ -131,4 +138,5 @@ function drawHexagon(ctx: CanvasRenderingContext2D, cx: number, cy: number, radi
     if (i === 0) ctx.moveTo(x, y);
     else ctx.lineTo(x, y);
   }
+  ctx.closePath();
 }

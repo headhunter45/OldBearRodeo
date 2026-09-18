@@ -41,13 +41,32 @@ export const MapSettingsModal: React.FC<MapSettingsModalProps> = ({
 
   const tilesXInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Reset state when switching between maps
+  useEffect(() => {
+    setName(map.name);
+    setShowGrid(map.showGrid !== false);
+    setGridType(map.gridType || 'square');
+    setGridColor(map.gridColor || '#ffffff');
+    setGridOpacity(map.gridOpacity ?? 0.4);
+    setBackgroundColor(map.backgroundColor || '#090d16');
+    const curTilesX = map.tilesX || Math.max(1, Math.round(map.width / (map.gridSize || 50)));
+    const curTilesY = map.tilesY || Math.max(1, Math.round(map.height / (map.gridSize || 50)));
+    setTilesXStr(String(curTilesX));
+    setTilesYStr(String(curTilesY));
+    setGridSizeStr(String(map.gridSize || 50));
+    setGridOffsetXStr(String(map.gridOffsetX ?? 0));
+    setGridOffsetYStr(String(map.gridOffsetY ?? 0));
+    setError(null);
+    setConfirmDelete(false);
+  }, [map.id]);
+
   // Focus on Tiles Wide on open and select all text
   useEffect(() => {
     if (tilesXInputRef.current) {
       tilesXInputRef.current.focus();
       tilesXInputRef.current.select();
     }
-  }, []);
+  }, [map.id]);
 
   const handleFocusSelect = (e: React.FocusEvent<HTMLInputElement> | React.MouseEvent<HTMLInputElement>) => {
     (e.target as HTMLInputElement).select();

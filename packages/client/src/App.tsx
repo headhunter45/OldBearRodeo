@@ -272,6 +272,7 @@ export const App: React.FC = () => {
         case 'map-added': {
           setSession((prev) => {
             if (!prev) return prev;
+            if (prev.maps.some((m) => m.id === msg.map.id)) return prev;
             return { ...prev, maps: [...prev.maps, msg.map] };
           });
           break;

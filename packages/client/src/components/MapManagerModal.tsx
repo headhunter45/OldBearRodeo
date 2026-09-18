@@ -158,6 +158,7 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
     const updated = { ...selectedMapForEdit, ...updates };
     setSelectedMapForEdit(updated);
     onUpdateMap(selectedMapForEdit.id, updates);
+    onSelectGmPreviewMap(selectedMapForEdit.id);
   };
 
   return (
@@ -327,7 +328,10 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
                       <button
                         className="btn-icon"
                         style={{ width: '28px', height: '28px' }}
-                        onClick={() => setSelectedMapForEdit(map)}
+                        onClick={() => {
+                          onSelectGmPreviewMap(map.id);
+                          setSelectedMapForEdit(map);
+                        }}
                         title="Configure Grid & Sizing"
                       >
                         <Settings size={14} />
@@ -336,7 +340,7 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
                   </div>
 
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                    Grid: {map.gridSize}px ({map.gridType}) • {map.width}×{map.height}px
+                    Grid: {map.gridSize}px ({map.gridType || 'square'}) • {map.width}×{map.height}px
                     {map.showGrid === false && <span style={{ color: 'var(--accent-rose)', marginLeft: '4px' }}>[Grid Hidden]</span>}
                   </div>
 
@@ -408,6 +412,7 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
       {/* Map Settings Modal Dialog (fixes double scrollbar #94) */}
       {selectedMapForEdit && (
         <MapSettingsModal
+          key={selectedMapForEdit.id}
           map={selectedMapForEdit}
           canDelete={maps.length > 1}
           onSave={(updates) => handleUpdateEditMap(updates)}
