@@ -344,6 +344,7 @@ async function parseDnDData(characterId: string, data: any): Promise<DnDCharacte
     actions.push({
       name: cleanName,
       type: (isRanged || isThrown) ? 'ranged' : 'melee',
+      activationType: 'action',
       reach,
       range,
       toHitModifier: toHit,
@@ -359,6 +360,7 @@ async function parseDnDData(characterId: string, data: any): Promise<DnDCharacte
     actions.push({
       name: 'Unarmed Strike',
       type: 'melee',
+      activationType: 'action',
       reach: '5ft. reach',
       toHitModifier: strMod + proficiencyBonus,
       damageDice: `${unarmedDamage}`,
@@ -368,20 +370,36 @@ async function parseDnDData(characterId: string, data: any): Promise<DnDCharacte
     seenActionNames.add('Unarmed Strike');
   }
 
-  // Add race, class, and feat actions
+  // Add race, class, feat, bonus, and reaction actions (Bug #71)
   const featureActions = [
     ...(data.actions?.race || []),
     ...(data.actions?.class || []),
     ...(data.actions?.feat || []),
+    ...(data.actions?.bonus || []),
+    ...(data.actions?.reaction || []),
+    ...(data.actions?.action || []),
+    ...(data.customActions || []),
   ];
 
   for (const act of featureActions) {
     if (!act || !act.name || seenActionNames.has(act.name)) continue;
     seenActionNames.add(act.name);
+
+    const desc = (act.snippet || act.description || '').replace(/<[^>]*>/g, '').trim();
+    const actTypeRaw = act.activation?.activationType;
+    let activationType: 'action' | 'bonus' | 'reaction' = 'action';
+
+    if (actTypeRaw === 3 || act.activationType === 'bonus' || /\bbonus action\b/i.test(desc) || /\bbonus action\b/i.test(act.name)) {
+      activationType = 'bonus';
+    } else if (actTypeRaw === 4 || act.activationType === 'reaction' || /\breaction\b/i.test(desc) || /\breaction\b/i.test(act.name)) {
+      activationType = 'reaction';
+    }
+
     actions.push({
       name: act.name,
-      type: 'action',
-      description: act.snippet || act.description || '',
+      type: activationType,
+      activationType,
+      description: desc,
     });
   }
 

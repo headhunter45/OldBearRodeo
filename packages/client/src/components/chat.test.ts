@@ -257,4 +257,51 @@ describe('Dice Parser & Slash Command Utilities', () => {
     assert.strictEqual(sentMessages.length, 2);
     assert.ok(sentMessages[1].text.includes('No controllable tokens'));
   });
+
+  it('highlights bonus actions and reactions in /attack and /spell (Bug #71)', () => {
+    const testPlayer = {
+      id: 'test-player-1',
+      name: 'Ranger',
+      role: 'player' as const,
+      color: '#10b981',
+      connected: true,
+      assignedTokenIds: [],
+    };
+
+    const testChar = {
+      id: 'char-71',
+      name: 'Vax',
+      actions: [
+        { name: 'Dagger Slash', type: 'melee', toHitModifier: 7, damage: '1d4+4 damage', activationType: 'action' },
+        { name: 'Cunning Action: Dash', type: 'bonus', activationType: 'bonus', description: 'As a bonus action you can dash' },
+        { name: 'Uncanny Dodge', type: 'reaction', activationType: 'reaction', description: 'Use reaction when hit' },
+      ],
+      spells: [
+        { id: 'sp-1', name: 'Misty Step', level: 2, school: 'Conjuration', castingTime: '1 bonus action' },
+        { id: 'sp-2', name: 'Shield', level: 1, school: 'Abjuration', castingTime: '1 reaction' },
+        { id: 'sp-3', name: 'Fireball', level: 3, school: 'Evocation', castingTime: '1 action' },
+      ],
+    };
+
+    const sentMessages: any[] = [];
+    const ctx = {
+      player: testPlayer,
+      character: testChar as any,
+      onSendMessage: (msg: any) => sentMessages.push(msg),
+    };
+
+    // /attack should highlight bonus action and reaction
+    processSlashCommand('/attack', ctx);
+    const attackMsg = sentMessages[0];
+    assert.ok(attackMsg.text.includes('Cunning Action: Dash [Bonus Action]'), 'Dash has Bonus Action tag');
+    assert.ok(attackMsg.text.includes('Uncanny Dodge [Reaction]'), 'Uncanny Dodge has Reaction tag');
+    assert.ok(!attackMsg.text.includes('Dagger Slash [Bonus Action]'));
+
+    // /spell should highlight bonus action and reaction
+    processSlashCommand('/spell', ctx);
+    const spellMsg = sentMessages[1];
+    assert.ok(spellMsg.text.includes('Misty Step [Bonus Action]'), 'Misty Step has Bonus Action tag');
+    assert.ok(spellMsg.text.includes('Shield [Reaction]'), 'Shield has Reaction tag');
+    assert.ok(!spellMsg.text.includes('Fireball [Bonus Action]'));
+  });
 });

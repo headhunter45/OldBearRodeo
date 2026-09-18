@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { DnDCharacter, Token, Player } from '@oldbear/shared';
+import { DnDCharacter, Token, Player, getActivationCategory } from '@oldbear/shared';
 import {
   User,
   Heart,
@@ -921,6 +921,7 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
                   {(character.actions || []).map((action, idx) => {
                     const actionKey = `${action.name}-${idx}`;
                     const isExpanded = expandedAction === actionKey;
+                    const category = getActivationCategory(action);
                     const details: string[] = [];
                     if (action.reach) details.push(action.reach);
                     else if (action.range) details.push(action.range);
@@ -930,12 +931,20 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
                     if (action.damage) details.push(action.damage);
                     else if (action.damageDice) details.push(`${action.damageDice} damage`);
 
+                    const borderAccent =
+                      category === 'bonus'
+                        ? '2px solid #f59e0b'
+                        : category === 'reaction'
+                        ? '2px solid #a855f7'
+                        : '1px solid var(--border-subtle)';
+
                     return (
                       <div
                         key={actionKey}
                         style={{
                           backgroundColor: 'var(--bg-surface-elevated)',
                           border: '1px solid var(--border-subtle)',
+                          borderLeft: borderAccent,
                           borderRadius: 'var(--radius-sm)',
                           padding: '0.6rem',
                         }}
@@ -954,7 +963,43 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
                           }}
                         >
                           <div>
-                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{action.name}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{action.name}</span>
+                              {category === 'bonus' && (
+                                <span
+                                  style={{
+                                    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                                    color: '#f59e0b',
+                                    border: '1px solid rgba(245, 158, 11, 0.45)',
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                  }}
+                                >
+                                  Bonus Action
+                                </span>
+                              )}
+                              {category === 'reaction' && (
+                                <span
+                                  style={{
+                                    backgroundColor: 'rgba(168, 85, 247, 0.18)',
+                                    color: '#c084fc',
+                                    border: '1px solid rgba(168, 85, 247, 0.45)',
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                  }}
+                                >
+                                  Reaction
+                                </span>
+                              )}
+                            </div>
                             {details.length > 0 && (
                               <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                                 {details.join(' • ')}
@@ -989,12 +1034,21 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
                   {character.spells.map((spell) => {
                     const isExpanded = expandedSpell === spell.id;
+                    const spellCat = getActivationCategory(spell);
+                    const spellBorderAccent =
+                      spellCat === 'bonus'
+                        ? '2px solid #f59e0b'
+                        : spellCat === 'reaction'
+                        ? '2px solid #a855f7'
+                        : '1px solid var(--border-subtle)';
+
                     return (
                       <div
                         key={spell.id}
                         style={{
                           backgroundColor: 'var(--bg-surface-elevated)',
                           border: '1px solid var(--border-subtle)',
+                          borderLeft: spellBorderAccent,
                           borderRadius: 'var(--radius-sm)',
                           padding: '0.6rem',
                         }}
@@ -1009,7 +1063,43 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
                           onClick={() => setExpandedSpell(isExpanded ? null : spell.id)}
                         >
                           <div>
-                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{spell.name}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{spell.name}</span>
+                              {spellCat === 'bonus' && (
+                                <span
+                                  style={{
+                                    backgroundColor: 'rgba(245, 158, 11, 0.18)',
+                                    color: '#f59e0b',
+                                    border: '1px solid rgba(245, 158, 11, 0.45)',
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                  }}
+                                >
+                                  Bonus Action
+                                </span>
+                              )}
+                              {spellCat === 'reaction' && (
+                                <span
+                                  style={{
+                                    backgroundColor: 'rgba(168, 85, 247, 0.18)',
+                                    color: '#c084fc',
+                                    border: '1px solid rgba(168, 85, 247, 0.45)',
+                                    padding: '1px 6px',
+                                    borderRadius: '4px',
+                                    fontSize: '0.65rem',
+                                    fontWeight: 700,
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.04em',
+                                  }}
+                                >
+                                  Reaction
+                                </span>
+                              )}
+                            </div>
                             <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
                               {spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`} • {spell.castingTime}
                             </div>

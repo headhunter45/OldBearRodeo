@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Player, ChatMessage, DiceRollResult, DnDCharacter, DieType, DnDAction, Token } from '@oldbear/shared';
+import { Player, ChatMessage, DiceRollResult, DnDCharacter, DieType, DnDAction, Token, getActivationCategory } from '@oldbear/shared';
 import { MessageSquare, Send, X, Dices, Sword, Sparkles, HelpCircle, ChevronUp, ChevronDown } from 'lucide-react';
 import { useDraggableWindow } from '../hooks/useDraggableWindow.js';
 
@@ -176,10 +176,14 @@ export function processSlashCommand(
               { name: 'Unarmed Strike', type: 'melee', toHitModifier: 5, damageDice: '4' },
             ];
 
-        // Bug #54: No name provided -> list options, do not roll
+        // Bug #54 & #71: No name provided -> list options, do not roll
         if (!attackQuery) {
           const listText = availableAttacks
-            .map((a) => `• ${a.name}${a.reach ? ` (${a.reach})` : a.range ? ` (${a.range})` : ''} [${a.toHitModifier !== undefined ? (a.toHitModifier >= 0 ? `+${a.toHitModifier}` : a.toHitModifier) + ' to hit' : ''}${a.damage ? `, ${a.damage}` : a.damageDice ? `, ${a.damageDice}` : ''}]`)
+            .map((a) => {
+              const cat = getActivationCategory(a);
+              const badge = cat === 'bonus' ? ' [Bonus Action]' : cat === 'reaction' ? ' [Reaction]' : '';
+              return `• ${a.name}${badge}${a.reach ? ` (${a.reach})` : a.range ? ` (${a.range})` : ''} [${a.toHitModifier !== undefined ? (a.toHitModifier >= 0 ? `+${a.toHitModifier}` : a.toHitModifier) + ' to hit' : ''}${a.damage ? `, ${a.damage}` : a.damageDice ? `, ${a.damageDice}` : ''}]`;
+            })
             .join('\n');
           sendPrivateSystemMessage(
             `No attack specified. Available attacks${character ? ` for ${character.name}` : ''}:\n${listText}\n\nUsage: /attack [name] [adv|dis]`
@@ -193,7 +197,13 @@ export function processSlashCommand(
         );
 
         if (!found) {
-          const listText = availableAttacks.map((a) => `• ${a.name}`).join('\n');
+          const listText = availableAttacks
+            .map((a) => {
+              const cat = getActivationCategory(a);
+              const badge = cat === 'bonus' ? ' [Bonus Action]' : cat === 'reaction' ? ' [Reaction]' : '';
+              return `• ${a.name}${badge}`;
+            })
+            .join('\n');
           sendPrivateSystemMessage(
             `Could not find attack matching "${attackQuery}". Available options:\n${listText}`,
             'System',
@@ -226,13 +236,16 @@ export function processSlashCommand(
           timestamp: Date.now(),
         };
 
+        const attackCat = getActivationCategory(found);
+        const attackTag = attackCat === 'bonus' ? ' (Bonus Action)' : attackCat === 'reaction' ? ' (Reaction)' : '';
+
         onBroadcastRoll?.(rollResult);
         onSendMessage({
           id: crypto.randomUUID(),
           senderId: player.id,
           senderName: player.name,
           senderColor: player.color,
-          text: `attacks with ${found.name}! To Hit: ${hitTotal} (${hitRoll.rolls.join('/')}${toHitMod >= 0 ? `+${toHitMod}` : toHitMod}) | Damage: ${dmgParsed.total} [${dmgExpr}]`,
+          text: `attacks with ${found.name}${attackTag}! To Hit: ${hitTotal} (${hitRoll.rolls.join('/')}${toHitMod >= 0 ? `+${toHitMod}` : toHitMod}) | Damage: ${dmgParsed.total} [${dmgExpr}]`,
           timestamp: Date.now(),
           roll: rollResult,
         });
@@ -255,7 +268,7 @@ export function processSlashCommand(
 
         const availableSpells = character?.spells || [];
 
-        // Bug #54: No spell name provided -> list options, do not roll
+        // Bug #54 & #71: No spell name provided -> list options, do not roll
         if (!spellQuery) {
           if (availableSpells.length === 0) {
             sendPrivateSystemMessage(
@@ -268,7 +281,11 @@ export function processSlashCommand(
             return true;
           }
           const listText = availableSpells
-            .map((s) => `• ${s.name} (${s.level === 0 ? 'Cantrip' : `Level ${s.level}`}${s.school ? `, ${s.school}` : ''})`)
+            .map((s) => {
+              const cat = getActivationCategory(s);
+              const badge = cat === 'bonus' ? ' [Bonus Action]' : cat === 'reaction' ? ' [Reaction]' : '';
+              return `• ${s.name}${badge} (${s.level === 0 ? 'Cantrip' : `Level ${s.level}`}${s.school ? `, ${s.school}` : ''}${s.castingTime ? ` • ${s.castingTime}` : ''})`;
+            })
             .join('\n');
           sendPrivateSystemMessage(
             `No spell specified. Available spells for ${character?.name || 'character'}:\n${listText}\n\nUsage: /spell [name] [adv|dis]`
@@ -283,7 +300,13 @@ export function processSlashCommand(
 
         if (!found) {
           const listText = availableSpells.length > 0
-            ? availableSpells.map((s) => `• ${s.name}`).join('\n')
+            ? availableSpells
+                .map((s) => {
+                  const cat = getActivationCategory(s);
+                  const badge = cat === 'bonus' ? ' [Bonus Action]' : cat === 'reaction' ? ' [Reaction]' : '';
+                  return `• ${s.name}${badge}`;
+                })
+                .join('\n')
             : '(No spells available)';
           sendPrivateSystemMessage(
             `Could not find spell matching "${spellQuery}". Available options:\n${listText}`,
@@ -317,13 +340,16 @@ export function processSlashCommand(
           timestamp: Date.now(),
         };
 
+        const spellCat = getActivationCategory(found);
+        const spellTag = spellCat === 'bonus' ? ' (Bonus Action)' : spellCat === 'reaction' ? ' (Reaction)' : '';
+
         onBroadcastRoll?.(rollResult);
         onSendMessage({
           id: crypto.randomUUID(),
           senderId: player.id,
           senderName: player.name,
           senderColor: player.color,
-          text: `casts ${found.name}! Attack: ${hitTotal} (${hitRoll.rolls.join('/')}${spellToHitMod >= 0 ? `+${spellToHitMod}` : spellToHitMod}) | Effect/Damage: ${dmgParsed.total} [${dmgExpr}]`,
+          text: `casts ${found.name}${spellTag}! Attack: ${hitTotal} (${hitRoll.rolls.join('/')}${spellToHitMod >= 0 ? `+${spellToHitMod}` : spellToHitMod}) | Effect/Damage: ${dmgParsed.total} [${dmgExpr}]`,
           timestamp: Date.now(),
           roll: rollResult,
         });

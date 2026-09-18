@@ -187,12 +187,38 @@ export interface CharacterSkill {
 export interface DnDAction {
   name: string;
   type?: string;
+  activationType?: 'action' | 'bonus' | 'reaction' | string;
   toHitModifier?: number;
   damageDice?: string;
   reach?: string;
   range?: string;
   damage?: string;
   description?: string;
+}
+
+export function getActivationCategory(item?: {
+  activationType?: string;
+  type?: string;
+  castingTime?: string;
+  description?: string;
+  name?: string;
+}): 'action' | 'bonus' | 'reaction' | 'other' {
+  if (!item) return 'other';
+  const act = (item.activationType || '').toLowerCase();
+  const t = (item.type || '').toLowerCase();
+  const cast = (item.castingTime || '').toLowerCase();
+  const desc = (item.description || '').toLowerCase();
+
+  if (act === 'bonus' || act.includes('bonus') || t.includes('bonus') || /\bbonus\b/i.test(cast) || /\bbonus action\b/i.test(desc)) {
+    return 'bonus';
+  }
+  if (act === 'reaction' || act.includes('reaction') || t.includes('reaction') || /\breaction\b/i.test(cast) || /\breaction\b/i.test(desc)) {
+    return 'reaction';
+  }
+  if (act === 'action' || t === 'action' || /\b1 action\b/i.test(cast)) {
+    return 'action';
+  }
+  return 'other';
 }
 
 export interface DnDCharacter {
