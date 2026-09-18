@@ -27,7 +27,7 @@ interface CharacterFlyoutProps {
   isGm?: boolean;
 }
 
-interface SavedCharacterRecord {
+export interface SavedCharacterRecord {
   id: string;
   name: string;
   classes?: string;

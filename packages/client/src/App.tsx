@@ -1598,6 +1598,19 @@ export const App: React.FC = () => {
         <DataBackupModal
           session={session}
           isGm={isGm}
+          tokens={session?.tokens || {}}
+          activeMapId={currentMap?.id || session?.activeMapId || ''}
+          onAddToken={(newToken) => {
+            setSession((prev) => {
+              if (!prev) return prev;
+              return {
+                ...prev,
+                tokens: { ...prev.tokens, [newToken.id]: newToken },
+              };
+            });
+            networkRef.current?.send({ type: 'token-add', token: newToken });
+            engineRef.current?.selectToken(newToken.id);
+          }}
           onAddMap={handleAddMap}
           onRestoreSession={(restoredSession) => {
             setSession(restoredSession);

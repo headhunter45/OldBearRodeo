@@ -134,7 +134,7 @@ function nameGen(type) {
 93. ✅ When an asset is dragged in and added to the asset manager the asset manager display does not update to show it. I have to close and reopen it again.
 94. ✅ When editing a scene in the settings for it I have two vertical scrollbars.
 95. ✅ When I change grid type in a scene settings it chagnes the type value for all scenes, but the grid drawn and snapped to is still squeare not hexagonal
-96. I don't see anything showing my imported monsters and characters. Please add them to the asset manager.
+96. ✅ I don't see anything showing my imported monsters and characters. Please add them to the asset manager.
 
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET

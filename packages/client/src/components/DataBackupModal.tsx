@@ -18,8 +18,10 @@ import {
   Music,
   Plus,
   Layers,
+  Skull,
+  Shield,
 } from 'lucide-react';
-import { GameSession, GameMap, Token } from '@oldbear/shared';
+import { GameSession, GameMap, Token, DnDCharacter } from '@oldbear/shared';
 import { exportAllData, downloadBackupFile, importAllData } from '../storage/BackupManager.js';
 import {
   StoredAsset,
@@ -35,7 +37,34 @@ import {
 import {
   isTetraCubeMonsterFile,
   parseTetraCubeMonster,
+  createMonsterToken,
 } from '../utils/monsterParser.js';
+import {
+  getSavedCharacters,
+  saveCharacterToStorage,
+  SavedCharacterRecord,
+} from './CharacterFlyout.js';
+
+function deleteSavedCharacter(id: string, isGm: boolean) {
+  try {
+    const LOCAL_STORAGE_KEY = 'oldbear_saved_characters';
+    const GM_STORAGE_KEY = 'oldbear_gm_saved_characters';
+    const userRaw = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (userRaw) {
+      const list = JSON.parse(userRaw).filter((c: any) => c.id !== id);
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(list));
+    }
+    if (isGm) {
+      const gmRaw = localStorage.getItem(GM_STORAGE_KEY);
+      if (gmRaw) {
+        const gmList = JSON.parse(gmRaw).filter((c: any) => c.id !== id);
+        localStorage.setItem(GM_STORAGE_KEY, JSON.stringify(gmList));
+      }
+    }
+  } catch (e) {
+    console.error('Failed to delete character from localStorage:', e);
+  }
+}
 
 interface DataBackupModalProps {
   session?: GameSession | null;
@@ -45,10 +74,11 @@ interface DataBackupModalProps {
   onRestoreSession?: (session: GameSession) => void;
   onAddMap?: (map: GameMap) => void;
   onSpawnToken?: (asset: StoredAsset) => void;
+  onAddToken?: (token: Token) => void;
   onClose: () => void;
 }
 
-type AssetTab = 'maps' | 'tokens' | 'audio';
+type AssetTab = 'tokens' | 'monsters' | 'characters' | 'maps' | 'audio';
 
 export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   session,
@@ -58,10 +88,12 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   onRestoreSession,
   onAddMap,
   onSpawnToken,
+  onAddToken,
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<AssetTab>('tokens');
   const [assets, setAssets] = useState<StoredAsset[]>([]);
+  const [savedCharacters, setSavedCharacters] = useState<SavedCharacterRecord[]>([]);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -82,6 +114,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     try {
       const all = await getAllAssets();
       setAssets(all);
+      setSavedCharacters(getSavedCharacters(isGm));
     } catch (err) {
       console.warn('Failed to load assets:', err);
     }
@@ -93,21 +126,127 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
       loadAssets();
     };
     window.addEventListener(ASSET_UPDATED_EVENT, handleAssetUpdated);
+    window.addEventListener('storage', handleAssetUpdated);
     return () => {
       window.removeEventListener(ASSET_UPDATED_EVENT, handleAssetUpdated);
+      window.removeEventListener('storage', handleAssetUpdated);
       if (audioPlayerRef.current) {
         audioPlayerRef.current.pause();
         audioPlayerRef.current = null;
       }
     };
-  }, []);
+  }, [isGm]);
 
-  const filteredAssets = assets.filter((a) => {
-    if (activeTab === 'maps') return a.type === 'map';
-    if (activeTab === 'tokens') return a.type === 'token' || a.type === 'prop';
-    if (activeTab === 'audio') return a.type === 'audio';
-    return true;
-  });
+  const handleDeployMonster = (asset: StoredAsset) => {
+    if (!onAddToken) return;
+    const existingList = tokens
+      ? Array.isArray(tokens)
+        ? [...tokens]
+        : Object.values(tokens)
+      : [];
+    const mapId = activeMapId || session?.activeMapId || (session?.maps[0]?.id) || 'map-default';
+    const spawnX = 400 + (existingList.length % 5) * 60;
+    const spawnY = 400 + (existingList.length % 5) * 60;
+    const newToken = createMonsterToken(asset, mapId, spawnX, spawnY, existingList);
+    onAddToken(newToken);
+    setResultMessage({
+      type: 'success',
+      text: `Spawned monster "${newToken.name}" onto the battlemap!`,
+    });
+  };
+
+  const handleDeployCharacter = (charRecord: SavedCharacterRecord) => {
+    if (!onAddToken) return;
+    const existingList = tokens
+      ? Array.isArray(tokens)
+        ? [...tokens]
+        : Object.values(tokens)
+      : [];
+    const mapId = activeMapId || session?.activeMapId || (session?.maps[0]?.id) || 'map-default';
+    const char = charRecord.charData;
+    const spawnX = 350 + (existingList.length % 5) * 60;
+    const spawnY = 350 + (existingList.length % 5) * 60;
+    const newToken: Token = {
+      id: `token-${crypto.randomUUID()}`,
+      mapId,
+      name: char.name || charRecord.name || 'Hero',
+      imageUrl: char.avatarUrl || charRecord.avatarUrl || undefined,
+      x: Math.round(spawnX),
+      y: Math.round(spawnY),
+      size: 1,
+      rotation: 0,
+      ringColor: '#3b82f6',
+      fillColor: '#1e3a8a',
+      clipCircle: true,
+      clipShape: 'circle',
+      currentHp: char.currentHp ?? char.maxHp ?? 20,
+      maxHp: char.maxHp ?? 20,
+      tempHp: char.tempHp ?? 0,
+      speed: char.speed ?? 30,
+      conditions: [],
+      isProp: false,
+      layer: 'token',
+      initiativeBonus: char.initiativeBonus ?? 0,
+      character: char,
+    };
+    onAddToken(newToken);
+    setResultMessage({
+      type: 'success',
+      text: `Spawned character "${newToken.name}" onto the battlemap!`,
+    });
+  };
+
+  const handleDeployToken = (asset: StoredAsset) => {
+    if (!onAddToken) return;
+    const existingList = tokens
+      ? Array.isArray(tokens)
+        ? [...tokens]
+        : Object.values(tokens)
+      : [];
+    const mapId = activeMapId || session?.activeMapId || (session?.maps[0]?.id) || 'map-default';
+    const spawnX = 350 + (existingList.length % 5) * 60;
+    const spawnY = 350 + (existingList.length % 5) * 60;
+    const newToken: Token = {
+      id: `token-${crypto.randomUUID()}`,
+      mapId,
+      name: asset.name || 'Token',
+      imageUrl: asset.dataUrl,
+      x: Math.round(spawnX),
+      y: Math.round(spawnY),
+      size: asset.size || 1,
+      rotation: 0,
+      ringColor: asset.ringColor || '#3b82f6',
+      fillColor: asset.fillColor || '#1e3a8a',
+      clipCircle: true,
+      clipShape: 'circle',
+      currentHp: asset.maxHp || 20,
+      maxHp: asset.maxHp || 20,
+      tempHp: 0,
+      speed: asset.speed || 30,
+      conditions: [],
+      isProp: asset.type === 'prop',
+      layer: asset.type === 'prop' ? 'prop' : 'token',
+    };
+    onAddToken(newToken);
+    setResultMessage({
+      type: 'success',
+      text: `Spawned token "${newToken.name}" onto the battlemap!`,
+    });
+  };
+
+  const monsterAssets = assets.filter((a) => Boolean(a.monsterData || (a.type as string) === 'monster' || (a.character && a.character.actions)));
+  const mapAssets = assets.filter((a) => a.type === 'map');
+  const audioAssets = assets.filter((a) => a.type === 'audio');
+  const tokenAssets = assets.filter((a) => (a.type === 'token' || a.type === 'prop') && !a.monsterData && (!a.character || !a.character.actions));
+
+  const filteredAssets =
+    activeTab === 'maps'
+      ? mapAssets
+      : activeTab === 'monsters'
+      ? monsterAssets
+      : activeTab === 'audio'
+      ? audioAssets
+      : tokenAssets;
 
   // Multiselect toggles
   const toggleSelect = (id: string) => {
@@ -164,9 +303,26 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               text: `Saved monster "${asset.name}" to Asset Manager library for encounter prep!`,
             });
             continue;
+          } else {
+            // Check for character or monster JSON
+            try {
+              const parsed = JSON.parse(text);
+              if (parsed && (parsed.classes || parsed.character || parsed.stats || activeTab === 'characters')) {
+                const char = parsed.character || parsed;
+                if (char && char.name) {
+                  saveCharacterToStorage(char, isGm);
+                  await loadAssets();
+                  setResultMessage({
+                    type: 'success',
+                    text: `Imported character "${char.name}" to Asset Manager!`,
+                  });
+                  continue;
+                }
+              }
+            } catch {}
           }
         } catch (err) {
-          console.warn('Failed parsing monster file:', err);
+          console.warn('Failed parsing JSON file:', err);
         }
       }
 
@@ -192,6 +348,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
           dataUrl,
           fileSize: file.size,
           fileHash: hash,
+          monsterData: activeTab === 'monsters' ? { name: file.name.replace(/\.[^/.]+$/, '') } : undefined,
           createdAt: Date.now(),
         });
         await loadAssets();
@@ -430,6 +587,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             borderBottom: '1px solid var(--border-subtle)',
             backgroundColor: 'var(--bg-surface-elevated)',
             padding: '0 1rem',
+            overflowX: 'auto',
           }}
         >
           <button
@@ -439,7 +597,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               setSelectedAssetIds([]);
             }}
             style={{
-              padding: '0.75rem 1.25rem',
+              padding: '0.75rem 1.1rem',
               border: 'none',
               background: 'none',
               color: activeTab === 'tokens' ? 'var(--accent-primary)' : 'var(--text-secondary)',
@@ -451,7 +609,51 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               gap: '6px',
             }}
           >
-            <User size={16} /> Tokens ({assets.filter((a) => a.type === 'token' || a.type === 'prop').length})
+            <User size={16} /> Tokens ({tokenAssets.length})
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'monsters' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('monsters');
+              setSelectedAssetIds([]);
+            }}
+            style={{
+              padding: '0.75rem 1.1rem',
+              border: 'none',
+              background: 'none',
+              color: activeTab === 'monsters' ? 'var(--accent-rose)' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'monsters' ? '2px solid var(--accent-rose)' : '2px solid transparent',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Skull size={16} /> Monsters ({monsterAssets.length})
+          </button>
+
+          <button
+            className={`tab-btn ${activeTab === 'characters' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('characters');
+              setSelectedAssetIds([]);
+            }}
+            style={{
+              padding: '0.75rem 1.1rem',
+              border: 'none',
+              background: 'none',
+              color: activeTab === 'characters' ? '#818cf8' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'characters' ? '2px solid #818cf8' : '2px solid transparent',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Shield size={16} /> Characters ({savedCharacters.length})
           </button>
 
           <button
@@ -461,7 +663,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               setSelectedAssetIds([]);
             }}
             style={{
-              padding: '0.75rem 1.25rem',
+              padding: '0.75rem 1.1rem',
               border: 'none',
               background: 'none',
               color: activeTab === 'maps' ? 'var(--accent-primary)' : 'var(--text-secondary)',
@@ -473,7 +675,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               gap: '6px',
             }}
           >
-            <Map size={16} /> Maps ({assets.filter((a) => a.type === 'map').length})
+            <Map size={16} /> Maps ({mapAssets.length})
           </button>
 
           <button
@@ -483,7 +685,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               setSelectedAssetIds([]);
             }}
             style={{
-              padding: '0.75rem 1.25rem',
+              padding: '0.75rem 1.1rem',
               border: 'none',
               background: 'none',
               color: activeTab === 'audio' ? 'var(--accent-primary)' : 'var(--text-secondary)',
@@ -495,7 +697,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               gap: '6px',
             }}
           >
-            <Music size={16} /> Sounds ({assets.filter((a) => a.type === 'audio').length})
+            <Music size={16} /> Sounds ({audioAssets.length})
           </button>
         </div>
 
@@ -538,18 +740,26 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
           >
             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
               <label className="btn btn-primary" style={{ cursor: 'pointer', display: 'inline-flex', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                <Plus size={14} /> Upload {activeTab === 'maps' ? 'Map' : activeTab === 'audio' ? 'Sound' : 'Token'}...
+                <Plus size={14} /> Upload {activeTab === 'monsters' ? 'Monster (.monster, .json)' : activeTab === 'characters' ? 'Character (.json)' : activeTab === 'maps' ? 'Map' : activeTab === 'audio' ? 'Sound' : 'Token'}...
                 <input
                   ref={assetUploadRef}
                   type="file"
                   multiple
-                  accept={activeTab === 'audio' ? 'audio/*' : 'image/*'}
+                  accept={
+                    activeTab === 'audio'
+                      ? 'audio/*'
+                      : activeTab === 'monsters'
+                      ? '.monster,.json,image/*'
+                      : activeTab === 'characters'
+                      ? '.json,image/*'
+                      : 'image/*'
+                  }
                   style={{ display: 'none' }}
                   onChange={handleAssetUpload}
                 />
               </label>
 
-              {filteredAssets.length > 0 && (
+              {activeTab !== 'characters' && filteredAssets.length > 0 && (
                 <>
                   <button className="btn btn-secondary" style={{ padding: '0.4rem 0.7rem', fontSize: '0.75rem' }} onClick={selectAll}>
                     Select All
@@ -561,7 +771,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               )}
             </div>
 
-            {selectedAssetIds.length > 0 && (
+            {selectedAssetIds.length > 0 && activeTab !== 'characters' && (
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 {activeTab === 'maps' && onAddMap && (
                   <button
@@ -605,8 +815,273 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             )}
           </div>
 
-          {/* Assets Grid */}
-          {filteredAssets.length === 0 ? (
+          {/* Characters Tab Grid */}
+          {activeTab === 'characters' ? (
+            savedCharacters.length === 0 ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                No imported characters yet. Click Upload Character (.json) above or import a character from D&D Beyond in the Character Sheet!
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))',
+                  gap: '0.85rem',
+                }}
+              >
+                {savedCharacters.map((charRecord) => {
+                  const char = charRecord.charData;
+                  const hp = char.currentHp ?? char.maxHp ?? 20;
+                  const ac = char.armorClass ?? 10;
+                  const speed = char.speed ?? 30;
+
+                  return (
+                    <div
+                      key={charRecord.id}
+                      style={{
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-surface-elevated)',
+                        border: '1px solid rgba(99, 102, 241, 0.3)',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        position: 'relative',
+                      }}
+                    >
+                      {/* Class Pill */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 6,
+                          right: 6,
+                          zIndex: 2,
+                          backgroundColor: 'rgba(99, 102, 241, 0.9)',
+                          color: 'white',
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '999px',
+                          maxWidth: '90px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title={charRecord.classes}
+                      >
+                        {charRecord.classes || 'Hero'}
+                      </div>
+
+                      {/* Thumbnail Preview */}
+                      <div
+                        style={{
+                          height: '95px',
+                          backgroundImage: charRecord.avatarUrl ? `url("${charRecord.avatarUrl}")` : 'none',
+                          backgroundSize: 'cover',
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'center top',
+                          backgroundColor: '#0f172a',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {!charRecord.avatarUrl && <Shield size={36} color="#818cf8" />}
+                      </div>
+
+                      {/* Character Details */}
+                      <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#e0e7ff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={charRecord.name}>
+                          {charRecord.name}
+                        </div>
+
+                        {/* Quick Stats Badges */}
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', fontSize: '0.7rem' }}>
+                          <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '1px 4px', borderRadius: '3px', fontWeight: 600 }}>
+                            HP {hp}
+                          </span>
+                          <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', padding: '1px 4px', borderRadius: '3px', fontWeight: 600 }}>
+                            AC {ac}
+                          </span>
+                          <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '1px 4px', borderRadius: '3px', fontWeight: 600 }}>
+                            {speed}ft
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Actions: Deploy Token & Delete */}
+                      <div style={{ padding: '0 6px 6px 6px', display: 'flex', gap: '4px' }}>
+                        {onAddToken && (
+                          <button
+                            className="btn btn-primary"
+                            style={{
+                              flex: 1,
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              padding: '0.35rem 0.5rem',
+                            }}
+                            onClick={() => handleDeployCharacter(charRecord)}
+                            title="Spawn character token onto the battlemap"
+                          >
+                            <Plus size={12} /> Deploy
+                          </button>
+                        )}
+                        <button
+                          className="btn-icon"
+                          style={{ width: '28px', height: '28px', color: '#f43f5e' }}
+                          onClick={() => {
+                            if (confirm(`Delete character ${charRecord.name}?`)) {
+                              deleteSavedCharacter(charRecord.id, isGm);
+                              setSavedCharacters(getSavedCharacters(isGm));
+                            }
+                          }}
+                          title="Delete Character"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : activeTab === 'monsters' ? (
+            monsterAssets.length === 0 ? (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                No imported monsters yet. Click Upload Monster (.monster, .json) above or drag monster files onto the board!
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(175px, 1fr))',
+                  gap: '0.85rem',
+                }}
+              >
+                {monsterAssets.map((asset) => {
+                  const isSelected = selectedAssetIds.includes(asset.id);
+                  const cr = asset.monsterData?.cr || asset.character?.cr || (asset.monsterData?.challenge_rating ? `${asset.monsterData.challenge_rating}` : null);
+                  const hp = asset.maxHp || asset.character?.maxHp || asset.monsterData?.hit_points || 20;
+                  const ac = asset.armorClass || asset.character?.armorClass || asset.monsterData?.armor_class || 10;
+                  const speed = asset.speed || asset.character?.speed || 30;
+
+                  return (
+                    <div
+                      key={asset.id}
+                      style={{
+                        borderRadius: 'var(--radius-md)',
+                        backgroundColor: 'var(--bg-surface-elevated)',
+                        border: isSelected ? '2px solid var(--accent-rose)' : '1px solid rgba(244, 63, 94, 0.3)',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        position: 'relative',
+                        boxShadow: isSelected ? '0 0 10px rgba(244, 63, 94, 0.4)' : 'none',
+                      }}
+                    >
+                      {/* Checkbox badge */}
+                      <div style={{ position: 'absolute', top: 6, left: 6, zIndex: 2 }}>
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleSelect(asset.id)}
+                          style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+                        />
+                      </div>
+
+                      {/* CR Pill */}
+                      <div
+                        style={{
+                          position: 'absolute',
+                          top: 6,
+                          right: 6,
+                          zIndex: 2,
+                          backgroundColor: 'rgba(239, 68, 68, 0.9)',
+                          color: 'white',
+                          fontSize: '0.65rem',
+                          fontWeight: 700,
+                          padding: '1px 6px',
+                          borderRadius: '999px',
+                        }}
+                      >
+                        {cr ? `CR ${cr}` : 'Monster'}
+                      </div>
+
+                      {/* Thumbnail / Monster Icon Preview */}
+                      <div
+                        style={{
+                          height: '95px',
+                          backgroundImage: asset.dataUrl ? `url("${asset.dataUrl}")` : 'none',
+                          backgroundSize: 'contain',
+                          backgroundRepeat: 'no-repeat',
+                          backgroundPosition: 'center',
+                          backgroundColor: '#1a0b12',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        {!asset.dataUrl && <Skull size={36} color="#f43f5e" />}
+                      </div>
+
+                      {/* Monster Details */}
+                      <div style={{ padding: '0.5rem', display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#fecdd3', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={asset.name}>
+                          {asset.name}
+                        </div>
+
+                        {/* Quick Stats Badges */}
+                        <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', fontSize: '0.7rem' }}>
+                          <span style={{ backgroundColor: 'rgba(239, 68, 68, 0.2)', color: '#f87171', padding: '1px 4px', borderRadius: '3px', fontWeight: 600 }}>
+                            HP {hp}
+                          </span>
+                          <span style={{ backgroundColor: 'rgba(59, 130, 246, 0.2)', color: '#60a5fa', padding: '1px 4px', borderRadius: '3px', fontWeight: 600 }}>
+                            AC {ac}
+                          </span>
+                          <span style={{ backgroundColor: 'rgba(16, 185, 129, 0.2)', color: '#34d399', padding: '1px 4px', borderRadius: '3px', fontWeight: 600 }}>
+                            {speed}ft
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Actions: Deploy Token & Delete */}
+                      <div style={{ padding: '0 6px 6px 6px', display: 'flex', gap: '4px' }}>
+                        {onAddToken && (
+                          <button
+                            className="btn btn-primary"
+                            style={{
+                              flex: 1,
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              padding: '0.35rem 0.5rem',
+                              backgroundColor: '#e11d48',
+                              borderColor: '#be123c',
+                            }}
+                            onClick={() => handleDeployMonster(asset)}
+                            title="Spawn monster token onto the battlemap"
+                          >
+                            <Plus size={12} /> Deploy
+                          </button>
+                        )}
+                        <button
+                          className="btn-icon"
+                          style={{ width: '28px', height: '28px', color: '#f43f5e' }}
+                          onClick={async () => {
+                            if (confirm(`Delete monster ${asset.name}?`)) {
+                              await deleteAsset(asset.id);
+                              await loadAssets();
+                            }
+                          }}
+                          title="Delete Monster"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+          ) : filteredAssets.length === 0 ? (
             <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
               No {activeTab} uploaded yet. Click Upload above or drag files onto the board!
             </div>
@@ -751,6 +1226,26 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                         </>
                       )}
                     </div>
+
+                    {activeTab === 'tokens' && onAddToken && (
+                      <button
+                        className="btn btn-secondary"
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          padding: '0.35rem 0.5rem',
+                          margin: '0 6px 6px 6px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                        }}
+                        onClick={() => handleDeployToken(asset)}
+                        title="Spawn token onto the battlemap"
+                      >
+                        <Plus size={12} /> Deploy
+                      </button>
+                    )}
 
                     {activeTab === 'maps' && onAddMap && (
                       <button
