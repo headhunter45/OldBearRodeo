@@ -11,7 +11,6 @@ import {
   Copy,
   Check,
   Database,
-  MessageSquare,
 } from 'lucide-react';
 import { Player, GameMap } from '@oldbear/shared';
 import { VoiceState } from '../network/VoiceManager.js';
@@ -224,40 +223,6 @@ export const TopBar: React.FC<TopBarProps> = ({
           {copied ? <Check size={14} color="#10b981" /> : <Share2 size={14} />}
           <span className="topbar-map-label">{copied ? 'Link Copied!' : 'Invite'}</span>
         </button>
-
-        {/* Chat & Dice Commands Toggle (Bug #45) */}
-        {onToggleChat && (
-          <button
-            className="btn-icon topbar-desktop-only"
-            onClick={onToggleChat}
-            title="Chat & Dice Commands (/roll, /attack, /skill)"
-            style={{
-              position: 'relative',
-              backgroundColor: isChatOpen ? 'var(--accent-primary)' : undefined,
-              color: isChatOpen ? '#ffffff' : undefined,
-            }}
-          >
-            <MessageSquare size={18} />
-            {unreadChatCount && unreadChatCount > 0 ? (
-              <span
-                style={{
-                  position: 'absolute',
-                  top: '-4px',
-                  right: '-4px',
-                  backgroundColor: 'var(--accent-rose)',
-                  color: '#fff',
-                  borderRadius: '10px',
-                  fontSize: '0.65rem',
-                  padding: '1px 5px',
-                  fontWeight: 800,
-                  lineHeight: '1',
-                }}
-              >
-                {unreadChatCount}
-              </span>
-            ) : null}
-          </button>
-        )}
 
         {/* Dice Roller Toggle */}
         <button className="btn-icon topbar-desktop-only" onClick={onOpenDice} title="Dice Roller">

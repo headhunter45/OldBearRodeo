@@ -1714,6 +1714,8 @@ export const App: React.FC = () => {
             return !v;
           });
         }}
+        isChatOpen={isChatOpen}
+        unreadChatCount={unreadChatCount}
         voiceState={voiceState}
         onToggleMute={handleToggleMute}
         onToggleDeafen={handleToggleDeafen}

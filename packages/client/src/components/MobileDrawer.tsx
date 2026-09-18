@@ -36,6 +36,8 @@ interface MobileDrawerProps {
   onOpenSoundboard: () => void;
   onOpenBackup?: () => void;
   onToggleChat?: () => void;
+  isChatOpen?: boolean;
+  unreadChatCount?: number;
   voiceState?: VoiceState;
   onToggleMute?: () => void;
   onToggleDeafen?: () => void;
@@ -59,6 +61,8 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
   onOpenSoundboard,
   onOpenBackup,
   onToggleChat,
+  isChatOpen,
+  unreadChatCount,
   voiceState,
   onToggleMute,
   onToggleDeafen,
@@ -326,14 +330,37 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
 
           {onToggleChat && (
             <button
-              className="btn btn-secondary"
-              style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+              className={`btn btn-secondary ${isChatOpen ? 'active' : ''}`}
+              style={{
+                justifyContent: 'flex-start',
+                padding: '0.65rem',
+                position: 'relative',
+                backgroundColor: isChatOpen ? 'rgba(99, 102, 241, 0.2)' : undefined,
+                borderColor: isChatOpen ? 'var(--accent-primary)' : undefined,
+              }}
               onClick={() => {
                 onClose();
                 onToggleChat();
               }}
             >
-              <MessageSquare size={18} color="var(--accent-primary)" /> Chat & Dice Commands
+              <MessageSquare size={18} color="var(--accent-primary)" />
+              <span style={{ flex: 1, textAlign: 'left' }}>
+                {isChatOpen ? 'Close Chat Window' : 'Chat & Dice Commands'}
+              </span>
+              {unreadChatCount && unreadChatCount > 0 ? (
+                <span
+                  style={{
+                    backgroundColor: 'var(--accent-rose)',
+                    color: '#fff',
+                    borderRadius: '10px',
+                    fontSize: '0.7rem',
+                    padding: '2px 7px',
+                    fontWeight: 800,
+                  }}
+                >
+                  {unreadChatCount} new
+                </span>
+              ) : null}
             </button>
           )}
 

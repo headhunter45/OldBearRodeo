@@ -126,7 +126,7 @@ function nameGen(type) {
 85. ✅ The flyout submenu for selection tools does not appear. The icon and tool do change when I use the shortcut keys. Same for the fog.
 86. ✅ I want to combine the grid similarly and have different icons for snap to grid and show grid. The snap to grid can be the same grid icon, but make the show/hide be the same as the hide/show fog eye icons.
 87. ✅ Remove the sound icons from the top bar now that they are in the hamburger menu.
-88. Move the toggle chat button into the left menu as well.
+88. ✅ Move the toggle chat button into the left menu as well.
 89. Move dice roller, character sheet, initiative tracker, scene manager, add token, and backup and transfer, and soundbar buttons into the hamburger menu under the section with audio controls.
 90. When we know the dndbeyond id/url of a character prefill the sync url with that so the user can click sync to update it from dndbeyond.
 91. Let spell/skill/attack/item commands use the index from 1 of the results suggested with the bare command and include that index in the message that lists them.
