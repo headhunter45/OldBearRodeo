@@ -102,6 +102,7 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [expandedSpell, setExpandedSpell] = useState<string | null>(null);
+  const [expandedAction, setExpandedAction] = useState<string | null>(null);
   const [showOnlyTrainedSkills, setShowOnlyTrainedSkills] = useState(false);
   const [savedCharacters, setSavedCharacters] = useState<SavedCharacterRecord[]>(() =>
     getSavedCharacters(isGm)
@@ -771,68 +772,139 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
               </div>
             )}
 
-            {/* Spells & Features Section */}
-            <div>
-              <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
-                SPELLS & ACTIONS ({character.spells.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                {character.spells.map((spell) => {
-                  const isExpanded = expandedSpell === spell.id;
-                  return (
-                    <div
-                      key={spell.id}
-                      style={{
-                        backgroundColor: 'var(--bg-surface-elevated)',
-                        border: '1px solid var(--border-subtle)',
-                        borderRadius: 'var(--radius-sm)',
-                        padding: '0.6rem',
-                      }}
-                    >
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          cursor: 'pointer',
-                        }}
-                        onClick={() => setExpandedSpell(isExpanded ? null : spell.id)}
-                      >
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{spell.name}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
-                            {spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`} • {spell.castingTime}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                          <a
-                            href={spell.dndBeyondUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ color: 'var(--text-secondary)' }}
-                            onClick={(e) => e.stopPropagation()}
-                            title="View on D&D Beyond"
-                          >
-                            <ExternalLink size={14} />
-                          </a>
-                          {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-                        </div>
-                      </div>
+            {/* Actions Section (Bug #50) */}
+            {(character.actions || []).length > 0 && (
+              <div style={{ marginBottom: '1rem' }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                  ACTIONS ({(character.actions || []).length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {(character.actions || []).map((action, idx) => {
+                    const actionKey = `${action.name}-${idx}`;
+                    const isExpanded = expandedAction === actionKey;
+                    const details: string[] = [];
+                    if (action.reach) details.push(action.reach);
+                    else if (action.range) details.push(action.range);
+                    if (action.toHitModifier !== undefined) {
+                      details.push(action.toHitModifier >= 0 ? `+${action.toHitModifier} to hit` : `${action.toHitModifier} to hit`);
+                    }
+                    if (action.damage) details.push(action.damage);
+                    else if (action.damageDice) details.push(`${action.damageDice} damage`);
 
-                      {isExpanded && (
-                        <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginBottom: '4px' }}>
-                            <div>Range: {spell.range}</div>
-                            <div>Duration: {spell.duration}</div>
+                    return (
+                      <div
+                        key={actionKey}
+                        style={{
+                          backgroundColor: 'var(--bg-surface-elevated)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '0.6rem',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            cursor: action.description ? 'pointer' : 'default',
+                          }}
+                          onClick={() => {
+                            if (action.description) {
+                              setExpandedAction(isExpanded ? null : actionKey);
+                            }
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{action.name}</div>
+                            {details.length > 0 && (
+                              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                                {details.join(' • ')}
+                              </div>
+                            )}
                           </div>
-                          <div style={{ lineHeight: 1.4 }}>{spell.description}</div>
+                          {action.description && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                              {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-                  );
-                })}
+
+                        {isExpanded && action.description && (
+                          <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                            {action.description}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Spells Section */}
+            {(character.spells || []).length > 0 && (
+              <div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                  SPELLS ({character.spells.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {character.spells.map((spell) => {
+                    const isExpanded = expandedSpell === spell.id;
+                    return (
+                      <div
+                        key={spell.id}
+                        style={{
+                          backgroundColor: 'var(--bg-surface-elevated)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '0.6rem',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => setExpandedSpell(isExpanded ? null : spell.id)}
+                        >
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>{spell.name}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                              {spell.level === 0 ? 'Cantrip' : `Level ${spell.level}`} • {spell.castingTime}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <a
+                              href={spell.dndBeyondUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              style={{ color: 'var(--text-secondary)' }}
+                              onClick={(e) => e.stopPropagation()}
+                              title="View on D&D Beyond"
+                            >
+                              <ExternalLink size={14} />
+                            </a>
+                            {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                          </div>
+                        </div>
+
+                        {isExpanded && (
+                          <div style={{ marginTop: '0.5rem', paddingTop: '0.5rem', borderTop: '1px solid var(--border-subtle)', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginBottom: '4px' }}>
+                              <div>Range: {spell.range}</div>
+                              <div>Duration: {spell.duration}</div>
+                            </div>
+                            <div style={{ lineHeight: 1.4 }}>{spell.description}</div>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           /* Manual Player HP Editor (No sheet linked) */

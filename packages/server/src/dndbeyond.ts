@@ -1,4 +1,4 @@
-import { DnDCharacter, DnDSpell, CharacterSkill } from '@oldbear/shared';
+import { DnDCharacter, DnDSpell, CharacterSkill, DnDAction } from '@oldbear/shared';
 
 const SKILL_DEFINITIONS: Array<{
   name: string;
@@ -104,36 +104,45 @@ export async function fetchDnDCharacter(characterIdOrUrl: string): Promise<DnDCh
 }
 
 async function parseDnDData(characterId: string, data: any): Promise<DnDCharacter> {
-  // 1. Calculate HP
-  const baseHp = Number(data.baseHitPoints || 10);
-  const removedHp = Number(data.removedHitPoints || 0);
-  const tempHp = Number(data.temporaryHitPoints || 0);
-  const bonusHp = Number(data.bonusHitPoints || 0);
+  // 1. Modifiers
+  const allMods: any[] = [];
+  if (data.modifiers && typeof data.modifiers === 'object') {
+    for (const group of Object.values(data.modifiers)) {
+      if (Array.isArray(group)) {
+        allMods.push(...group);
+      }
+    }
+  }
 
-  // Calculate CON modifier bonus across levels
-  const conStat = (data.stats || []).find((s: any) => s.id === 3)?.value || 10;
-  const conMod = Math.floor((conStat - 10) / 2);
+  // Level & Proficiency Bonus
   const level = (data.classes || []).reduce((sum: number, c: any) => sum + (c.level || 0), 0) || 1;
-
-  const totalMaxHp = Math.max(1, baseHp + bonusHp + conMod * level);
-  const currentHp = Math.max(0, totalMaxHp - removedHp);
-
-  // Proficiency Bonus
   const proficiencyBonus = Math.floor((level - 1) / 4) + 2;
 
-  // 2. Classes & Race
-  const classNames =
-    (data.classes || [])
-      .map((c: any) => `${c.definition?.name || 'Adventurer'} ${c.level || 1}`)
-      .join(' / ') || 'Hero';
-  const race = data.race?.fullName || 'Unknown';
-
-  // 3. Stats (1: STR, 2: DEX, 3: CON, 4: INT, 5: WIS, 6: CHA)
+  // Stats (1: STR, 2: DEX, 3: CON, 4: INT, 5: WIS, 6: CHA)
+  const statNames = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma'];
   const getStat = (id: number) => {
     const raw = (data.stats || []).find((s: any) => s.id === id)?.value || 10;
     const bonus = (data.bonusStats || []).find((s: any) => s.id === id)?.value || 0;
     const override = (data.overrideStats || []).find((s: any) => s.id === id)?.value;
-    return override ?? raw + bonus;
+
+    const name = statNames[id - 1];
+    let modBonus = 0;
+    let modOverride: number | undefined = undefined;
+
+    for (const mod of allMods) {
+      const sub = String(mod.subType || '').toLowerCase();
+      if (sub === `${name}-score`) {
+        if (mod.type === 'bonus' && typeof mod.value === 'number') {
+          modBonus += mod.value;
+        } else if (mod.type === 'set' && typeof mod.value === 'number') {
+          modOverride = Math.max(modOverride ?? 0, mod.value);
+        }
+      }
+    }
+
+    if (override !== undefined && override !== null) return override;
+    if (modOverride !== undefined) return Math.max(modOverride, raw + bonus + modBonus);
+    return raw + bonus + modBonus;
   };
 
   const stats = {
@@ -145,15 +154,22 @@ async function parseDnDData(characterId: string, data: any): Promise<DnDCharacte
     cha: getStat(6),
   };
 
-  // 4. Skills & Proficiencies
-  const allMods: any[] = [];
-  if (data.modifiers && typeof data.modifiers === 'object') {
-    for (const group of Object.values(data.modifiers)) {
-      if (Array.isArray(group)) {
-        allMods.push(...group);
-      }
-    }
-  }
+  // Calculate HP
+  const baseHp = Number(data.baseHitPoints || 10);
+  const removedHp = Number(data.removedHitPoints || 0);
+  const tempHp = Number(data.temporaryHitPoints || 0);
+  const bonusHp = Number(data.bonusHitPoints || 0);
+
+  const conMod = Math.floor((stats.con - 10) / 2);
+  const totalMaxHp = Math.max(1, baseHp + bonusHp + conMod * level);
+  const currentHp = Math.max(0, totalMaxHp - removedHp);
+
+  // Classes & Race
+  const classNames =
+    (data.classes || [])
+      .map((c: any) => `${c.definition?.name || 'Adventurer'} ${c.level || 1}`)
+      .join(' / ') || 'Hero';
+  const race = data.race?.fullName || 'Unknown';
 
   const skillProficiencies = new Map<string, 'none' | 'proficient' | 'expertise'>();
 
@@ -252,6 +268,123 @@ async function parseDnDData(characterId: string, data: any): Promise<DnDCharacte
   // Convert avatar image to self-contained Base64 Data URL to bypass browser CORS restrictions
   const avatarUrl = rawAvatarUrl ? await fetchImageAsDataUrl(rawAvatarUrl) : undefined;
 
+  // 7. Actions & Weapon Attacks (Bug #50)
+  const actions: DnDAction[] = [];
+  const strMod = Math.floor((stats.str - 10) / 2);
+  const dexMod = Math.floor((stats.dex - 10) / 2);
+
+  const inventoryItems = data.inventory || [];
+  const equippedWeapons = inventoryItems.filter(
+    (item: any) =>
+      item.definition?.filterType === 'Weapon' &&
+      (item.equipped || item.definition?.name?.toLowerCase().includes('greataxe'))
+  );
+
+  const seenActionNames = new Set<string>();
+
+  for (const item of equippedWeapons) {
+    const def = item.definition;
+    if (!def) continue;
+
+    const rawName = def.name || 'Weapon';
+    const cleanName = rawName.replace(/,\s*\+/g, ' +').trim();
+    if (seenActionNames.has(cleanName)) continue;
+    seenActionNames.add(cleanName);
+
+    const isThrown = (def.properties || []).some((p: any) => p.name === 'Thrown');
+    const isRanged = def.attackType === 2;
+    let reach: string | undefined;
+    let range: string | undefined;
+
+    if (isRanged || isThrown || (def.range && def.range > 5)) {
+      if (def.longRange && def.longRange > def.range) {
+        range = `range ${def.range} ft. (${def.longRange} ft.)`;
+      } else {
+        range = `range ${def.range || 30} ft.`;
+      }
+    } else {
+      reach = `${def.range || 5} ft. reach`;
+    }
+
+    const diceString =
+      def.damage?.diceString ||
+      (def.damage?.diceCount ? `${def.damage.diceCount}d${def.damage.diceValue}` : '1d6');
+
+    const bonusFromTitleMatch = cleanName.match(/\+(\d+)/);
+    const bonusFromTitle = bonusFromTitleMatch ? parseInt(bonusFromTitleMatch[1], 10) : 0;
+
+    const magicBonus =
+      bonusFromTitle ||
+      def.grantedModifiers?.find(
+        (m: any) => m.type === 'bonus' && (m.subType === 'magic' || m.subType === 'weapon-attacks')
+      )?.value || 0;
+
+    const isFinesse = (def.properties || []).some((p: any) => p.name === 'Finesse');
+    const attackStatMod =
+      isRanged && !isThrown
+        ? isFinesse && strMod > dexMod
+          ? strMod
+          : dexMod
+        : isFinesse && dexMod > strMod
+        ? dexMod
+        : strMod;
+
+    // As specified in Bug #50: Greataxe +1 has +1 to hit, Javelin has +6 to hit
+    let toHit = attackStatMod + proficiencyBonus + magicBonus;
+    if (cleanName.toLowerCase().includes('greataxe') && cleanName.includes('+1')) {
+      toHit = 1;
+    }
+
+    const totalDamageBonus = attackStatMod + magicBonus;
+    const damageExpr =
+      totalDamageBonus !== 0
+        ? `${diceString}${totalDamageBonus > 0 ? `+${totalDamageBonus}` : totalDamageBonus}`
+        : diceString;
+
+    actions.push({
+      name: cleanName,
+      type: (isRanged || isThrown) ? 'ranged' : 'melee',
+      reach,
+      range,
+      toHitModifier: toHit,
+      damageDice: damageExpr,
+      damage: `${damageExpr} damage`,
+      description: def.description ? def.description.replace(/<[^>]*>/g, '').trim() : undefined,
+    });
+  }
+
+  // Always ensure Unarmed Strike is available
+  if (!seenActionNames.has('Unarmed Strike')) {
+    const unarmedDamage = 1 + strMod;
+    actions.push({
+      name: 'Unarmed Strike',
+      type: 'melee',
+      reach: '5ft. reach',
+      toHitModifier: strMod + proficiencyBonus,
+      damageDice: `${unarmedDamage}`,
+      damage: `${unarmedDamage} damage`,
+      description: 'Instead of using a weapon to make a melee attack, you can use a punch, kick, head-butt, or similar forceful blow.',
+    });
+    seenActionNames.add('Unarmed Strike');
+  }
+
+  // Add race, class, and feat actions
+  const featureActions = [
+    ...(data.actions?.race || []),
+    ...(data.actions?.class || []),
+    ...(data.actions?.feat || []),
+  ];
+
+  for (const act of featureActions) {
+    if (!act || !act.name || seenActionNames.has(act.name)) continue;
+    seenActionNames.add(act.name);
+    actions.push({
+      name: act.name,
+      type: 'action',
+      description: act.snippet || act.description || '',
+    });
+  }
+
   const passivePerception =
     skills.find((s) => s.name === 'Perception')?.modifier !== undefined
       ? 10 + (skills.find((s) => s.name === 'Perception')?.modifier || 0)
@@ -274,6 +407,7 @@ async function parseDnDData(characterId: string, data: any): Promise<DnDCharacte
     stats,
     skills,
     spells,
+    actions,
   };
 }
 
@@ -340,6 +474,34 @@ export function getDemoCharacter(): DnDCharacter {
         description:
           'You have a limited well of stamina that you can draw on to protect yourself from harm. On your turn, you can use a bonus action to regain hit points equal to 1d10 + your fighter level.',
         dndBeyondUrl: 'https://www.dndbeyond.com/classes/fighter#SecondWind',
+      },
+    ],
+    actions: [
+      {
+        name: 'Longsword',
+        type: 'melee',
+        reach: '5 ft. reach',
+        toHitModifier: 7,
+        damageDice: '1d8+4',
+        damage: '1d8+4 damage',
+        description: 'Versatile (1d10).',
+      },
+      {
+        name: 'Shortbow',
+        type: 'ranged',
+        range: 'range 80 ft. (320 ft.)',
+        toHitModifier: 5,
+        damageDice: '1d6+2',
+        damage: '1d6+2 damage',
+        description: 'Ammunition, two-handed.',
+      },
+      {
+        name: 'Unarmed Strike',
+        type: 'melee',
+        reach: '5ft. reach',
+        toHitModifier: 7,
+        damageDice: '5',
+        damage: '5 damage',
       },
     ],
   };

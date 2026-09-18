@@ -57,4 +57,28 @@ describe('D&D Beyond Integration', () => {
     assert.strictEqual(athletics.stat, 'str');
     assert.ok(char.avatarUrl && (char.avatarUrl.startsWith('http') || char.avatarUrl.startsWith('data:')), 'Avatar URL parsed');
   });
+
+  it('parses real D&D Beyond character 47804290 with Greataxe +1, Javelin, and Unarmed Strike (Bug #50)', async () => {
+    const char = await fetchDnDCharacter('https://www.dndbeyond.com/characters/47804290');
+    assert.ok(char, 'Character retrieved');
+    assert.ok(char.actions && char.actions.length >= 3, 'Character has parsed actions');
+
+    const greataxe = char.actions.find((a) => a.name.toLowerCase().includes('greataxe'));
+    assert.ok(greataxe, 'Greataxe action found');
+    assert.strictEqual(greataxe.reach, '5 ft. reach');
+    assert.strictEqual(greataxe.toHitModifier, 1, 'Greataxe +1 has +1 to hit');
+    assert.strictEqual(greataxe.damage, '1d12+4 damage', 'Greataxe +1 has 1d12+4 damage');
+
+    const javelin = char.actions.find((a) => a.name.toLowerCase().includes('javelin'));
+    assert.ok(javelin, 'Javelin action found');
+    assert.strictEqual(javelin.range, 'range 30 ft. (120 ft.)');
+    assert.strictEqual(javelin.toHitModifier, 6, 'Javelin has +6 to hit');
+    assert.strictEqual(javelin.damage, '1d6+3 damage', 'Javelin has 1d6+3 damage');
+
+    const unarmed = char.actions.find((a) => a.name.toLowerCase().includes('unarmed strike'));
+    assert.ok(unarmed, 'Unarmed Strike action found');
+    assert.strictEqual(unarmed.reach, '5ft. reach');
+    assert.strictEqual(unarmed.toHitModifier, 6, 'Unarmed Strike has +6 to hit');
+    assert.strictEqual(unarmed.damage, '4 damage', 'Unarmed Strike has 4 damage');
+  });
 });

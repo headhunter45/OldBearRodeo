@@ -187,6 +187,10 @@ export interface DnDAction {
   type?: string;
   toHitModifier?: number;
   damageDice?: string;
+  reach?: string;
+  range?: string;
+  damage?: string;
+  description?: string;
 }
 
 export interface DnDCharacter {
