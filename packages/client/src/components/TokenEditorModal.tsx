@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Token, Player } from '@oldbear/shared';
-import { X, Upload, Check } from 'lucide-react';
+import { X, Upload, Check, ZoomIn, ZoomOut, RotateCcw, Move } from 'lucide-react';
 import { saveAsset } from '../storage/db.js';
+import { traceTokenShape } from '../engine/TokenRenderer.js';
 
 interface TokenEditorModalProps {
   token: Token;
@@ -47,6 +48,190 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
   const [clipPanY, setClipPanY] = useState(token.clipPanY || 0);
   const [isProp, setIsProp] = useState(token.isProp || false);
   const [conditions, setConditions] = useState<string[]>(token.conditions || []);
+
+  const [previewImg, setPreviewImg] = useState<HTMLImageElement | null>(null);
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStartRef = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const touchDistRef = useRef<number | null>(null);
+  const touchStartZoomRef = useRef<number>(1);
+
+  // Load preview image element
+  useEffect(() => {
+    if (!imageUrl) {
+      setPreviewImg(null);
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => setPreviewImg(img);
+    img.onerror = () => setPreviewImg(null);
+    img.src = imageUrl;
+  }, [imageUrl]);
+
+  // Render interactive canvas preview with shape clipping, zoom, pan, and border (Bug #72)
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const w = canvas.width;
+    const h = canvas.height;
+    const cx = w / 2;
+    const cy = h / 2;
+    const r = (w - 20) / 2;
+
+    ctx.clearRect(0, 0, w, h);
+
+    // Dark backdrop with subtle grid
+    ctx.fillStyle = '#090d16';
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.save();
+    ctx.translate(cx, cy);
+
+    const zoom = clipZoom;
+    const panX = (clipPanX / 100) * r;
+    const panY = (clipPanY / 100) * r;
+    const drawSize = r * 2 * zoom;
+
+    if (previewImg) {
+      // 1. Draw entire uncropped image lightly dimmed in background to show cropping area
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      ctx.drawImage(previewImg, -drawSize / 2 + panX, -drawSize / 2 + panY, drawSize, drawSize);
+      ctx.restore();
+    }
+
+    // 2. Token base background
+    traceTokenShape(ctx, clipShape, r);
+    ctx.fillStyle = fillColor;
+    ctx.fill();
+
+    // 3. Clipped image / initials
+    ctx.save();
+    traceTokenShape(ctx, clipShape, r - borderWidth / 2);
+    ctx.clip();
+
+    if (previewImg) {
+      ctx.drawImage(previewImg, -drawSize / 2 + panX, -drawSize / 2 + panY, drawSize, drawSize);
+    } else {
+      ctx.fillStyle = fillColor;
+      ctx.fillRect(-r, -r, r * 2, r * 2);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = `bold ${Math.max(22, r * 0.5)}px Outfit, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const initials = name
+        .split(' ')
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join('')
+        .toUpperCase();
+      ctx.fillText(initials || '?', 0, 0);
+    }
+    ctx.restore();
+
+    // 4. Outer Ring
+    traceTokenShape(ctx, clipShape, r - borderWidth / 2);
+    ctx.strokeStyle = ringColor;
+    ctx.lineWidth = borderWidth;
+    ctx.stroke();
+
+    // 5. Guides when dragging
+    if (isDragging) {
+      ctx.save();
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.setLineDash([4, 4]);
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(-r, 0);
+      ctx.lineTo(r, 0);
+      ctx.moveTo(0, -r);
+      ctx.lineTo(0, r);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.restore();
+  }, [previewImg, clipShape, borderWidth, ringColor, fillColor, clipZoom, clipPanX, clipPanY, name, isDragging]);
+
+  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    setIsDragging(true);
+    dragStartRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      panX: clipPanX,
+      panY: clipPanY,
+    };
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (!isDragging || !dragStartRef.current) return;
+    const r = (180 - 20) / 2;
+    const dx = e.clientX - dragStartRef.current.x;
+    const dy = e.clientY - dragStartRef.current.y;
+    const nextPanX = Math.round(Math.max(-100, Math.min(100, dragStartRef.current.panX + (dx / r) * 100)));
+    const nextPanY = Math.round(Math.max(-100, Math.min(100, dragStartRef.current.panY + (dy / r) * 100)));
+    setClipPanX(nextPanX);
+    setClipPanY(nextPanY);
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    dragStartRef.current = null;
+  };
+
+  const handleWheel = (e: React.WheelEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    const delta = -e.deltaY * 0.0015;
+    setClipZoom((prev) => Math.max(0.5, Math.min(4.0, Number((prev + delta).toFixed(2)))));
+  };
+
+  const handleTouchStart = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 1) {
+      setIsDragging(true);
+      dragStartRef.current = {
+        x: e.touches[0].clientX,
+        y: e.touches[0].clientY,
+        panX: clipPanX,
+        panY: clipPanY,
+      };
+    } else if (e.touches.length === 2) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      touchDistRef.current = dist;
+      touchStartZoomRef.current = clipZoom;
+    }
+  };
+
+  const handleTouchMove = (e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length === 1 && isDragging && dragStartRef.current) {
+      const r = (180 - 20) / 2;
+      const dx = e.touches[0].clientX - dragStartRef.current.x;
+      const dy = e.touches[0].clientY - dragStartRef.current.y;
+      const nextPanX = Math.round(Math.max(-100, Math.min(100, dragStartRef.current.panX + (dx / r) * 100)));
+      const nextPanY = Math.round(Math.max(-100, Math.min(100, dragStartRef.current.panY + (dy / r) * 100)));
+      setClipPanX(nextPanX);
+      setClipPanY(nextPanY);
+    } else if (e.touches.length === 2 && touchDistRef.current) {
+      const dist = Math.hypot(
+        e.touches[0].clientX - e.touches[1].clientX,
+        e.touches[0].clientY - e.touches[1].clientY
+      );
+      const scale = dist / touchDistRef.current;
+      setClipZoom(Math.max(0.5, Math.min(4.0, Number((touchStartZoomRef.current * scale).toFixed(2)))));
+    }
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    dragStartRef.current = null;
+    touchDistRef.current = null;
+  };
 
   const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -135,38 +320,109 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
           </button>
         </div>
 
-        {/* Token Preview */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1.25rem' }}>
-          <div
-            style={{
-              width: '80px',
-              height: '80px',
-              borderRadius: '50%',
-              backgroundColor: fillColor,
-              border: `4px solid ${ringColor}`,
-              position: 'relative',
-              overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-              boxShadow: `0 0 15px ${ringColor}44`,
-            }}
-          >
-            {imageUrl ? (
-              <img src={imageUrl} alt="preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-            ) : (
-              <span style={{ fontSize: '2rem', fontWeight: 'bold' }}>{name[0]?.toUpperCase() || '?'}</span>
-            )}
+        {/* Token Preview & Interactive Cropper (Bug #72) */}
+        <div style={{ marginBottom: '1.25rem', backgroundColor: 'var(--bg-surface-elevated)', borderRadius: 'var(--radius-md)', padding: '1rem', border: '1px solid var(--border-subtle)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Move size={15} /> Token Preview & Crop
+            </div>
+            <div style={{ display: 'flex', gap: '0.4rem' }}>
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={() => setClipZoom((z) => Math.min(4.0, Number((z + 0.1).toFixed(2))))}
+                title="Zoom In"
+                style={{ width: '28px', height: '28px' }}
+              >
+                <ZoomIn size={15} />
+              </button>
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={() => setClipZoom((z) => Math.max(0.5, Number((z - 0.1).toFixed(2))))}
+                title="Zoom Out"
+                style={{ width: '28px', height: '28px' }}
+              >
+                <ZoomOut size={15} />
+              </button>
+              <button
+                type="button"
+                className="btn-icon"
+                onClick={() => {
+                  setClipZoom(1.0);
+                  setClipPanX(0);
+                  setClipPanY(0);
+                }}
+                title="Reset Crop & Pan"
+                style={{ width: '28px', height: '28px' }}
+              >
+                <RotateCcw size={15} />
+              </button>
+            </div>
           </div>
 
-          <div style={{ flex: 1 }}>
-            <label className="btn btn-secondary" style={{ cursor: 'pointer', display: 'inline-flex' }}>
-              <Upload size={16} /> Upload Image
-              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageFile} />
-            </label>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-              Images will be clipped to a circular token with a custom ring.
+          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                position: 'relative',
+                width: '180px',
+                height: '180px',
+                borderRadius: '8px',
+                overflow: 'hidden',
+                backgroundColor: '#090d16',
+                border: '1px solid var(--border-subtle)',
+                cursor: isDragging ? 'grabbing' : 'grab',
+                touchAction: 'none',
+                userSelect: 'none',
+                boxShadow: `0 4px 20px ${ringColor}22`,
+                flexShrink: 0,
+              }}
+            >
+              <canvas
+                ref={canvasRef}
+                width={180}
+                height={180}
+                style={{ width: '100%', height: '100%', display: 'block' }}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
+                onWheel={handleWheel}
+                onTouchStart={handleTouchStart}
+                onTouchMove={handleTouchMove}
+                onTouchEnd={handleTouchEnd}
+              />
+              <div
+                style={{
+                  position: 'absolute',
+                  bottom: '4px',
+                  right: '6px',
+                  fontSize: '0.65rem',
+                  color: 'rgba(255, 255, 255, 0.7)',
+                  backgroundColor: 'rgba(0, 0, 0, 0.65)',
+                  padding: '1px 5px',
+                  borderRadius: '3px',
+                  pointerEvents: 'none',
+                }}
+              >
+                {clipZoom.toFixed(1)}x
+              </div>
+            </div>
+
+            <div style={{ flex: 1, minWidth: '180px' }}>
+              <label className="btn btn-secondary" style={{ cursor: 'pointer', display: 'inline-flex', marginBottom: '0.6rem' }}>
+                <Upload size={16} /> Upload Image
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleImageFile} />
+              </label>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                <span style={{ color: 'var(--primary)', fontWeight: 600 }}>• Drag</span> preview to pan image.
+              </div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
+                <span style={{ color: 'var(--primary)', fontWeight: 600 }}>• Scroll or pinch</span> to zoom in/out.
+              </div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
+                Dimmed area shows full picture outside the token border.
+              </div>
             </div>
           </div>
         </div>
@@ -342,7 +598,7 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
             <input
               type="range"
               min="1"
-              max="12"
+              max="16"
               step="1"
               value={borderWidth}
               onChange={(e) => setBorderWidth(Number(e.target.value))}
@@ -352,13 +608,13 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
 
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-              Image Zoom ({clipZoom.toFixed(1)}x)
+              Image Zoom ({clipZoom.toFixed(2)}x)
             </label>
             <input
               type="range"
               min="0.5"
-              max="3"
-              step="0.1"
+              max="4.0"
+              step="0.05"
               value={clipZoom}
               onChange={(e) => setClipZoom(Number(e.target.value))}
               style={{ width: '100%', marginTop: '0.4rem' }}
@@ -372,9 +628,9 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
             <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
               <input
                 type="range"
-                min="-60"
-                max="60"
-                step="2"
+                min="-100"
+                max="100"
+                step="1"
                 value={clipPanX}
                 onChange={(e) => setClipPanX(Number(e.target.value))}
                 title="Pan X"
@@ -382,9 +638,9 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
               />
               <input
                 type="range"
-                min="-60"
-                max="60"
-                step="2"
+                min="-100"
+                max="100"
+                step="1"
                 value={clipPanY}
                 onChange={(e) => setClipPanY(Number(e.target.value))}
                 title="Pan Y"

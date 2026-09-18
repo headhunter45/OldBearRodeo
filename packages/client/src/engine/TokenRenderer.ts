@@ -14,7 +14,7 @@ export function getCachedImage(url?: string): HTMLImageElement | null {
   return img.complete && img.naturalWidth > 0 ? img : null;
 }
 
-function traceTokenShape(
+export function traceTokenShape(
   ctx: CanvasRenderingContext2D,
   shape: 'circle' | 'square' | 'rounded' | 'hexagon' | 'octagon',
   radius: number
