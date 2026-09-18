@@ -31,12 +31,19 @@ import {
   computeContentHash,
   findDuplicateAsset,
 } from '../storage/db.js';
+import {
+  isTetraCubeMonsterFile,
+  parseTetraCubeMonster,
+} from '../utils/monsterParser.js';
 
 interface DataBackupModalProps {
   session?: GameSession | null;
   isGm: boolean;
+  tokens?: Record<string, Token> | Token[];
+  activeMapId?: string;
   onRestoreSession?: (session: GameSession) => void;
   onAddMap?: (map: GameMap) => void;
+  onSpawnToken?: (asset: StoredAsset) => void;
   onClose: () => void;
 }
 
@@ -45,8 +52,11 @@ type AssetTab = 'maps' | 'tokens' | 'audio';
 export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   session,
   isGm,
+  tokens,
+  activeMapId,
   onRestoreSession,
   onAddMap,
+  onSpawnToken,
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<AssetTab>('tokens');
@@ -129,13 +139,31 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     setEditingId(null);
   };
 
-  // Upload Asset with Deduplication Check (Bug #30)
+  // Upload Asset with Deduplication Check (Bug #30) & TetraCube .monster import (Bug #73)
   const handleAssetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     setDuplicateWarning(null);
 
     for (const file of files) {
+      if (file.name.toLowerCase().endsWith('.monster') || (file.name.endsWith('.json') && !file.name.includes('backup'))) {
+        try {
+          const text = await file.text();
+          if (isTetraCubeMonsterFile(text, file.name)) {
+            const { asset } = parseTetraCubeMonster(text);
+            await saveAsset(asset);
+            await loadAssets();
+            setResultMessage({
+              type: 'success',
+              text: `Saved monster "${asset.name}" to Asset Manager library for encounter prep!`,
+            });
+            continue;
+          }
+        } catch (err) {
+          console.warn('Failed parsing monster file:', err);
+        }
+      }
+
       const reader = new FileReader();
       reader.onload = async () => {
         const dataUrl = reader.result as string;
@@ -165,6 +193,35 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
       reader.readAsDataURL(file);
     }
     e.target.value = '';
+  };
+
+  const handleModalDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files || []);
+    if (files.length === 0) return;
+
+    for (const file of files) {
+      if (file.name.toLowerCase().endsWith('.monster') || file.name.toLowerCase().endsWith('.json')) {
+        try {
+          const text = await file.text();
+          if (isTetraCubeMonsterFile(text, file.name)) {
+            const { asset } = parseTetraCubeMonster(text);
+            await saveAsset(asset);
+            await loadAssets();
+            setResultMessage({
+              type: 'success',
+              text: `Saved monster "${asset.name}" to library for encounter prep!`,
+            });
+            return;
+          }
+        } catch (err: any) {
+          setResultMessage({ type: 'error', text: `Failed to import monster: ${err.message}` });
+          return;
+        }
+      }
+    }
   };
 
   const togglePlayAudio = (asset: StoredAsset) => {

@@ -256,6 +256,10 @@ export class CanvasEngine {
     ctx.restore();
   }
 
+  public screenToWorld(screenX: number, screenY: number): Point {
+    return this.viewport.screenToWorld(screenX, screenY);
+  }
+
   // --- Pointer & Touch Interaction ---
 
   private onPointerDown = (e: PointerEvent) => {

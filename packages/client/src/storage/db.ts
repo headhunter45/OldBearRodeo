@@ -13,6 +13,10 @@ export interface StoredAsset {
   fillColor?: string;
   speed?: number;
   maxHp?: number;
+  armorClass?: number;
+  size?: number;
+  monsterData?: any;
+  character?: any;
   createdAt: number;
 }
 

@@ -1,14 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Upload, Map as MapIcon, Shield, Music, FileJson } from 'lucide-react';
+import { Upload, Map as MapIcon, Shield, Music, FileJson, Skull } from 'lucide-react';
 import { GameMap, Token } from '@oldbear/shared';
-import { saveAsset } from '../storage/db.js';
+import { saveAsset, StoredAsset } from '../storage/db.js';
 import { importAllData } from '../storage/BackupManager.js';
 import { TOAST_DURATION_MS } from '../config/toast.js';
+import {
+  isTetraCubeMonsterFile,
+  parseTetraCubeMonster,
+  createMonsterToken,
+} from '../utils/monsterParser.js';
 
 interface GlobalDropOverlayProps {
   isGm: boolean;
   activeMapId: string;
   gridSize: number;
+  tokens?: Record<string, Token> | Token[];
+  screenToWorld?: (x: number, y: number) => { x: number; y: number };
   onAddMap: (map: GameMap) => void;
   onAddToken: (token: Token) => void;
   onDataRestored?: () => void;
@@ -18,6 +25,8 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
   isGm,
   activeMapId,
   gridSize,
+  tokens,
+  screenToWorld,
   onAddMap,
   onAddToken,
   onDataRestored,
@@ -33,7 +42,10 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
     const handleDragEnter = (e: DragEvent) => {
       e.preventDefault();
       dragCounter++;
-      if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+      if (
+        (e.dataTransfer && e.dataTransfer.types.includes('Files')) ||
+        e.dataTransfer?.types.includes('application/oldbear-asset')
+      ) {
         setIsDragging(true);
       }
     };
@@ -59,30 +71,87 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
       dragCounter = 0;
       setIsDragging(false);
 
+      const mouseX = e.clientX;
+      const mouseY = e.clientY;
+      const worldPos = screenToWorld ? screenToWorld(mouseX, mouseY) : { x: mouseX, y: mouseY };
+      const existingList = Array.isArray(tokens) ? tokens : Object.values(tokens || {});
+
+      // 0. Check if an internal asset was dragged from Asset Manager (Bug #73)
+      const internalAssetJson = e.dataTransfer?.getData('application/oldbear-asset');
+      if (internalAssetJson) {
+        try {
+          const asset: StoredAsset = JSON.parse(internalAssetJson);
+          const newToken = createMonsterToken(asset, activeMapId, worldPos.x, worldPos.y, existingList);
+          onAddToken(newToken);
+          showToast(`Spawned "${newToken.name}" onto the battlemap!`);
+          return;
+        } catch (err) {
+          console.warn('Failed to parse dropped asset:', err);
+        }
+      }
+
       if (!e.dataTransfer || !e.dataTransfer.files || e.dataTransfer.files.length === 0) {
         return;
       }
 
       const files = Array.from(e.dataTransfer.files);
-      const mouseX = e.clientX;
-      const mouseY = e.clientY;
       setDropPosition({ x: mouseX, y: mouseY });
 
-      // 1. JSON Backup Files
-      const jsonFiles = files.filter((f) => f.name.endsWith('.json'));
-      if (jsonFiles.length > 0) {
-        try {
-          const text = await jsonFiles[0].text();
-          const res = await importAllData(text);
-          showToast(`Restored backup with ${res.assetCount} asset(s)!`);
-          onDataRestored?.();
-        } catch (err: any) {
-          showToast(`Backup error: ${err.message}`);
+      // 1. TetraCube .monster files (Bug #73)
+      const monsterFiles = files.filter((f) => f.name.toLowerCase().endsWith('.monster'));
+      if (monsterFiles.length > 0) {
+        for (let i = 0; i < monsterFiles.length; i++) {
+          const file = monsterFiles[i];
+          try {
+            const text = await file.text();
+            const { asset } = parseTetraCubeMonster(text);
+            await saveAsset(asset);
+            const offset = i * gridSize;
+            const newToken = createMonsterToken(
+              asset,
+              activeMapId,
+              worldPos.x + offset,
+              worldPos.y,
+              existingList
+            );
+            onAddToken(newToken);
+            existingList.push(newToken);
+            showToast(`Spawned "${newToken.name}" on battlemap & saved to Asset Manager!`);
+          } catch (err: any) {
+            showToast(`Error importing monster: ${err.message}`);
+          }
         }
         return;
       }
 
-      // 2. Audio Files
+      // 2. JSON Files (Backups or Monster JSON)
+      const jsonFiles = files.filter((f) => f.name.endsWith('.json'));
+      if (jsonFiles.length > 0) {
+        for (const jsonFile of jsonFiles) {
+          try {
+            const text = await jsonFile.text();
+            if (isTetraCubeMonsterFile(text, jsonFile.name)) {
+              const { asset } = parseTetraCubeMonster(text);
+              await saveAsset(asset);
+              const newToken = createMonsterToken(asset, activeMapId, worldPos.x, worldPos.y, existingList);
+              onAddToken(newToken);
+              existingList.push(newToken);
+              showToast(`Spawned "${newToken.name}" on battlemap & saved to Asset Manager!`);
+              return;
+            }
+
+            const res = await importAllData(text);
+            showToast(`Restored backup with ${res.assetCount} asset(s)!`);
+            onDataRestored?.();
+            return;
+          } catch (err: any) {
+            showToast(`Backup error: ${err.message}`);
+          }
+        }
+        return;
+      }
+
+      // 3. Audio Files
       const audioFiles = files.filter(
         (f) => f.type.startsWith('audio/') || f.name.match(/\.(mp3|wav|ogg|m4a|aac)$/i)
       );
@@ -106,7 +175,7 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
         return;
       }
 
-      // 3. Image Files
+      // 4. Image Files
       const imageFiles = files.filter(
         (f) => f.type.startsWith('image/') || f.name.match(/\.(png|jpe?g|webp|gif|svg)$/i)
       );
@@ -315,6 +384,9 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
             <div style={{ display: 'flex', gap: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <MapIcon size={16} /> Maps & Tokens
+              </span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Skull size={16} /> Monsters (.monster)
               </span>
               <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                 <Music size={16} /> Audio & SFX
