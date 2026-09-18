@@ -9,6 +9,7 @@ import {
   DnDCharacter,
   ScreenMarker,
   ChatMessage,
+  generateRandomName,
 } from '@oldbear/shared';
 import { CanvasEngine, ActiveTool } from './engine/CanvasEngine.js';
 import { NetworkClient } from './network/NetworkClient.js';
@@ -122,7 +123,11 @@ export const App: React.FC = () => {
       window.history.replaceState({}, '', newUrl);
     }
 
-    const savedName = localStorage.getItem('oldbear_player_name') || 'Adventurer';
+    let savedName = localStorage.getItem('oldbear_player_name');
+    if (!savedName || savedName === 'Adventurer') {
+      savedName = generateRandomName();
+      localStorage.setItem('oldbear_player_name', savedName);
+    }
     const savedColor = localStorage.getItem('oldbear_player_color') || '#6366f1';
     const savedGmKey = localStorage.getItem(`oldbear_gmkey_${roomId}`) || undefined;
 
@@ -1580,7 +1585,7 @@ export const App: React.FC = () => {
                     if (net) {
                       const params = new URLSearchParams(window.location.search);
                       const roomId = params.get('room') || 'default-room';
-                      const savedName = localStorage.getItem('oldbear_player_name') || 'Adventurer';
+                      const savedName = localStorage.getItem('oldbear_player_name') || generateRandomName();
                       const savedColor = localStorage.getItem('oldbear_player_color') || '#6366f1';
                       const savedGmKey = localStorage.getItem(`oldbear_gmkey_${roomId}`) || undefined;
                       net.connect(roomId, savedName, savedColor, savedGmKey);

@@ -4,6 +4,7 @@ import {
   ClientToServerMessage,
   ServerToClientMessage,
   Player,
+  generateRandomName,
 } from '@oldbear/shared';
 import {
   getSession,
@@ -101,7 +102,7 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
 
       const player: Player = {
         id: playerId,
-        name: playerName || (isGm ? 'Game Master' : 'Player'),
+        name: playerName || (isGm ? 'Game Master' : generateRandomName()),
         role: isGm ? 'gm' : 'player',
         color: playerColor || '#3b82f6',
         connected: true,
