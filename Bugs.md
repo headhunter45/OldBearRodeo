@@ -46,7 +46,7 @@
 46. Move the ports for client, server, and nginx to a .env file and create a .env.example file with the same ports listed. Is there anything else we should move to the .env file?
 47. User's mic should be muted by default and we shouldn't request the permission unless they unmute it.
 48. Give users a randomly generated name from this list ```var nm1 = ["A", "Ara", "Alfo", "Bari", "Be", "Bo", "Bha", "Bu", "Ba", "Bra", "Bro", "Brou", "Bru", "Da", "Dalo", "Dare", "De", "Dhu", "Dho", "Do", "Dora", "Dwo", "Dou", "Duri", "Du", "El", "Eri", "Fi", "Fo", "Fo", "Ga", "Gi", "Gla", "Glori", "Go", "Gra", "Gro", "Groo", "Gru", "Grou", "Ha", "Ha", "He", "He", "Ho", "Hou", "Hu", "Ja", "Jo", "Ka", "Khe", "Khu", "Khou", "Ko", "Ku", "Ki", "Kra", "Kro", "Lo", "Lu", "Lo", "Ma", "Mo", "Mu", "Na", "No", "Nu", "Nora", "Nura", "Ne", "No", "O", "Ori", "Rei", "Ra", "Ru", "Sa", "Si", "Sna", "Sko", "Ska", "Stro", "The", "Thi", "Tho", "Thra", "Tha", "Tore", "Tha", "Thra", "Thro", "Thu", "Tu", "U", "Umi", "Va", "Vo", "Whu", "We", "Wera", "Yu", "Yo", "Ya"];
-var nm2 = ["b", "br", "dd", "d", "dr", "dm", "dgr", "f", "fr", "gr", "gg", "gh", "gn", "k", "kh", "kgr", "kdr", "kk", "kh", "kr", "l", "lg", "lgr", "ldr", "lm", "md", "mn", "m", "mm", "mr", "n", "nd", "ndr", "ngr", "nm", "r", "rr", "rgr", "rdr", "rb", "rg", "rn", "rh", "rd", "rm", "rs", "rf", "s", "ss", "sdr", "sgr", "st", "str", "t", "tr", "tm", "th", "tdr", "tgr", "v", "vr", "z", "zm", "zn", "zz"];
+var nm2 = ["b", "br", "dd", "d", "dr", "dm", "dgr", "f", "fr", "gr", "gg", "gh", "gn", "k", "kh", "kgr", "kdr", "kk", "kh", "kr", "l", "lg", "lgr", "ldr", "lm", "md", "mn", "m", "mm", "mr", "n", "nd", "ndr", "ngr", "nm", "r", "rr", "rgr", "rdr", "rb", "rg", "rn", "rh", "rd", "rm", "rs", "rf", "s", "ss", "sdr", "slkgr", "st", "str", "t", "tr", "tm", "th", "tdr", "tgr", "v", "vr", "z", "zm", "zn", "zz"];
 var nm3 = ["ac", "aic", "aec", "ec", "eac", "ic", "oc", "oic", "ouc", "ack", "aeck", "eck", "eack", "ick", "ock", "oick", "ouck", "uck", "uc", "ad", "aed", "ed", "ead", "id", "od", "oid", "oud", "ud", "uid", "ag", "aeg", "eg", "eag", "ig", "og", "oug", "ug", "ak", "aek", "ek", "eak", "ik", "ok", "oki", "uk", "uik", "ouk", "uki", "al", "ael", "el", "eal", "il", "ol", "oli", "olin", "olim", "olir", "oul", "ul", "uli", "ulim", "ulir", "uil", "am", "ami", "amli", "amri", "aem", "em", "eam", "im", "om", "omli", "omri", "omi", "oum", "um", "umi", "umir", "umin", "umli", "umlir", "umlin", "umri", "an", "aen", "en", "ean", "in", "on", "onlim", "onlir", "oun", "un", "unli", "unri", "ar", "arlum", "arlun", "arlug", "arlig", "aer", "er", "erlum", "erlun", "erlug", "erlig", "ear", "ir", "irlum", "irlun", "or", "orli", "orlim", "orlum", "orlun", "orlig", "orlug", "oir", "our", "ur", "uri", "urim", "urum", "us", "as", "ous", "aes", "eas", "at", "atir", "atum", "atin", "aet", "et", "eat", "it", "ot", "otir", "atin", "otum", "out", "ut", "ath", "aeth", "eth", "eath", "ith", "oth", "outh", "uth"];
 var nm4 = ["A", "Ara", "Alfo", "Bari", "Be", "Bo", "Bha", "Bu", "Ba", "Bra", "Bro", "Brou", "Bru", "Da", "Dalo", "Dare", "De", "Dhu", "Dho", "Do", "Dora", "Dwo", "Dou", "Duri", "Du", "El", "Eri", "Fi", "Fo", "Fo", "Ga", "Gi", "Gla", "Glori", "Go", "Gra", "Gro", "Groo", "Gru", "Grou", "Ha", "Ha", "He", "He", "Ho", "Hou", "Hu", "Ja", "Jo", "Ka", "Khe", "Khu", "Khou", "Ko", "Ku", "Ki", "Kra", "Kro", "Lo", "Lu", "Lo", "Ma", "Mo", "Mu", "Na", "No", "Nu", "Nora", "Nura", "Ne", "No", "O", "Ori", "Rei", "Ra", "Ru", "Sa", "Si", "Sna", "Sko", "Ska", "Stro", "The", "Thi", "Tho", "Thra", "Tha", "Tore", "Tha", "Thra", "Thro", "Thu", "Tu", "U", "Umi", "Va", "Vo", "Whu", "We", "Wera", "Yu", "Yo", "Ya"];
 var nm5 = ["b", "br", "dd", "d", "dr", "dm", "dgr", "dw", "f", "fr", "gr", "gg", "gh", "gn", "k", "kh", "kgr", "kdr", "kk", "kw", "kh", "kr", "l", "lg", "lgr", "ldr", "lm", "md", "mw", "mn", "m", "mm", "mr", "n", "nd", "ndr", "nw", "ngr", "nm", "r", "rr", "rgr", "rdr", "rb", "rg", "rn", "rh", "rd", "rm", "rs", "rf", "s", "ss", "sdr", "sgr", "st", "str", "t", "tr", "tm", "th", "tdr", "tgr", "v", "vr", "w", "z", "zm", "zn", "zz"];
@@ -106,3 +106,40 @@ function nameGen(type) {
 68. I like the list of roles in the dice roller. I want it to be per user and scrollable so everyone can see their own rolls there.
 69. Make toast length be configurable in .env for now
 70. When I'm in the asset manager I want to be able to make a scene from a map directly from there.
+71. When we show a token's attacks can we highlight them if they are reactions or bonus actions. I mainly want the bonus and reaction highlights in the character view and when running `/attack` or `/spell`.
+72. The token image zoom, crop, and pan controls did nothing. Can we integrate them into the image preview better so a user can see the cropping shape and drag/pinch to adjust the zoom and offset.
+73. Support importing TetraCube `.monster` files as monster/NPC assets with full stats, AC, HP, speed, and actions. Setup dual-drop support for monster files:
+    - Drop `.monster` onto the Battlemap directly: It saves the creature to the Asset Manager and instantly drops a ready-to-fight token at the mouse cursor.
+    - Drop `.monster` into the Asset Manager: It saves to the library for encounter prep without cluttering the current map.
+    - When a GM drags a monster from the Asset Manager onto the map, it spawns a token with those settings, art, and auto-numbered names (e.g. Ankheg 1, Ankheg 2), with clickable statblock attacks and actions.
+74. Multi-file image drag-and-drop import: when image files are dragged in, prompt the user with a single unified view listing all dropped files. Allow toggling/selecting each file as a Map, Token, or Prop. Include bulk-selection aids ("Set all to Tokens", "Set all to Maps", "Set all to Props", "Check all") since users may import many images at once.
+
+## Future Ideas AGENTS DO NOT IMPLEMENT YET
+- **Discord Activity Integration**: Embed OldBearRodeo directly inside Discord voice channels using the Discord Embedded App SDK so players can launch and join sessions with a single click from their voice call, without needing room codes or link sharing.
+- **Discord Two-Way Bot Sync**: Full two-way sync where messages typed in Discord are also relayed into OldBearRodeo chat via a Discord bot gateway.
+- **WebRTC Webcam Video**: Floating, draggable picture-in-picture webcam tiles for players with volume sliders, speaking rings, and minimize/dock controls.
+- **Live Video Feed Tokens**: Render a player's live webcam video feed directly inside their controlling token on the canvas battlemap using `ctx.drawImage(videoElement)`.
+- **CLI / Terminal Chat Client**: Lightweight terminal client or script connecting to the WebSocket server (`/ws`) to monitor chat and roll dice from the command line or stream decks.
+- **`/item` Command with D&D Beyond Lookup & Caching**:
+  - `/item list`: Outputs a list of items the user currently has (visible only to the user).
+  - `/item <dndbeyond url or id>`: Fetches item details from D&D Beyond (e.g. `https://www.dndbeyond.com/magic-items/9228356-bag-of-holding` or ID `9228356-bag-of-holding`) and displays the formatted description in chat.
+  - Cache all unique items locally in storage by their D&D Beyond ID (e.g., `9228356-bag-of-holding`) so repeated lookups do not hit the site again.
+- **D&D Beyond Monster, Item & Character Importing by URL / ID**:
+  - Allow importing and caching monsters, items, and characters from D&D Beyond by pasting their URL or slug/ID (e.g., `https://www.dndbeyond.com/monsters/16939-kobold` for monsters).
+  - Cache all fetched entities in local storage for fast offline access and search.
+- **Direct Token Creation from D&D Beyond**:
+  - Add tokens directly from D&D Beyond monster or character URLs/IDs, automatically caching the official avatar/token art and populating the statblock on the token.
+- **D&D Beyond Homebrew and Private Characters Support**:
+  - Add support for importing private character sheets and homebrew content (e.g., via user-supplied D&D Beyond `CobaltSession` authentication cookie/token in settings, or via a companion browser extension).
+- Discord webhook one-way chat & roll sync:
+    - Add one-way sync from OldBearRodeo to a Discord text channel via a Discord webhook URL.
+    - Add `/discord webhook <webhook url>` to configure the webhook URL.
+    - Add `/discord webhook none` to clear/disable the webhook.
+    - Running `/discord` with no parameters should display usage instructions.
+    - All output from `/discord` commands must only be visible to the user executing them (ephemeral / whisper).
+    - Only allow GMs to execute `/discord` commands.
+    - When enabled, chat messages and dice rolls are automatically posted to the Discord channel via the webhook.
+- Sort out dndbeyond authentication.
+    - Copy the CobaltSession auth token and forward to the api. Store this in settings or enter via a command.
+    - Add a browser extension with a 1 click send to oldbear any supported url type.
+    - Dire json paste/drop. This is probably worth having anyway to import a character.
