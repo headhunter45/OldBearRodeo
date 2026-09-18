@@ -125,7 +125,7 @@ function nameGen(type) {
 84. ✅ Refreshing the page adds me to the connected list again repeatedly.
 85. ✅ The flyout submenu for selection tools does not appear. The icon and tool do change when I use the shortcut keys. Same for the fog.
 86. ✅ I want to combine the grid similarly and have different icons for snap to grid and show grid. The snap to grid can be the same grid icon, but make the show/hide be the same as the hide/show fog eye icons.
-87. Remove the sound icons from the top bar now that they are in the hamburger menu.
+87. ✅ Remove the sound icons from the top bar now that they are in the hamburger menu.
 88. Move the toggle chat button into the left menu as well.
 89. Move dice roller, character sheet, initiative tracker, scene manager, add token, and backup and transfer, and soundbar buttons into the hamburger menu under the section with audio controls.
 90. When we know the dndbeyond id/url of a character prefill the sync url with that so the user can click sync to update it from dndbeyond.

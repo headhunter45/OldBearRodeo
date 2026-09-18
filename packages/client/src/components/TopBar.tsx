@@ -10,10 +10,6 @@ import {
   Plus,
   Copy,
   Check,
-  Mic,
-  MicOff,
-  Headphones,
-  Radio,
   Database,
   MessageSquare,
 } from 'lucide-react';
@@ -72,15 +68,6 @@ export const TopBar: React.FC<TopBarProps> = ({
     setCopied(true);
     setTimeout(() => setCopied(false), 2500);
   };
-
-  const isSendingAudio =
-    !voiceState?.isMuted &&
-    !voiceState?.isForceMuted &&
-    Boolean(voiceState?.isSpeaking || voiceState?.isPttActive);
-
-  const isReceivingAudio =
-    !voiceState?.isDeafened &&
-    (players.some((p) => p.id !== localPlayer?.id && p.isSpeaking) || Boolean(voiceState?.isAudioStreaming));
 
   return (
     <header
@@ -236,73 +223,6 @@ export const TopBar: React.FC<TopBarProps> = ({
         >
           {copied ? <Check size={14} color="#10b981" /> : <Share2 size={14} />}
           <span className="topbar-map-label">{copied ? 'Link Copied!' : 'Invite'}</span>
-        </button>
-
-        {/* Quick Voice Controls */}
-        <button
-          className={`btn-icon topbar-desktop-only ${isSendingAudio ? 'anim-sending-audio' : ''}`}
-          onClick={onToggleMute}
-          title={
-            voiceState?.isForceMuted
-              ? 'Muted by GM'
-              : voiceState?.isMuted
-              ? 'Unmute Microphone'
-              : isSendingAudio
-              ? 'Transmitting Voice Audio'
-              : 'Mute Microphone'
-          }
-          style={{
-            color:
-              voiceState?.isForceMuted || voiceState?.isMuted
-                ? 'var(--accent-rose)'
-                : isSendingAudio
-                ? 'var(--accent-emerald)'
-                : '#ffffff',
-            backgroundColor:
-              voiceState?.isForceMuted || voiceState?.isMuted
-                ? 'rgba(244, 63, 94, 0.15)'
-                : isSendingAudio
-                ? 'rgba(16, 185, 129, 0.25)'
-                : undefined,
-          }}
-        >
-          {voiceState?.isForceMuted || voiceState?.isMuted ? <MicOff size={18} /> : <Mic size={18} />}
-        </button>
-
-        <button
-          className={`btn-icon topbar-desktop-only ${isReceivingAudio ? 'anim-receiving-audio' : ''}`}
-          onClick={onToggleDeafen}
-          title={
-            voiceState?.isDeafened
-              ? 'Undeafen'
-              : isReceivingAudio
-              ? 'Receiving Audio Stream / Voice'
-              : 'Deafen (Mute incoming sound & mic)'
-          }
-          style={{
-            color:
-              voiceState?.isDeafened
-                ? 'var(--accent-rose)'
-                : isReceivingAudio
-                ? '#38bdf8'
-                : '#ffffff',
-            backgroundColor:
-              voiceState?.isDeafened
-                ? 'rgba(244, 63, 94, 0.15)'
-                : isReceivingAudio
-                ? 'rgba(56, 189, 248, 0.25)'
-                : undefined,
-          }}
-        >
-          <Headphones size={18} />
-        </button>
-
-        <button
-          className="btn-icon topbar-desktop-only"
-          onClick={onOpenVoiceSettings}
-          title="Voice & Audio Settings"
-        >
-          <Radio size={18} />
         </button>
 
         {/* Chat & Dice Commands Toggle (Bug #45) */}
