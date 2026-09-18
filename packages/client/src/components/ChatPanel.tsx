@@ -100,7 +100,7 @@ export function processSlashCommand(
   // 1. /help
   if (cmd === 'help') {
     sendPrivateSystemMessage(
-      `Available commands:\n• /roll [count]d[sides][+/-mod] [adv|dis] - Roll any dice (e.g. /roll 1d20+5 adv)\n• /attack [weapon] [adv|dis] - Roll to-hit & damage from sheet (e.g. /attack Longsword)\n• /skill [skill] [adv|dis] - Roll a character skill check (e.g. /skill Stealth dis)\n• /spell [spell] [adv|dis] - Roll a spell attack from character sheet\n• /sync [url or id] [token index] - Sync character sheet and token with D&D Beyond`
+      `Available commands:\n• /roll [count]d[sides][+/-mod] [adv|dis] - Roll any dice (e.g. /roll 1d20+5 adv)\n• /attack [weapon] [adv|dis] - Roll to-hit & damage from sheet (e.g. /attack Longsword)\n• /skill [skill] [adv|dis] - Roll a character skill check (e.g. /skill Stealth dis)\n• /spell [spell] [adv|dis] - Roll a spell attack from character sheet\n• /sync [url or id] [token index] - Sync character sheet and token with D&D Beyond\n• /tokens - List all tokens and their index number available to sync`
     );
     return true;
   }
@@ -515,6 +515,30 @@ export function processSlashCommand(
             );
           });
 
+        return true;
+      }
+
+      // 7. /tokens
+      if (cmd === 'tokens') {
+        const syncTokens = context.tokens || [];
+        if (syncTokens.length === 0) {
+          sendPrivateSystemMessage(
+            `No controllable tokens found on the map to sync.`,
+            'Tokens'
+          );
+          return true;
+        }
+
+        const lines = syncTokens.map((t, idx) => {
+          const hpStr = t.maxHp ? ` [HP: ${t.currentHp ?? 0}/${t.maxHp}]` : '';
+          const charStr = t.character ? ` (${t.character.classes || t.character.name})` : '';
+          return `${idx + 1}. ${t.name}${charStr}${hpStr}`;
+        });
+
+        sendPrivateSystemMessage(
+          `Controllable tokens available to sync:\n${lines.join('\n')}\n\nUse /sync <url or id> <index> to sync a character.`,
+          'Tokens'
+        );
         return true;
       }
   return false;

@@ -220,4 +220,41 @@ describe('Dice Parser & Slash Command Utilities', () => {
     assert.strictEqual(updatedTokens.length, 2);
     assert.strictEqual(updatedTokens[1].tokenId, 'tok-1');
   });
+
+  it('lists tokens and their index numbers with /tokens (Bug #56)', () => {
+    const testPlayer = {
+      id: 'p-1',
+      name: 'Ranger',
+      role: 'player' as const,
+      color: '#10b981',
+      connected: true,
+      assignedTokenIds: [],
+    };
+
+    const mockTokens = [
+      { id: 'tok-1', name: 'Aragorn', x: 0, y: 0, size: 1, currentHp: 20, maxHp: 20 },
+      { id: 'tok-2', name: 'Legolas', x: 5, y: 5, size: 1, currentHp: 15, maxHp: 15 },
+    ];
+
+    const sentMessages: any[] = [];
+    const ctx = {
+      player: testPlayer,
+      tokens: mockTokens as any,
+      onSendMessage: (msg: any) => sentMessages.push(msg),
+    };
+
+    // When tokens are available
+    processSlashCommand('/tokens', ctx);
+    assert.strictEqual(sentMessages.length, 1);
+    const msg = sentMessages[0];
+    assert.strictEqual(msg.isEphemeral, true);
+    assert.strictEqual(msg.recipientId, 'p-1');
+    assert.ok(msg.text.includes('1. Aragorn'));
+    assert.ok(msg.text.includes('2. Legolas'));
+
+    // When no tokens are available
+    processSlashCommand('/tokens', { ...ctx, tokens: [] });
+    assert.strictEqual(sentMessages.length, 2);
+    assert.ok(sentMessages[1].text.includes('No controllable tokens'));
+  });
 });
