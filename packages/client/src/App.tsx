@@ -371,6 +371,9 @@ export const App: React.FC = () => {
         }
 
         case 'chat-message': {
+          if (msg.message.recipientId && msg.message.recipientId !== localPlayer?.id) {
+            break;
+          }
           setChatMessages((prev) => [...prev, msg.message]);
           if (!isChatOpen) {
             setUnreadChatCount((c) => c + 1);
@@ -1190,7 +1193,13 @@ export const App: React.FC = () => {
           player={localPlayer}
           character={localPlayer.dndBeyondCharacter}
           messages={chatMessages}
-          onSendMessage={(m) => networkRef.current?.send({ type: 'chat-send', message: m })}
+          onSendMessage={(m) => {
+            if (m.isEphemeral) {
+              setChatMessages((prev) => [...prev, m]);
+            } else {
+              networkRef.current?.send({ type: 'chat-send', message: m });
+            }
+          }}
           onBroadcastRoll={(r) => {
             networkRef.current?.send({ type: 'dice-roll', roll: r });
             setActiveRollAnnouncement(r);

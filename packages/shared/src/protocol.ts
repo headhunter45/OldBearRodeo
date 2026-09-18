@@ -42,6 +42,8 @@ export interface ChatMessage {
   timestamp: number;
   roll?: DiceRollResult;
   isCommand?: boolean;
+  isEphemeral?: boolean;
+  recipientId?: string;
 }
 
 export type ServerToClientMessage =

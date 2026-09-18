@@ -55,46 +55,44 @@ export function parseDiceExpression(expr: string, advMode?: 'normal' | 'advantag
   };
 }
 
-export const ChatPanel: React.FC<ChatPanelProps> = ({
-  player,
-  character,
-  messages,
-  onSendMessage,
-  onBroadcastRoll,
-  isOpen,
-  onToggleOpen,
-}) => {
-  const [inputText, setInputText] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+export function processSlashCommand(
+  raw: string,
+  context: {
+    player: Player;
+    character?: DnDCharacter;
+    onSendMessage: (msg: ChatMessage) => void;
+    onBroadcastRoll?: (roll: DiceRollResult) => void;
+  }
+): boolean {
+  const text = raw.trim();
+  if (!text || !text.startsWith('/')) return false;
 
-  useEffect(() => {
-    if (isOpen) {
-      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [messages, isOpen]);
+  const parts = text.slice(1).split(/\s+/);
+  const cmd = parts[0].toLowerCase();
+  const args = parts.slice(1);
+  const { player, character, onSendMessage, onBroadcastRoll } = context;
 
-  const handleCommand = (raw: string) => {
-    const text = raw.trim();
-    if (!text) return;
-
-    // Check for slash commands
-    if (text.startsWith('/')) {
-      const parts = text.slice(1).split(/\s+/);
-      const cmd = parts[0].toLowerCase();
-      const args = parts.slice(1);
-
-      // 1. /help
-      if (cmd === 'help') {
+      // Helper to send client-only ephemeral messages for caller
+      const sendPrivateSystemMessage = (msgText: string, title = 'VTT Guide', color = '#6366f1') => {
         onSendMessage({
           id: crypto.randomUUID(),
           senderId: 'system',
-          senderName: 'VTT Guide',
-          senderColor: '#6366f1',
-          text: `Available commands:\n• /roll [count]d[sides][+/-mod] [adv|dis] - Roll any dice (e.g. /roll 1d20+5 adv)\n• /attack [weapon] [adv|dis] - Roll to-hit & damage from sheet (e.g. /attack Longsword)\n• /skill [skill] [adv|dis] - Roll a character skill check (e.g. /skill Stealth dis)\n• /spell [spell] [adv|dis] - Roll a spell attack from character sheet`,
+          senderName: title,
+          senderColor: color,
+          text: msgText,
           timestamp: Date.now(),
           isCommand: true,
+          isEphemeral: true,
+          recipientId: player.id,
         });
-        return;
+      };
+
+      // 1. /help
+      if (cmd === 'help') {
+        sendPrivateSystemMessage(
+          `Available commands:\n• /roll [count]d[sides][+/-mod] [adv|dis] - Roll any dice (e.g. /roll 1d20+5 adv)\n• /attack [weapon] [adv|dis] - Roll to-hit & damage from sheet (e.g. /attack Longsword)\n• /skill [skill] [adv|dis] - Roll a character skill check (e.g. /skill Stealth dis)\n• /spell [spell] [adv|dis] - Roll a spell attack from character sheet`
+        );
+        return true;
       }
 
       // 2. /roll [expr] [adv|dis]
@@ -109,16 +107,12 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
 
         const parsed = parseDiceExpression(expr, advMode);
         if (!parsed) {
-          onSendMessage({
-            id: crypto.randomUUID(),
-            senderId: 'system',
-            senderName: 'System',
-            senderColor: '#f43f5e',
-            text: `Invalid roll syntax: "${expr}". Use /roll 1d20+4 or /roll 2d6+2 adv`,
-            timestamp: Date.now(),
-            isCommand: true,
-          });
-          return;
+          sendPrivateSystemMessage(
+            `Invalid roll syntax: "${expr}". Use /roll 1d20+4 or /roll 2d6+2 adv`,
+            'System',
+            '#f43f5e'
+          );
+          return true;
         }
 
         const rollResult: DiceRollResult = {
@@ -146,69 +140,55 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           timestamp: Date.now(),
           roll: rollResult,
         });
-        return;
+        return true;
       }
 
-      // 3. /attack [name] [adv|dis] or /spell [name] [adv|dis]
-      if (cmd === 'attack' || cmd === 'spell') {
-        if (!character) {
-          onSendMessage({
-            id: crypto.randomUUID(),
-            senderId: 'system',
-            senderName: 'System',
-            senderColor: '#f43f5e',
-            text: `Please link or select a D&D Beyond character sheet first to use /${cmd}`,
-            timestamp: Date.now(),
-            isCommand: true,
-          });
-          return;
-        }
-
+      // 3. /attack [name] [adv|dis]
+      if (cmd === 'attack') {
         const lastArg = args[args.length - 1]?.toLowerCase();
         let advMode: 'normal' | 'advantage' | 'disadvantage' = 'normal';
-        let attackQuery = args.join(' ');
+        let attackQuery = args.join(' ').trim();
 
         if (lastArg === 'adv' || lastArg === 'advantage') {
           advMode = 'advantage';
-          attackQuery = args.slice(0, -1).join(' ');
+          attackQuery = args.slice(0, -1).join(' ').trim();
         } else if (lastArg === 'dis' || lastArg === 'disadvantage') {
           advMode = 'disadvantage';
-          attackQuery = args.slice(0, -1).join(' ');
+          attackQuery = args.slice(0, -1).join(' ').trim();
         }
 
-        const strMod = Math.floor(((character.stats?.str ?? 10) - 10) / 2);
-        const dexMod = Math.floor(((character.stats?.dex ?? 10) - 10) / 2);
-        const intMod = Math.floor(((character.stats?.int ?? 10) - 10) / 2);
-        const prof = character.proficiencyBonus ?? 2;
+        const availableAttacks: DnDAction[] = (character?.actions && character.actions.length > 0)
+          ? character.actions
+          : [
+              { name: 'Melee Attack', type: 'melee', toHitModifier: 5, damageDice: '1d8+3' },
+              { name: 'Ranged Attack', type: 'ranged', toHitModifier: 5, damageDice: '1d6+3' },
+              { name: 'Unarmed Strike', type: 'melee', toHitModifier: 5, damageDice: '4' },
+            ];
 
-        const defaultActions: DnDAction[] = [
-          { name: 'Melee Attack', type: 'melee', toHitModifier: strMod + prof, damageDice: `1d8+${strMod}` },
-          { name: 'Ranged Attack', type: 'ranged', toHitModifier: dexMod + prof, damageDice: `1d6+${dexMod}` },
-          ...(character.spells || []).map((s) => ({
-            name: s.name,
-            type: 'spell',
-            toHitModifier: intMod + prof,
-            damageDice: `${s.level > 0 ? s.level : 1}d10`,
-          })),
-        ];
+        // Bug #54: No name provided -> list options, do not roll
+        if (!attackQuery) {
+          const listText = availableAttacks
+            .map((a) => `• ${a.name}${a.reach ? ` (${a.reach})` : a.range ? ` (${a.range})` : ''} [${a.toHitModifier !== undefined ? (a.toHitModifier >= 0 ? `+${a.toHitModifier}` : a.toHitModifier) + ' to hit' : ''}${a.damage ? `, ${a.damage}` : a.damageDice ? `, ${a.damageDice}` : ''}]`)
+            .join('\n');
+          sendPrivateSystemMessage(
+            `No attack specified. Available attacks${character ? ` for ${character.name}` : ''}:\n${listText}\n\nUsage: /attack [name] [adv|dis]`
+          );
+          return true;
+        }
 
-        // Search character actions / spells / attacks
-        const actions: DnDAction[] = character.actions && character.actions.length > 0 ? character.actions : defaultActions;
-        const found = (attackQuery.trim()
-          ? actions.find((a) => a.name.toLowerCase().includes(attackQuery.toLowerCase()))
-          : actions[0]) || actions[0];
+        // Search matching attack
+        const found = availableAttacks.find((a) =>
+          a.name.toLowerCase().includes(attackQuery.toLowerCase())
+        );
 
         if (!found) {
-          onSendMessage({
-            id: crypto.randomUUID(),
-            senderId: 'system',
-            senderName: 'System',
-            senderColor: '#f43f5e',
-            text: `Could not find attack or spell matching "${attackQuery}" on ${character.name}'s sheet.`,
-            timestamp: Date.now(),
-            isCommand: true,
-          });
-          return;
+          const listText = availableAttacks.map((a) => `• ${a.name}`).join('\n');
+          sendPrivateSystemMessage(
+            `Could not find attack matching "${attackQuery}". Available options:\n${listText}`,
+            'System',
+            '#f43f5e'
+          );
+          return true;
         }
 
         // Roll to hit (d20 + toHitModifier)
@@ -245,51 +225,155 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           timestamp: Date.now(),
           roll: rollResult,
         });
-        return;
+        return true;
       }
 
-      // 4. /skill [name] [adv|dis]
-      if (cmd === 'skill') {
-        if (!character) {
-          onSendMessage({
-            id: crypto.randomUUID(),
-            senderId: 'system',
-            senderName: 'System',
-            senderColor: '#f43f5e',
-            text: `Please link or select a D&D Beyond character sheet first to use /skill`,
-            timestamp: Date.now(),
-            isCommand: true,
-          });
-          return;
-        }
-
+      // 4. /spell [name] [adv|dis]
+      if (cmd === 'spell') {
         const lastArg = args[args.length - 1]?.toLowerCase();
         let advMode: 'normal' | 'advantage' | 'disadvantage' = 'normal';
-        let skillQuery = args.join(' ');
+        let spellQuery = args.join(' ').trim();
 
         if (lastArg === 'adv' || lastArg === 'advantage') {
           advMode = 'advantage';
-          skillQuery = args.slice(0, -1).join(' ');
+          spellQuery = args.slice(0, -1).join(' ').trim();
         } else if (lastArg === 'dis' || lastArg === 'disadvantage') {
           advMode = 'disadvantage';
-          skillQuery = args.slice(0, -1).join(' ');
+          spellQuery = args.slice(0, -1).join(' ').trim();
         }
 
-        const skill = character.skills?.find((s) => s.name.toLowerCase().includes(skillQuery.toLowerCase()));
-        if (!skill) {
-          onSendMessage({
-            id: crypto.randomUUID(),
-            senderId: 'system',
-            senderName: 'System',
-            senderColor: '#f43f5e',
-            text: `Could not find skill matching "${skillQuery}" on ${character.name}'s sheet.`,
-            timestamp: Date.now(),
-            isCommand: true,
-          });
-          return;
+        const availableSpells = character?.spells || [];
+
+        // Bug #54: No spell name provided -> list options, do not roll
+        if (!spellQuery) {
+          if (availableSpells.length === 0) {
+            sendPrivateSystemMessage(
+              character
+                ? `No spells found on ${character.name}'s sheet.`
+                : 'Please link a character sheet with spells first.',
+              'System',
+              '#f43f5e'
+            );
+            return true;
+          }
+          const listText = availableSpells
+            .map((s) => `• ${s.name} (${s.level === 0 ? 'Cantrip' : `Level ${s.level}`}${s.school ? `, ${s.school}` : ''})`)
+            .join('\n');
+          sendPrivateSystemMessage(
+            `No spell specified. Available spells for ${character?.name || 'character'}:\n${listText}\n\nUsage: /spell [name] [adv|dis]`
+          );
+          return true;
         }
 
-        const skillMod = skill.modifier ?? 0;
+        // Search matching spell
+        const found = availableSpells.find((s) =>
+          s.name.toLowerCase().includes(spellQuery.toLowerCase())
+        );
+
+        if (!found) {
+          const listText = availableSpells.length > 0
+            ? availableSpells.map((s) => `• ${s.name}`).join('\n')
+            : '(No spells available)';
+          sendPrivateSystemMessage(
+            `Could not find spell matching "${spellQuery}". Available options:\n${listText}`,
+            'System',
+            '#f43f5e'
+          );
+          return true;
+        }
+
+        const intMod = Math.floor(((character?.stats?.int ?? 10) - 10) / 2);
+        const prof = character?.proficiencyBonus ?? 2;
+        const spellToHitMod = intMod + prof;
+
+        const hitRoll = parseDiceExpression('1d20', advMode)!;
+        const hitTotal = (hitRoll.keptRoll ?? hitRoll.rolls[0]) + spellToHitMod;
+        const dmgExpr = `${found.level > 0 ? found.level : 1}d10`;
+        const dmgParsed = parseDiceExpression(dmgExpr) || { total: 5, rolls: [5] };
+
+        const rollResult: DiceRollResult = {
+          id: crypto.randomUUID(),
+          userId: player.id,
+          userName: player.name,
+          userColor: player.color,
+          diceType: 'd20',
+          count: 1,
+          modifier: spellToHitMod,
+          rolls: hitRoll.rolls,
+          total: hitTotal,
+          advantageMode: advMode,
+          keptRoll: hitRoll.keptRoll,
+          timestamp: Date.now(),
+        };
+
+        onBroadcastRoll?.(rollResult);
+        onSendMessage({
+          id: crypto.randomUUID(),
+          senderId: player.id,
+          senderName: player.name,
+          senderColor: player.color,
+          text: `casts ${found.name}! Attack: ${hitTotal} (${hitRoll.rolls.join('/')}${spellToHitMod >= 0 ? `+${spellToHitMod}` : spellToHitMod}) | Effect/Damage: ${dmgParsed.total} [${dmgExpr}]`,
+          timestamp: Date.now(),
+          roll: rollResult,
+        });
+        return true;
+      }
+
+      // 5. /skill [name] [adv|dis]
+      if (cmd === 'skill') {
+        const lastArg = args[args.length - 1]?.toLowerCase();
+        let advMode: 'normal' | 'advantage' | 'disadvantage' = 'normal';
+        let skillQuery = args.join(' ').trim();
+
+        if (lastArg === 'adv' || lastArg === 'advantage') {
+          advMode = 'advantage';
+          skillQuery = args.slice(0, -1).join(' ').trim();
+        } else if (lastArg === 'dis' || lastArg === 'disadvantage') {
+          advMode = 'disadvantage';
+          skillQuery = args.slice(0, -1).join(' ').trim();
+        }
+
+        const ALL_SKILLS = [
+          'Acrobatics', 'Animal Handling', 'Arcana', 'Athletics',
+          'Deception', 'History', 'Insight', 'Intimidation',
+          'Investigation', 'Medicine', 'Nature', 'Perception',
+          'Performance', 'Persuasion', 'Religion', 'Sleight of Hand',
+          'Stealth', 'Survival'
+        ];
+
+        // Bug #54: No skill specified -> list options, do not roll
+        if (!skillQuery) {
+          const listText = character?.skills && character.skills.length > 0
+            ? character.skills
+                .map((s) => `• ${s.name} (${s.modifier >= 0 ? `+${s.modifier}` : s.modifier}${s.proficiency !== 'none' ? ' • Proficient' : ''})`)
+                .join('\n')
+            : ALL_SKILLS.map((s) => `• ${s}`).join('\n');
+          sendPrivateSystemMessage(
+            `No skill specified. Available skills${character ? ` for ${character.name}` : ''}:\n${listText}\n\nUsage: /skill [skill] [adv|dis]`
+          );
+          return true;
+        }
+
+        // Search matching skill
+        const charSkill = character?.skills?.find((s) =>
+          s.name.toLowerCase().includes(skillQuery.toLowerCase())
+        );
+        const standardSkillName = ALL_SKILLS.find((s) =>
+          s.toLowerCase().includes(skillQuery.toLowerCase())
+        );
+
+        if (!charSkill && !standardSkillName) {
+          const listText = (character?.skills?.map((s) => `• ${s.name}`) || ALL_SKILLS.map((s) => `• ${s}`)).join('\n');
+          sendPrivateSystemMessage(
+            `Could not find skill matching "${skillQuery}". Available skills:\n${listText}`,
+            'System',
+            '#f43f5e'
+          );
+          return true;
+        }
+
+        const skillName = charSkill ? charSkill.name : standardSkillName!;
+        const skillMod = charSkill?.modifier ?? 0;
         const d20 = parseDiceExpression('1d20', advMode)!;
         const total = (d20.keptRoll ?? d20.rolls[0]) + skillMod;
 
@@ -314,12 +398,45 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
           senderId: player.id,
           senderName: player.name,
           senderColor: player.color,
-          text: `checks ${skill.name}! Result: ${total} (${d20.rolls.join('/')}${skillMod >= 0 ? `+${skillMod}` : skillMod})`,
+          text: `checks ${skillName}! Result: ${total} (${d20.rolls.join('/')}${skillMod >= 0 ? `+${skillMod}` : skillMod})${advMode !== 'normal' ? ` (${advMode})` : ''}`,
           timestamp: Date.now(),
           roll: rollResult,
         });
-        return;
+        return true;
       }
+  return false;
+}
+
+export const ChatPanel: React.FC<ChatPanelProps> = ({
+  player,
+  character,
+  messages,
+  onSendMessage,
+  onBroadcastRoll,
+  isOpen,
+  onToggleOpen,
+}) => {
+  const [inputText, setInputText] = useState('');
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, isOpen]);
+
+  const handleCommand = (raw: string) => {
+    const text = raw.trim();
+    if (!text) return;
+
+    if (text.startsWith('/')) {
+      processSlashCommand(text, {
+        player,
+        character: character || undefined,
+        onSendMessage,
+        onBroadcastRoll,
+      });
+      return;
     }
 
     // Regular Chat message

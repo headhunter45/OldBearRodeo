@@ -378,10 +378,17 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
 
     case 'chat-send': {
       if (!ws.roomId) return;
-      broadcastToRoom(ws.roomId, {
-        type: 'chat-message',
-        message: msg.message,
-      });
+      if (msg.message.recipientId) {
+        sendToPeer(ws.roomId, msg.message.recipientId, {
+          type: 'chat-message',
+          message: msg.message,
+        });
+      } else if (!msg.message.isEphemeral) {
+        broadcastToRoom(ws.roomId, {
+          type: 'chat-message',
+          message: msg.message,
+        });
+      }
       break;
     }
 
