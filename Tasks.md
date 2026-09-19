@@ -141,6 +141,9 @@ function nameGen(type) {
 100. ✅ We have client port and server port in our .env, but our dockerfile doesn't use them. Please ensure it uses them to put the containers on the right ports.
 101. ✅ Create a production .env.production and a either a production compose.yaml that uses it or update our current compose.yaml
 102. ✅ I want to create a ci script that builds the container in a production state so I can push it to another registry.
+103. When I roll initiative in the initiative tracker it doesn't show up as a roll in the dice tool. It does show up in chat which is great, but it doesn't show what the roll and bonus were.
+104. When I edit in the initiative tracker, make the current number stay and put the input field where the name and hp text are.
+
 
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
