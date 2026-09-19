@@ -1,69 +1,81 @@
 services:
-  postgres:
-    image: postgres:16-alpine
-    container_name: oldbear_postgres
+  client:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.client
+      args:
+        CLIENT_PORT: ${CLIENT_PORT:-80}
+    container_name: oldbear_client
+    depends_on:
+      - server
+    environment:
+      CLIENT_PORT: ${CLIENT_PORT:-80}
+    image: ${CLIENT_IMAGE:-${IMAGE_REGISTRY:-}oldbear_client:${IMAGE_TAG:-latest}}
+    ports:
+      - "${CLIENT_PORT:-3001}:${CLIENT_PORT:-80}"
     restart: unless-stopped
+
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.nginx
+    container_name: oldbear_nginx
+    depends_on:
+      - client
+      - server
+    environment:
+      CLIENT_PORT: ${CLIENT_PORT:-80}
+      SERVER_PORT: ${SERVER_PORT:-3001}
+      NGINX_PORT: 80
+    image: ${NGINX_IMAGE:-${IMAGE_REGISTRY:-}oldbear_nginx:${IMAGE_TAG:-latest}}
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    restart: unless-stopped
+
+  postgres:
+    container_name: oldbear_postgres
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-oldbear}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-oldbear_secret_password}
       POSTGRES_DB: ${POSTGRES_DB:-oldbear_vtt}
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-oldbear} -d ${POSTGRES_DB:-oldbear_vtt}"]
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-oldbear} -d ${POSTGRES_DB:-oldbear_vtt}" ]
       interval: 3s
       timeout: 3s
       retries: 5
-    volumes:
-      - ${PGDATA_PATH:-pgdata}:/var/lib/postgresql/data
+    image: postgres:16-alpine
     ports:
       - "${POSTGRES_PORT:-5432}:5432"
+    restart: unless-stopped
+    volumes:
+      - ${PGDATA_PATH:-pgdata}:/var/lib/postgresql/data
 
   server:
-    image: ${SERVER_IMAGE:-${IMAGE_REGISTRY:-}oldbear_server:${IMAGE_TAG:-latest}}
     build:
       context: .
       dockerfile: docker/Dockerfile.server
+      args:
+        SERVER_PORT: ${SERVER_PORT:-3001}
     container_name: oldbear_server
-    restart: unless-stopped
-    environment:
-      PORT: ${SERVER_PORT:-3001}
-      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-oldbear}:${POSTGRES_PASSWORD:-oldbear_secret_password}@postgres:5432/${POSTGRES_DB:-oldbear_vtt}}
-      NODE_ENV: ${NODE_ENV:-production}
-      CORS_ORIGIN: ${CORS_ORIGIN:-*}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
-      SESSION_SECRET: ${SESSION_SECRET:-oldbear_session_development_secret_change_in_production}
-      STUN_SERVER_URL: ${STUN_SERVER_URL:-stun:stun.l.google.com:19302}
-      TURN_SERVER_URL: ${TURN_SERVER_URL:-}
-      TURN_USERNAME: ${TURN_USERNAME:-}
-      TURN_CREDENTIAL: ${TURN_CREDENTIAL:-}
     depends_on:
       postgres:
         condition: service_healthy
+    environment:
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+      DATABASE_URL: ${DATABASE_URL:-postgres://${POSTGRES_USER:-oldbear}:${POSTGRES_PASSWORD:-oldbear_secret_password}@postgres:5432/${POSTGRES_DB:-oldbear_vtt}}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      MAX_UPLOAD_SIZE_MB: ${MAX_UPLOAD_SIZE_MB:-50}
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${SERVER_PORT:-3001}
+      SESSION_SECRET: ${SESSION_SECRET:-oldbear_session_development_secret_change_in_production}
+      STUN_SERVER_URL: ${STUN_SERVER_URL:-stun:stun.l.google.com:19302}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL:-}
+      TURN_SERVER_URL: ${TURN_SERVER_URL:-}
+      TURN_USERNAME: ${TURN_USERNAME:-}
+    image: ${SERVER_IMAGE:-${IMAGE_REGISTRY:-}oldbear_server:${IMAGE_TAG:-latest}}
     ports:
       - "${SERVER_PORT:-3001}:${SERVER_PORT:-3001}"
-
-  client:
-    image: ${CLIENT_IMAGE:-${IMAGE_REGISTRY:-}oldbear_client:${IMAGE_TAG:-latest}}
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.client
-    container_name: oldbear_client
     restart: unless-stopped
-    depends_on:
-      - server
-
-  nginx:
-    image: ${NGINX_IMAGE:-${IMAGE_REGISTRY:-}oldbear_nginx:${IMAGE_TAG:-latest}}
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.nginx
-    container_name: oldbear_nginx
-    restart: unless-stopped
-    ports:
-      - "${NGINX_PORT:-80}:80"
-    depends_on:
-      - client
-      - server
 
 volumes:
   pgdata:
