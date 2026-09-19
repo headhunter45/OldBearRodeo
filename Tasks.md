@@ -136,7 +136,7 @@ function nameGen(type) {
 95. ✅ When I change grid type in a scene settings it chagnes the type value for all scenes, but the grid drawn and snapped to is still squeare not hexagonal
 96. ✅ I don't see anything showing my imported monsters and characters. Please add them to the asset manager.
 97. ✅ Add a measuring tape. This should allow a user to see how far they are away from something.
-98. When using the circle, rectangle, or arrow indicator tools show the size of the rectangle, the length of the arrow and the radius of the circle as they are being drawn. This way I can make a 30' radius without guessing.
+98. ✅ When using the circle, rectangle, or arrow indicator tools show the size of the rectangle, the length of the arrow and the radius of the circle as they are being drawn. This way I can make a 30' radius without guessing.
 99. My mic started recording. It should start muted.
 100. We have client port and server port in our .env, but our dockerfile doesn't use them. Please ensure it uses them to put the containers on the right ports.
 101. Create a production .env.production and a either a production compose.yaml that uses it or update our current compose.yaml

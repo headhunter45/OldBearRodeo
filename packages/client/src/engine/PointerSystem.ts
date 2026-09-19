@@ -229,7 +229,7 @@ function renderUserLabel(
   ctx.restore();
 }
 
-function hexToRgba(hex: string, alpha: number): string {
+export function hexToRgba(hex: string, alpha: number): string {
   if (hex.startsWith('rgba')) return hex;
   const clean = hex.replace('#', '');
   const bigint = parseInt(clean, 16);

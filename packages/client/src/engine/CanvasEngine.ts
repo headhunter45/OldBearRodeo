@@ -10,7 +10,7 @@ import { Viewport, Point } from './Viewport.js';
 import { renderGrid, snapToGrid } from './GridRenderer.js';
 import { renderToken, getCachedImage } from './TokenRenderer.js';
 import { FogRenderer } from './FogRenderer.js';
-import { renderMarkers } from './PointerSystem.js';
+import { renderMarkers, hexToRgba } from './PointerSystem.js';
 import { drawRuler, measureDistance, RulerMeasurement } from './Ruler.js';
 
 export type ActiveTool =
@@ -223,12 +223,45 @@ export class CanvasEngine {
     }
   }
 
+  private drawMeasurementBadge(
+    ctx: CanvasRenderingContext2D,
+    text: string,
+    x: number,
+    y: number,
+    borderColor: string = '#6366f1'
+  ) {
+    ctx.save();
+    ctx.font = 'bold 12px Inter, sans-serif';
+    const metrics = ctx.measureText(text);
+    const paddingX = 8;
+    const paddingY = 4;
+    const width = metrics.width + paddingX * 2;
+    const height = 22;
+
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.strokeStyle = borderColor;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.roundRect(x - width / 2, y - height / 2, width, height, 5);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.fillStyle = '#ffffff';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, x, y);
+    ctx.restore();
+  }
+
   private renderDrawingPreview(ctx: CanvasRenderingContext2D, map: GameMap) {
     if (!this.isDrawing || !this.drawStart || !this.drawCurrent) return;
 
     const color = this.localPlayer?.color || '#6366f1';
     const { x: x1, y: y1 } = this.drawStart;
     const { x: x2, y: y2 } = this.drawCurrent;
+    const gridSize = map.gridSize || 50;
+    const scaleFtPerCell = map.scaleFtPerCell || 5;
 
     ctx.save();
     ctx.strokeStyle = color;
@@ -246,25 +279,77 @@ export class CanvasEngine {
       ctx.moveTo(x1, y1);
       ctx.lineTo(x2, y2);
       ctx.stroke();
+
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const headLen = 16;
+      ctx.beginPath();
+      ctx.moveTo(x2, y2);
+      ctx.lineTo(
+        x2 - headLen * Math.cos(angle - Math.PI / 6),
+        y2 - headLen * Math.sin(angle - Math.PI / 6)
+      );
+      ctx.lineTo(
+        x2 - headLen * Math.cos(angle + Math.PI / 6),
+        y2 - headLen * Math.sin(angle + Math.PI / 6)
+      );
+      ctx.closePath();
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      // Show live arrow length badge
+      const distPx = Math.hypot(x2 - x1, y2 - y1);
+      const lengthFt = Math.round((distPx / gridSize) * scaleFtPerCell);
+      this.drawMeasurementBadge(ctx, `${lengthFt} ft`, (x1 + x2) / 2, (y1 + y2) / 2 - 14, color);
     } else if (this.activeTool === 'circle') {
       const radius = Math.hypot(x2 - x1, y2 - y1);
       ctx.beginPath();
       ctx.arc(x1, y1, radius, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(99, 102, 241, 0.2)';
+      ctx.fillStyle = hexToRgba(color, 0.2);
       ctx.fill();
       ctx.stroke();
+
+      // Radius line from center to cursor
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Center point
+      ctx.beginPath();
+      ctx.arc(x1, y1, 4, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      // Show live radius badge
+      const radiusFt = Math.round((radius / gridSize) * scaleFtPerCell);
+      this.drawMeasurementBadge(ctx, `${radiusFt} ft radius`, (x1 + x2) / 2, (y1 + y2) / 2 - 14, color);
     } else if (this.activeTool === 'rectangle' || this.activeTool.startsWith('fog') || this.activeTool === 'box-select') {
       ctx.fillStyle = this.activeTool === 'fog-reveal'
         ? 'rgba(255, 255, 255, 0.2)'
         : this.activeTool === 'box-select'
         ? 'rgba(99, 102, 241, 0.15)'
+        : this.activeTool === 'rectangle'
+        ? hexToRgba(color, 0.2)
         : 'rgba(0, 0, 0, 0.4)';
+
       if (this.activeTool === 'box-select') {
         ctx.strokeStyle = '#6366f1';
         ctx.setLineDash([4, 4]);
       }
       ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
       ctx.strokeRect(x1, y1, x2 - x1, y2 - y1);
+
+      // Show live rectangle dimensions badge
+      if (this.activeTool === 'rectangle') {
+        const widthFt = Math.round((Math.abs(x2 - x1) / gridSize) * scaleFtPerCell);
+        const heightFt = Math.round((Math.abs(y2 - y1) / gridSize) * scaleFtPerCell);
+        const centerX = (x1 + x2) / 2;
+        const topY = Math.min(y1, y2) - 14;
+        this.drawMeasurementBadge(ctx, `${widthFt} ft × ${heightFt} ft`, centerX, topY, color);
+      }
     }
 
     ctx.restore();
