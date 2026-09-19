@@ -198,7 +198,7 @@ function nameGen(type) {
     - Render the area where a flat-ended triangle cone covers but the circular arc does not (the outer triangle corners / difference) in a second, darker or contrasting accent color, clearly distinguishing both circular and triangular ruleset interpretations at a glance.
   - Fully supports the `📌 Persist` toggle from Task 111 so it can be used either as an ephemeral ping or kept on the board as a persistent zone.
   - Selectable, rotatable, and removable with the Delete button `🗑️` by the creator or GM.
-119. Make the target have a draggable size with distance like the circle, but keep the current size the minimum so users can still tap and get it.
+119. ✅ Make the target have a draggable size with distance like the circle, but keep the current size the minimum so users can still tap and get it.
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
 - On mobile selecting a character with the arrow or moving them is nearly impossible. It feels like the cursor is the bottom right of my finger instead of the middle. The place I have to tap on the token is tiny. Even after using the box to select the token when I use the arrow to move it it deselects everything and pans the map.

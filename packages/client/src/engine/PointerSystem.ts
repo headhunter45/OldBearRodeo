@@ -35,7 +35,7 @@ export function renderMarkers(
         renderArrow(ctx, marker, isSelected);
         break;
       case 'crosshair':
-        renderCrosshair(ctx, marker, elapsed, isSelected);
+        renderCrosshair(ctx, marker, elapsed, gridSize, scaleFtPerCell, isSelected);
         break;
       case 'circle':
         renderCircle(ctx, marker, gridSize, scaleFtPerCell, isSelected);
@@ -139,10 +139,19 @@ function renderArrow(ctx: CanvasRenderingContext2D, marker: ScreenMarker, isSele
   renderUserLabel(ctx, `${labelPrefix}${marker.userName}`, fromX, fromY - 10, marker.color);
 }
 
-function renderCrosshair(ctx: CanvasRenderingContext2D, marker: ScreenMarker, elapsed: number, isSelected?: boolean) {
+function renderCrosshair(
+  ctx: CanvasRenderingContext2D,
+  marker: ScreenMarker,
+  elapsed: number,
+  gridSize: number = 50,
+  scaleFtPerCell: number = 5,
+  isSelected?: boolean
+) {
   const { x, y, color } = marker;
-  const size = 18;
+  const minSize = 18;
+  const size = Math.max(minSize, marker.radius ?? minSize);
   const pulse = Math.sin(elapsed / 150) * 3;
+  const radiusFt = Math.round((size / gridSize) * scaleFtPerCell);
 
   if (isSelected) {
     ctx.save();
@@ -152,6 +161,16 @@ function renderCrosshair(ctx: CanvasRenderingContext2D, marker: ScreenMarker, el
     ctx.beginPath();
     ctx.arc(x, y, size + 8, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.restore();
+  }
+
+  // Semi-transparent target area fill when expanded beyond minimum size
+  if (size > minSize) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fillStyle = hexToRgba(color, 0.15);
+    ctx.fill();
     ctx.restore();
   }
 
@@ -168,13 +187,26 @@ function renderCrosshair(ctx: CanvasRenderingContext2D, marker: ScreenMarker, el
   ctx.lineTo(x, y + size);
   ctx.stroke();
 
+  // If expanded beyond 36px, draw inner concentric target ring
+  if (size >= 36) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(x, y, Math.round(size * 0.5), 0, Math.PI * 2);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.stroke();
+    ctx.restore();
+  }
+
   // Outer pulsating circle
   ctx.beginPath();
   ctx.arc(x, y, size + 4 + pulse, 0, Math.PI * 2);
   ctx.stroke();
 
   const labelPrefix = marker.locked ? '🔒 ' : marker.persist ? '📌 ' : '';
-  renderUserLabel(ctx, `${labelPrefix}${marker.userName}`, x, y - size - 12, color);
+  const label = size > minSize ? `${labelPrefix}${marker.userName}: ${radiusFt} ft target` : `${labelPrefix}${marker.userName}`;
+  renderUserLabel(ctx, label, x, y - size - 12, color);
 }
 
 function renderCircle(

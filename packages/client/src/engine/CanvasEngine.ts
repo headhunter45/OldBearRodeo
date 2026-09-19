@@ -438,6 +438,50 @@ export class CanvasEngine {
       const midX = (x1 + x2) / 2;
       const midY = (y1 + y2) / 2 - 14;
       this.drawMeasurementBadge(ctx, `${radiusFt} ft cone`, midX, midY, color);
+    } else if (this.activeTool === 'crosshair') {
+      const dist = Math.hypot(x2 - x1, y2 - y1);
+      const minSize = 18;
+      const size = Math.max(minSize, dist);
+      const radiusFt = Math.round((size / gridSize) * scaleFtPerCell);
+
+      // Semi-transparent target area
+      if (size > minSize) {
+        ctx.beginPath();
+        ctx.arc(x1, y1, size, 0, Math.PI * 2);
+        ctx.fillStyle = hexToRgba(color, 0.15);
+        ctx.fill();
+      }
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.shadowColor = color;
+      ctx.shadowBlur = 8;
+
+      // Crosshair lines
+      ctx.beginPath();
+      ctx.moveTo(x1 - size, y1);
+      ctx.lineTo(x1 + size, y1);
+      ctx.moveTo(x1, y1 - size);
+      ctx.lineTo(x1, y1 + size);
+      ctx.stroke();
+
+      // Outer circle
+      ctx.beginPath();
+      ctx.arc(x1, y1, size + 4, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // If dragged beyond minimum, draw radius guideline and measurement badge (Task #119)
+      if (dist > 5) {
+        ctx.save();
+        ctx.setLineDash([4, 4]);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.restore();
+
+        this.drawMeasurementBadge(ctx, `${radiusFt} ft target`, (x1 + x2) / 2, (y1 + y2) / 2 - 14, color);
+      }
     } else if (this.activeTool === 'rectangle' || this.activeTool.startsWith('fog') || this.activeTool === 'box-select') {
       ctx.fillStyle = this.activeTool === 'fog-reveal'
         ? 'rgba(255, 255, 255, 0.2)'
@@ -546,26 +590,8 @@ export class CanvasEngine {
         );
         this.measuringTape.color = this.localPlayer?.color || '#06b6d4';
       }
-    } else if (this.activeTool === 'crosshair') {
-      const isPersistent = this.persistMarkersMode ? !e.shiftKey : !!e.shiftKey;
-      const currentMap =
-        this.session?.maps.find((m) => m.id === this.currentMapId) ||
-        this.session?.maps[0];
-      this.broadcastMarker({
-        id: crypto.randomUUID(),
-        type: 'crosshair',
-        userId: this.localPlayer?.id || '',
-        userName: this.localPlayer?.name || 'Player',
-        color: this.localPlayer?.color || '#3b82f6',
-        x: worldPos.x,
-        y: worldPos.y,
-        mapId: currentMap?.id,
-        persist: isPersistent,
-        durationMs: isPersistent ? 0 : 4000,
-        createdAt: Date.now(),
-      });
     } else {
-      // Marker drawing or fog drawing
+      // Marker drawing or fog drawing (laser, arrow, circle, rectangle, cone, crosshair)
       this.isDrawing = true;
       this.drawStart = worldPos;
       this.drawCurrent = worldPos;
@@ -1117,6 +1143,25 @@ export class CanvasEngine {
           createdAt: Date.now(),
         });
       }
+    } else if (this.activeTool === 'crosshair') {
+      const dist = Math.hypot(x2 - x1, y2 - y1);
+      const minSize = 18;
+      const radius = Math.max(minSize, dist);
+      const isPersistent = this.persistMarkersMode ? !(e && e.shiftKey) : Boolean(e && e.shiftKey);
+      this.broadcastMarker({
+        id: crypto.randomUUID(),
+        type: 'crosshair',
+        userId: this.localPlayer.id,
+        userName: this.localPlayer.name,
+        color: this.localPlayer.color,
+        x: x1,
+        y: y1,
+        radius,
+        mapId: currentMap?.id,
+        persist: isPersistent,
+        durationMs: isPersistent ? 0 : 4000,
+        createdAt: Date.now(),
+      });
     } else if (this.activeTool.startsWith('fog')) {
       const mode = this.activeTool === 'fog-reveal' ? 'reveal' : 'hide';
       const shape: FogShape = {
@@ -1206,7 +1251,8 @@ export class CanvasEngine {
           }
         }
       } else if (m.type === 'crosshair') {
-        if (Math.hypot(worldPos.x - m.x, worldPos.y - m.y) <= 30) return m;
+        const rad = Math.max(30, m.radius || 18);
+        if (Math.hypot(worldPos.x - m.x, worldPos.y - m.y) <= rad) return m;
       }
     }
     return null;

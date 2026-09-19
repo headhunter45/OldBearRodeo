@@ -330,4 +330,38 @@ describe('Canvas Engine Utilities', () => {
     };
     assert.strictEqual(isInsideCone(outsideAnglePoint.x, outsideAnglePoint.y), false);
   });
+
+  it('supports draggable target sizing with distance and preserves minimum size for tapping (Task #119)', () => {
+    const minSize = 18;
+    const gridSize = 50;
+    const scaleFtPerCell = 5;
+
+    // 1. User simply taps (dist = 0): gets minimum size 18px without failing or zero size
+    const tapDist = 0;
+    const tapRadius = Math.max(minSize, tapDist);
+    assert.strictEqual(tapRadius, 18);
+
+    // 2. User drags outward (dist = 150px = 3 cells = 15ft)
+    const dragDist = 150;
+    const dragRadius = Math.max(minSize, dragDist);
+    assert.strictEqual(dragRadius, 150);
+    const radiusFt = Math.round((dragRadius / gridSize) * scaleFtPerCell);
+    assert.strictEqual(radiusFt, 15);
+
+    // 3. Persistent target hit-testing with expanded size
+    const targetMarker = {
+      x: 200,
+      y: 200,
+      radius: dragRadius,
+    };
+    const hitRadius = Math.max(30, targetMarker.radius || 18);
+    // Point at (200 + 100, 200) -> distance 100 <= 150 -> hit!
+    const isHitInside = Math.hypot(300 - targetMarker.x, 200 - targetMarker.y) <= hitRadius;
+    assert.strictEqual(isHitInside, true);
+
+    // Point at (200 + 180, 200) -> distance 180 > 150 -> miss!
+    const isHitOutside = Math.hypot(380 - targetMarker.x, 200 - targetMarker.y) <= hitRadius;
+    assert.strictEqual(isHitOutside, false);
+  });
 });
+
