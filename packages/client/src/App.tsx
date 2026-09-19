@@ -1324,6 +1324,11 @@ export const App: React.FC = () => {
         setActiveTool('rectangle');
         return;
       }
+      if (e.key === '6') {
+        e.preventDefault();
+        setActiveTool('cone');
+        return;
+      }
 
       const key = e.key.toLowerCase();
       if (key === 'g') {
@@ -1549,6 +1554,7 @@ export const App: React.FC = () => {
           marker={selectedMarker}
           onDelete={handleDeleteMarker}
           onToggleLock={(id, locked) => handleUpdateMarker(id, { locked })}
+          onUpdate={(id, updates) => handleUpdateMarker(id, updates)}
           onClose={() => {
             setSelectedMarker(null);
             if (engineRef.current) {

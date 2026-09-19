@@ -10,7 +10,7 @@ import { Viewport, Point } from './Viewport.js';
 import { renderGrid, snapToGrid } from './GridRenderer.js';
 import { renderToken, getCachedImage } from './TokenRenderer.js';
 import { FogRenderer } from './FogRenderer.js';
-import { renderMarkers, hexToRgba } from './PointerSystem.js';
+import { renderMarkers, hexToRgba, getContrastingAccentColor } from './PointerSystem.js';
 import { drawRuler, measureDistance, RulerMeasurement } from './Ruler.js';
 
 /**
@@ -35,6 +35,7 @@ export type ActiveTool =
   | 'crosshair'
   | 'circle'
   | 'rectangle'
+  | 'cone'
   | 'measure'
   | 'fog-reveal'
   | 'fog-hide';
@@ -79,6 +80,7 @@ export class CanvasEngine {
   persistMarkersMode: boolean = false;
   selectedMarkerId: string | null = null;
   draggingMarker: ScreenMarker | null = null;
+  draggingMarkerHandle: { marker: ScreenMarker; handle: 'spread' } | null = null;
 
   // Shape drawing state (for markers & fog)
   isDrawing: boolean = false;
@@ -368,6 +370,74 @@ export class CanvasEngine {
       // Show live radius badge
       const radiusFt = Math.round((radius / gridSize) * scaleFtPerCell);
       this.drawMeasurementBadge(ctx, `${radiusFt} ft radius`, (x1 + x2) / 2, (y1 + y2) / 2 - 14, color);
+    } else if (this.activeTool === 'cone') {
+      const radius = Math.hypot(x2 - x1, y2 - y1);
+      const angleDeg = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+      const spreadAngle = 60;
+      const thetaRad = (angleDeg * Math.PI) / 180;
+      const alphaRad = ((spreadAngle / 2) * Math.PI) / 180;
+
+      const a1x = x1 + radius * Math.cos(thetaRad - alphaRad);
+      const a1y = y1 + radius * Math.sin(thetaRad - alphaRad);
+      const a2x = x1 + radius * Math.cos(thetaRad + alphaRad);
+      const a2y = y1 + radius * Math.sin(thetaRad + alphaRad);
+
+      // Dual Cone: render triangle difference corners
+      const cosAlpha = Math.cos(alphaRad);
+      const rCorner = radius / cosAlpha;
+      const p1x = x1 + rCorner * Math.cos(thetaRad - alphaRad);
+      const p1y = y1 + rCorner * Math.sin(thetaRad - alphaRad);
+      const p2x = x1 + rCorner * Math.cos(thetaRad + alphaRad);
+      const p2y = y1 + rCorner * Math.sin(thetaRad + alphaRad);
+
+      const accentColor = getContrastingAccentColor(color);
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(a1x, a1y);
+      ctx.lineTo(p1x, p1y);
+      ctx.lineTo(p2x, p2y);
+      ctx.lineTo(a2x, a2y);
+      ctx.arc(x1, y1, radius, thetaRad + alphaRad, thetaRad - alphaRad, true);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(accentColor, 0.22);
+      ctx.fill();
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 1.5;
+      ctx.setLineDash([4, 4]);
+      ctx.stroke();
+      ctx.restore();
+
+      // Circular cone arc in primary highlight color
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(a1x, a1y);
+      ctx.arc(x1, y1, radius, thetaRad - alphaRad, thetaRad + alphaRad, false);
+      ctx.closePath();
+      ctx.fillStyle = hexToRgba(color, 0.22);
+      ctx.fill();
+      ctx.stroke();
+
+      // Centerline guide
+      ctx.save();
+      ctx.setLineDash([4, 4]);
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.restore();
+
+      // Origin caster point
+      ctx.beginPath();
+      ctx.arc(x1, y1, 4, 0, Math.PI * 2);
+      ctx.fillStyle = color;
+      ctx.fill();
+
+      // Live preview badge: `${radiusFt} ft cone`
+      const radiusFt = Math.round((radius / gridSize) * scaleFtPerCell);
+      const midX = (x1 + x2) / 2;
+      const midY = (y1 + y2) / 2 - 14;
+      this.drawMeasurementBadge(ctx, `${radiusFt} ft cone`, midX, midY, color);
     } else if (this.activeTool === 'rectangle' || this.activeTool.startsWith('fog') || this.activeTool === 'box-select') {
       ctx.fillStyle = this.activeTool === 'fog-reveal'
         ? 'rgba(255, 255, 255, 0.2)'
@@ -605,6 +675,37 @@ export class CanvasEngine {
         }
       }
     } else {
+      // Check if clicking on interactive edge handle dot of selected persistent cone
+      if (this.selectedMarkerId && this.session?.markers) {
+        const selMarker = this.session.markers.find((m) => m.id === this.selectedMarkerId);
+        if (
+          selMarker &&
+          selMarker.type === 'cone' &&
+          selMarker.persist &&
+          (isGm || selMarker.userId === localId) &&
+          !selMarker.locked
+        ) {
+          const rad = selMarker.radius || 100;
+          const theta = ((selMarker.angle ?? 0) * Math.PI) / 180;
+          const alpha = (((selMarker.spreadAngle ?? 60) / 2) * Math.PI) / 180;
+          const h2 = {
+            x: selMarker.x + rad * Math.cos(theta + alpha),
+            y: selMarker.y + rad * Math.sin(theta + alpha),
+          };
+          const h1 = {
+            x: selMarker.x + rad * Math.cos(theta - alpha),
+            y: selMarker.y + rad * Math.sin(theta - alpha),
+          };
+          if (
+            Math.hypot(worldPos.x - h2.x, worldPos.y - h2.y) <= 18 ||
+            Math.hypot(worldPos.x - h1.x, worldPos.y - h1.y) <= 18
+          ) {
+            this.draggingMarkerHandle = { marker: selMarker, handle: 'spread' };
+            return;
+          }
+        }
+      }
+
       this.selectedTokenId = null;
       this.selectedTokenIds = [];
       this.callbacks.onTokenSelect?.(null);
@@ -645,30 +746,46 @@ export class CanvasEngine {
       const prevMidY = (ptsBefore[0].y + ptsBefore[1].y) / 2;
       const currentMidX = (ptsAfter[0].x + ptsAfter[1].x) / 2;
       const currentMidY = (ptsAfter[0].y + ptsAfter[1].y) / 2;
+      this.viewport.pan(currentMidX - prevMidX, currentMidY - prevMidY);
 
-      const panDeltaX = currentMidX - prevMidX;
-      const panDeltaY = currentMidY - prevMidY;
-      if (Math.abs(panDeltaX) > 0 || Math.abs(panDeltaY) > 0) {
-        this.viewport.pan(panDeltaX, panDeltaY);
-      }
-
-      // 2. Pinch zoom with threshold to prevent scroll jitter from zooming
+      // 2. Calculate zoom factor from pinch distance ratio
+      const prevDist = Math.hypot(ptsBefore[0].x - ptsBefore[1].x, ptsBefore[0].y - ptsBefore[1].y);
       const currentDist = Math.hypot(ptsAfter[0].x - ptsAfter[1].x, ptsAfter[0].y - ptsAfter[1].y);
-      if (this.initialPinchDist > 0) {
-        const distRatio = currentDist / this.initialPinchDist;
-        if (Math.abs(distRatio - 1.0) > 0.03 || Math.abs(currentDist - this.initialPinchDist) > 8) {
-          const factor = currentDist / this.initialPinchDist;
-          this.viewport.zoomAt(currentMidX, currentMidY, factor);
-          this.initialPinchDist = currentDist;
-        }
+      if (this.initialPinchDist && prevDist > 0) {
+        const factor = currentDist / this.initialPinchDist;
+        this.viewport.zoomAt(currentMidX, currentMidY, factor);
+        this.initialPinchDist = currentDist;
       }
       return;
     }
 
     const worldPos = this.viewport.screenToWorld(e.clientX, e.clientY);
 
+    // Cone spread angle handle dragging (Task #118)
+    if (this.draggingMarkerHandle) {
+      const m = this.draggingMarkerHandle.marker;
+      const currAngleDeg = (Math.atan2(worldPos.y - m.y, worldPos.x - m.x) * 180) / Math.PI;
+      const centerAngleDeg = m.angle ?? 0;
+      const diff = Math.abs(((currAngleDeg - centerAngleDeg + 540) % 360) - 180);
+      let newSpread = Math.round(diff * 2);
+      newSpread = Math.max(15, Math.min(180, newSpread));
+      m.spreadAngle = newSpread;
+      this.callbacks.onMarkerUpdate?.(m.id, { spreadAngle: newSpread });
+      this.callbacks.onMarkerSelect?.({ ...m });
+      return;
+    }
+
     // Pan with mouse drag or pan tool
-    if (e.buttons === 4 || e.buttons === 2 || this.activeTool === 'pan' || (e.buttons === 1 && !this.draggingToken && !this.isDrawing && !this.draggingMarker)) {
+    if (
+      e.buttons === 4 ||
+      e.buttons === 2 ||
+      this.activeTool === 'pan' ||
+      (e.buttons === 1 &&
+        !this.draggingToken &&
+        !this.isDrawing &&
+        !this.draggingMarker &&
+        !this.draggingMarkerHandle)
+    ) {
       this.viewport.pan(currentScreen.x - prevScreen.x, currentScreen.y - prevScreen.y);
       return;
     }
@@ -833,6 +950,14 @@ export class CanvasEngine {
       });
     }
 
+    // Finish Cone Handle Drag (Task #118)
+    if (this.draggingMarkerHandle) {
+      const m = this.draggingMarkerHandle.marker;
+      this.draggingMarkerHandle = null;
+      this.callbacks.onMarkerUpdate?.(m.id, { spreadAngle: m.spreadAngle });
+      this.callbacks.onMarkerSelect?.({ ...m });
+    }
+
     // Finish Marker or Fog drawing
     if (this.isDrawing && this.drawStart && this.drawCurrent) {
       this.finishDrawing(e);
@@ -970,6 +1095,28 @@ export class CanvasEngine {
         durationMs: isPersistent ? 0 : 6000,
         createdAt: Date.now(),
       });
+    } else if (this.activeTool === 'cone') {
+      const radius = Math.hypot(x2 - x1, y2 - y1);
+      if (radius > 10) {
+        const angle = (Math.atan2(y2 - y1, x2 - x1) * 180) / Math.PI;
+        const isPersistent = this.persistMarkersMode ? !(e && e.shiftKey) : Boolean(e && e.shiftKey);
+        this.broadcastMarker({
+          id: crypto.randomUUID(),
+          type: 'cone',
+          userId: this.localPlayer.id,
+          userName: this.localPlayer.name,
+          color: this.localPlayer.color,
+          x: x1,
+          y: y1,
+          radius,
+          angle,
+          spreadAngle: 60,
+          mapId: currentMap?.id,
+          persist: isPersistent,
+          durationMs: isPersistent ? 0 : 6000,
+          createdAt: Date.now(),
+        });
+      }
     } else if (this.activeTool.startsWith('fog')) {
       const mode = this.activeTool === 'fog-reveal' ? 'reveal' : 'hide';
       const shape: FogShape = {
@@ -1043,6 +1190,20 @@ export class CanvasEngine {
         const ty = m.targetY ?? m.y;
         if (distToSegment(worldPos, { x: m.x, y: m.y }, { x: tx, y: ty }) <= 20) {
           return m;
+        }
+      } else if (m.type === 'cone') {
+        const rad = m.radius || 100;
+        const dist = Math.hypot(worldPos.x - m.x, worldPos.y - m.y);
+        if (dist <= 25) return m; // Caster origin
+        const thetaDeg = (Math.atan2(worldPos.y - m.y, worldPos.x - m.x) * 180) / Math.PI;
+        const centerDeg = m.angle ?? 0;
+        const diff = Math.abs(((thetaDeg - centerDeg + 540) % 360) - 180);
+        const halfSpread = (m.spreadAngle ?? 60) / 2;
+        if (diff <= halfSpread) {
+          const diffRad = (diff * Math.PI) / 180;
+          if (dist <= rad || (dist * Math.cos(diffRad) <= rad && dist <= rad * 1.5)) {
+            return m;
+          }
         }
       } else if (m.type === 'crosshair') {
         if (Math.hypot(worldPos.x - m.x, worldPos.y - m.y) <= 30) return m;

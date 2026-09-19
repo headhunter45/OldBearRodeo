@@ -187,7 +187,7 @@ function nameGen(type) {
   - Separate two-finger trackpad panning from pinch-to-zoom: standard two-finger swipe (`e.ctrlKey === false`) should pan the battlemap smoothly via `this.viewport.pan(-deltaX, -deltaY)`, while trackpad pinch (`e.ctrlKey === true`) or Ctrl/Cmd+scroll zooms smoothly at the cursor.
   - Expose adjustable top-level sensitivity constants in `packages/client/src/engine/CanvasEngine.ts` (`TRACKPAD_PAN_SENSITIVITY`, `TRACKPAD_ZOOM_SENSITIVITY`, `MOUSE_WHEEL_ZOOM_SENSITIVITY`) so scrolling and zooming speed can be easily dialed in.
   - When the box select tool successfully selects one or more tokens, automatically switch the active tool back to the arrow (`select`) tool.
-118. Arc / Cone spell template indicator tool with optional persistence:
+118. ✅ Arc / Cone spell template indicator tool with optional persistence:
   - Add an Arc / Cone indicator tool to the drawing tools sub-menu (for spells like Burning Hands, Cone of Cold, Acid Breath, etc.).
   - Drawing workflow: tap/click origin (caster) and drag outward to set direction and length/radius with live preview badge (`${radiusFt} ft cone`).
   - Angle & spread defaults:

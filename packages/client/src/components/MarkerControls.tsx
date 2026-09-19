@@ -1,11 +1,13 @@
 import React from 'react';
 import { ScreenMarker } from '@oldbear/shared';
-import { Lock, Unlock, Trash2, X, Circle, Square, ArrowUpRight, Crosshair, Sparkles } from 'lucide-react';
+import { Lock, Unlock, Trash2, X, Circle, Square, ArrowUpRight, Crosshair, Sparkles, Triangle } from 'lucide-react';
+import { RotationCompass } from './TokenControls.js';
 
 interface MarkerControlsProps {
   marker: ScreenMarker;
   onDelete: (id: string) => void;
   onToggleLock: (id: string, locked: boolean) => void;
+  onUpdate?: (id: string, updates: Partial<ScreenMarker>) => void;
   onClose: () => void;
   canControl: boolean;
 }
@@ -14,6 +16,7 @@ export const MarkerControls: React.FC<MarkerControlsProps> = ({
   marker,
   onDelete,
   onToggleLock,
+  onUpdate,
   onClose,
   canControl,
 }) => {
@@ -38,6 +41,8 @@ export const MarkerControls: React.FC<MarkerControlsProps> = ({
         return <Circle size={16} color={marker.color} />;
       case 'rectangle':
         return <Square size={16} color={marker.color} />;
+      case 'cone':
+        return <Triangle size={16} color={marker.color} />;
       case 'arrow':
         return <ArrowUpRight size={16} color={marker.color} />;
       case 'crosshair':
@@ -73,6 +78,59 @@ export const MarkerControls: React.FC<MarkerControlsProps> = ({
           </span>
         </div>
       </div>
+
+      {/* Cone Spread Angle Preset Chips (Task #118) */}
+      {marker.type === 'cone' && onUpdate && (
+        <>
+          <div style={{ width: '1px', height: '24px', background: 'var(--border-subtle)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Angle:</span>
+            {[53, 60, 90, 120, 180].map((deg) => {
+              const isActive = Math.round(marker.spreadAngle ?? 60) === deg;
+              return (
+                <button
+                  key={deg}
+                  className={`btn ${isActive ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{
+                    padding: '0.2rem 0.45rem',
+                    fontSize: '0.75rem',
+                    fontWeight: isActive ? 600 : 400,
+                  }}
+                  onClick={() => onUpdate(marker.id, { spreadAngle: deg })}
+                  title={`Set cone spread angle to ${deg}°`}
+                >
+                  {deg}°
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Cone Rotation Controls (Task #118) */}
+          <div style={{ width: '1px', height: '24px', background: 'var(--border-subtle)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+            <RotationCompass
+              rotation={marker.angle ?? 0}
+              onChange={(deg) => onUpdate(marker.id, { angle: deg })}
+            />
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '0.2rem 0.45rem', fontSize: '0.75rem' }}
+              onClick={() => onUpdate(marker.id, { angle: ((marker.angle ?? 0) - 15 + 360) % 360 })}
+              title="Rotate Left 15°"
+            >
+              ↺ -15°
+            </button>
+            <button
+              className="btn btn-secondary"
+              style={{ padding: '0.2rem 0.45rem', fontSize: '0.75rem' }}
+              onClick={() => onUpdate(marker.id, { angle: ((marker.angle ?? 0) + 15) % 360 })}
+              title="Rotate Right 15°"
+            >
+              ↻ +15°
+            </button>
+          </div>
+        </>
+      )}
 
       <div style={{ width: '1px', height: '24px', background: 'var(--border-subtle)' }} />
 

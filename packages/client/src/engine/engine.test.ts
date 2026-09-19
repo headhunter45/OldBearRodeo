@@ -4,6 +4,7 @@ import { Viewport } from './Viewport.js';
 import { measureDistance } from './Ruler.js';
 import { snapToGrid } from './GridRenderer.js';
 import { TRACKPAD_PAN_SENSITIVITY, TRACKPAD_ZOOM_SENSITIVITY, MOUSE_WHEEL_ZOOM_SENSITIVITY } from './CanvasEngine.js';
+import { getContrastingAccentColor } from './PointerSystem.js';
 
 describe('Canvas Engine Utilities', () => {
   it('correctly maps screen to world coordinates', () => {
@@ -253,5 +254,80 @@ describe('Canvas Engine Utilities', () => {
     }
 
     assert.strictEqual(currentTool, 'select');
+  });
+
+  it('correctly calculates contrasting colors, cone arc, flat-ended triangle difference, and edge handles (Task #118)', () => {
+    // 1. Contrasting accent color pairing
+    assert.strictEqual(getContrastingAccentColor('#ef4444'), '#38bdf8'); // Warm red -> Sky blue
+    assert.strictEqual(getContrastingAccentColor('#f59e0b'), '#38bdf8'); // Warm amber -> Sky blue
+    assert.strictEqual(getContrastingAccentColor('#3b82f6'), '#f59e0b'); // Cool blue -> Amber
+    assert.strictEqual(getContrastingAccentColor('#06b6d4'), '#f59e0b'); // Cool cyan -> Amber
+
+    // 2. Cone geometry: Origin (100, 100), radius 100, direction 0° (along +x), spreadAngle 60° (half-spread 30°)
+    const origin = { x: 100, y: 100 };
+    const radius = 100;
+    const angle = 0;
+    const spreadAngle = 60;
+    const halfSpreadRad = ((spreadAngle / 2) * Math.PI) / 180; // 30°
+
+    // Centerline length = 100, Corner ray length for flat triangle base = 100 / cos(30°) ~ 115.47
+    const cosAlpha = Math.cos(halfSpreadRad);
+    const rCorner = radius / cosAlpha;
+    assert.strictEqual(Math.round(rCorner), 115);
+
+    // Interactive edge handles at boundary angles (-30° and +30°)
+    const h1 = {
+      x: origin.x + radius * Math.cos(-halfSpreadRad),
+      y: origin.y + radius * Math.sin(-halfSpreadRad),
+    };
+    const h2 = {
+      x: origin.x + radius * Math.cos(halfSpreadRad),
+      y: origin.y + radius * Math.sin(halfSpreadRad),
+    };
+    assert.strictEqual(Math.round(h1.x), 187);
+    assert.strictEqual(Math.round(h1.y), 50);
+    assert.strictEqual(Math.round(h2.x), 187);
+    assert.strictEqual(Math.round(h2.y), 150);
+
+    // Hit-testing function adhering to dual cone / triangle definition
+    const isInsideCone = (px: number, py: number) => {
+      const dist = Math.hypot(px - origin.x, py - origin.y);
+      if (dist <= 25) return true; // Caster origin
+      const thetaDeg = (Math.atan2(py - origin.y, px - origin.x) * 180) / Math.PI;
+      const diff = Math.abs(((thetaDeg - angle + 540) % 360) - 180);
+      if (diff <= spreadAngle / 2) {
+        const diffRad = (diff * Math.PI) / 180;
+        // Inside circular arc (dist <= radius) OR flat triangle corner difference (dist * cos(diffRad) <= radius)
+        return dist <= radius || dist * Math.cos(diffRad) <= radius;
+      }
+      return false;
+    };
+
+    // Point along centerline inside circular arc: (160, 100) -> dist 60 <= 100
+    assert.strictEqual(isInsideCone(160, 100), true);
+
+    // Point in triangle difference corner (beyond circular arc but within flat triangle base):
+    // Angle = 25°, Distance = 106.
+    // Circular arc radius = 100 (106 > 100, outside circular arc)
+    // Flat triangle base check: 106 * cos(25°) = 106 * 0.9063 = 96.07 <= 100 (inside flat triangle base!)
+    const earPoint = {
+      x: origin.x + 106 * Math.cos((25 * Math.PI) / 180),
+      y: origin.y + 106 * Math.sin((25 * Math.PI) / 180),
+    };
+    assert.strictEqual(isInsideCone(earPoint.x, earPoint.y), true);
+
+    // Point far beyond flat triangle base: distance 130 along angle 25°
+    const farPoint = {
+      x: origin.x + 130 * Math.cos((25 * Math.PI) / 180),
+      y: origin.y + 130 * Math.sin((25 * Math.PI) / 180),
+    };
+    assert.strictEqual(isInsideCone(farPoint.x, farPoint.y), false);
+
+    // Point outside cone angular spread (angle 45° > 30°)
+    const outsideAnglePoint = {
+      x: origin.x + 50 * Math.cos((45 * Math.PI) / 180),
+      y: origin.y + 50 * Math.sin((45 * Math.PI) / 180),
+    };
+    assert.strictEqual(isInsideCone(outsideAnglePoint.x, outsideAnglePoint.y), false);
   });
 });

@@ -43,6 +43,9 @@ export function renderMarkers(
       case 'rectangle':
         renderRectangle(ctx, marker, gridSize, scaleFtPerCell, isSelected);
         break;
+      case 'cone':
+        renderCone(ctx, marker, gridSize, scaleFtPerCell, isSelected);
+        break;
     }
 
     ctx.restore();
@@ -291,3 +294,153 @@ export function hexToRgba(hex: string, alpha: number): string {
   const b = bigint & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+export function getContrastingAccentColor(hex: string): string {
+  const clean = hex.replace('#', '').toLowerCase();
+  if (clean.length === 6) {
+    const r = parseInt(clean.substring(0, 2), 16);
+    const b = parseInt(clean.substring(4, 6), 16);
+    if (r > 180 && b < 100) {
+      return '#38bdf8'; // sky blue for warm hues
+    }
+  }
+  return '#f59e0b'; // amber for cool/neutral hues
+}
+
+export function renderCone(
+  ctx: CanvasRenderingContext2D,
+  marker: ScreenMarker,
+  gridSize: number,
+  scaleFtPerCell: number,
+  isSelected?: boolean
+) {
+  const { x, y, radius = 100, color } = marker;
+  const angleDeg = marker.angle ?? 0;
+  const spreadAngle = marker.spreadAngle ?? 60;
+  const thetaRad = (angleDeg * Math.PI) / 180;
+  const alphaRad = ((spreadAngle / 2) * Math.PI) / 180;
+  const radiusFt = Math.round((radius / gridSize) * scaleFtPerCell);
+
+  const a1x = x + radius * Math.cos(thetaRad - alphaRad);
+  const a1y = y + radius * Math.sin(thetaRad - alphaRad);
+  const a2x = x + radius * Math.cos(thetaRad + alphaRad);
+  const a2y = y + radius * Math.sin(thetaRad + alphaRad);
+
+  // 1. Dual Cone / Triangle visualization (Task #118):
+  // Render the area where a flat-ended triangle cone covers but circular arc does not
+  if (spreadAngle < 170) {
+    const cosAlpha = Math.max(0.08, Math.cos(alphaRad));
+    const rCorner = radius / cosAlpha;
+    const p1x = x + rCorner * Math.cos(thetaRad - alphaRad);
+    const p1y = y + rCorner * Math.sin(thetaRad - alphaRad);
+    const p2x = x + rCorner * Math.cos(thetaRad + alphaRad);
+    const p2y = y + rCorner * Math.sin(thetaRad + alphaRad);
+
+    const accentColor = getContrastingAccentColor(color);
+
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(a1x, a1y);
+    ctx.lineTo(p1x, p1y);
+    ctx.lineTo(p2x, p2y);
+    ctx.lineTo(a2x, a2y);
+    // Arc back from positive edge to negative edge along the circular curve
+    ctx.arc(x, y, radius, thetaRad + alphaRad, thetaRad - alphaRad, true);
+    ctx.closePath();
+
+    ctx.fillStyle = hexToRgba(accentColor, 0.22);
+    ctx.fill();
+
+    ctx.strokeStyle = accentColor;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([4, 4]);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // 2. Render circular cone arc in primary highlight color
+  if (isSelected) {
+    ctx.save();
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3.5;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(a1x, a1y);
+    ctx.arc(x, y, radius + 5, thetaRad - alphaRad, thetaRad + alphaRad, false);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(a1x, a1y);
+  ctx.arc(x, y, radius, thetaRad - alphaRad, thetaRad + alphaRad, false);
+  ctx.closePath();
+  ctx.fillStyle = hexToRgba(color, 0.22);
+  ctx.fill();
+
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.setLineDash([6, 4]);
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 8;
+  ctx.stroke();
+
+  // Centerline guide
+  ctx.save();
+  ctx.strokeStyle = hexToRgba(color, 0.5);
+  ctx.lineWidth = 1;
+  ctx.setLineDash([3, 3]);
+  ctx.beginPath();
+  ctx.moveTo(x, y);
+  ctx.lineTo(x + radius * Math.cos(thetaRad), y + radius * Math.sin(thetaRad));
+  ctx.stroke();
+  ctx.restore();
+
+  // Origin caster dot
+  ctx.beginPath();
+  ctx.arc(x, y, 4, 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  // 3. Interactive Edge Handle Dots in Persistent Mode
+  if (marker.persist) {
+    // Edge handle at positive boundary (a2x, a2y)
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(a2x, a2y, 6.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(a2x, a2y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = isSelected ? '#38bdf8' : color;
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Edge handle at negative boundary (a1x, a1y)
+    ctx.beginPath();
+    ctx.arc(a1x, a1y, 6.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.beginPath();
+    ctx.arc(a1x, a1y, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = isSelected ? '#38bdf8' : color;
+    ctx.fill();
+    ctx.strokeStyle = '#0f172a';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Label
+  const labelPrefix = marker.locked ? '🔒 ' : marker.persist ? '📌 ' : '';
+  const label = `${radiusFt} ft cone (${Math.round(spreadAngle)}°)`;
+  const midLabelX = x + (radius * 0.5) * Math.cos(thetaRad);
+  const midLabelY = y + (radius * 0.5) * Math.sin(thetaRad) - 12;
+  renderUserLabel(ctx, `${labelPrefix}${marker.userName}: ${label}`, midLabelX, midLabelY, color);
+}
+
