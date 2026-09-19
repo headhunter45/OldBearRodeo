@@ -1591,39 +1591,36 @@ export const App: React.FC = () => {
         />
       )}
 
-      {/* Floating / Mobile Modal Dice Roller Panel */}
+      {/* Floating Draggable Dice Roller Window (Task #120) */}
       {showDiceRoller && session && localPlayer && (
-        <div className="hud-panel-container">
-          <DiceRoller
-            userName={localPlayer.name}
-            userColor={localPlayer.color}
-            userId={localPlayer.id}
-            onRoll={(roll) => {
-              handleRecordRoll(roll);
-              networkRef.current?.send({ type: 'dice-roll', roll });
-              setActiveRollAnnouncement(roll);
-            }}
-            rollHistory={session.diceHistory || []}
-            onClose={() => setShowDiceRoller(false)}
-          />
-        </div>
+        <DiceRoller
+          userName={localPlayer.name}
+          userColor={localPlayer.color}
+          userId={localPlayer.id}
+          onRoll={(roll) => {
+            handleRecordRoll(roll);
+            networkRef.current?.send({ type: 'dice-roll', roll });
+            setActiveRollAnnouncement(roll);
+          }}
+          rollHistory={session.diceHistory || []}
+          onClose={() => setShowDiceRoller(false)}
+        />
       )}
 
-      {/* Floating / Mobile Modal Initiative Tracker Panel */}
+      {/* Floating Draggable Initiative Tracker Window */}
       {showInitiative && session && (
-        <div className="hud-panel-container" style={{ right: showDiceRoller ? '22rem' : '1rem' }}>
-          <InitiativeTracker
-            initiative={session.initiative}
-            onUpdateInitiative={(initiative) => {
-              setSession((prev) => (prev ? { ...prev, initiative } : prev));
-              networkRef.current?.send({ type: 'initiative-update', initiative });
-            }}
-            tokens={session.tokens}
-            selectedToken={selectedToken}
-            players={session.players}
-            localPlayer={localPlayer}
-            isGm={isGm}
-            onClose={() => setShowInitiative(false)}
+        <InitiativeTracker
+          initiative={session.initiative}
+          onUpdateInitiative={(initiative) => {
+            setSession((prev) => (prev ? { ...prev, initiative } : prev));
+            networkRef.current?.send({ type: 'initiative-update', initiative });
+          }}
+          tokens={session.tokens}
+          selectedToken={selectedToken}
+          players={session.players}
+          localPlayer={localPlayer}
+          isGm={isGm}
+          onClose={() => setShowInitiative(false)}
             onRoll={(roll) => {
               setActiveRollAnnouncement(roll);
               setSession((prev) => {

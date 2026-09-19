@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { DieType, DiceRollResult } from '@oldbear/shared';
-import { Dices, Sparkles, X, RotateCcw } from 'lucide-react';
+import { Dices, Sparkles, X, RotateCcw, ChevronDown } from 'lucide-react';
 import confetti from 'canvas-confetti';
+import { useDraggableWindow } from '../hooks/useDraggableWindow.js';
 
 interface DiceRollerProps {
   userName: string;
@@ -33,6 +34,11 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
   const [modifier, setModifier] = useState<number>(0);
   const [diceCount, setDiceCount] = useState<number>(1);
   const [viewFilter, setViewFilter] = useState<'mine' | 'all'>('mine');
+  const [isMinimized, setIsMinimized] = useState(false);
+
+  const { windowRef, position, isDragging, handleMouseDown } = useDraggableWindow({
+    storageKey: 'obr_dice_roller_pos',
+  });
 
   const safeHistory = rollHistory || [];
   const myRolls = safeHistory.filter(
@@ -98,28 +104,76 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
 
   return (
     <div
-      className="glass-panel-elevated animate-fade-in"
+      ref={windowRef}
+      className="glass-panel-elevated animate-fade-in draggable-window"
       style={{
+        position: 'fixed',
+        left: position ? `${position.x}px` : undefined,
+        top: position ? `${position.y}px` : '4.5rem',
+        right: position ? 'auto' : '1rem',
         display: 'flex',
         flexDirection: 'column',
-        height: '100%',
-        maxHeight: '520px',
+        height: isMinimized ? '48px' : '100%',
+        maxHeight: isMinimized ? '48px' : '540px',
         width: '320px',
-        padding: '1rem',
+        maxWidth: 'calc(100vw - 1.5rem)',
+        padding: isMinimized ? '0.65rem 1rem' : '0.75rem 1rem',
+        zIndex: 44,
+        boxShadow: isDragging ? '0 16px 36px rgba(0,0,0,0.6)' : '0 10px 25px rgba(0,0,0,0.4)',
+        transition: isDragging ? 'none' : 'max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        overflow: 'hidden',
       }}
     >
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+      <div
+        onMouseDown={handleMouseDown}
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: isMinimized ? '0' : '0.75rem',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
+        }}
+      >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <Dices size={20} color="var(--accent-primary)" />
-          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem' }}>Dice Roller</h3>
+          <h3 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem', margin: 0, lineHeight: 1.2 }}>
+            Dice Roller
+          </h3>
         </div>
-        {onClose && (
-          <button className="btn-icon" onClick={onClose}>
-            <X size={16} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <button
+            className="btn-icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMinimized((v) => !v);
+            }}
+            title={isMinimized ? 'Expand window' : 'Minimize window'}
+            style={{ width: '24px', height: '24px' }}
+          >
+            <ChevronDown
+              size={16}
+              className={`chevron-minimize ${isMinimized ? 'minimized' : ''}`}
+            />
           </button>
-        )}
+          {onClose && (
+            <button className="btn-icon" onClick={onClose} style={{ width: '24px', height: '24px' }}>
+              <X size={16} />
+            </button>
+          )}
+        </div>
       </div>
+
+      <div
+        className={`draggable-window-body ${isMinimized ? 'minimized' : ''}`}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          overflow: 'hidden',
+        }}
+      >
 
       {/* Modifier & Count Controls */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
@@ -312,6 +366,7 @@ export const DiceRoller: React.FC<DiceRollerProps> = ({
               </div>
             ))
         )}
+      </div>
       </div>
     </div>
   );
