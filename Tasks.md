@@ -201,7 +201,7 @@ function nameGen(type) {
 119. ✅ Make the target have a draggable size with distance like the circle, but keep the current size the minimum so users can still tap and get it.
 120. ✅ Make dice roller a draggable window
 121. ✅ Make character sheet a draggable window.
-123. When dragging an asset onto the scene we should not get the drop files to import screen. We should still see the scene so we can see where we are dragging.
+123. ✅ When dragging an asset onto the scene we should not get the drop files to import screen. We should still see the scene so we can see where we are dragging.
 124. Store the version somewhere we can use it in ci when building and tagging containers. If we have to manually update it I want to do it in one place. If possible include the short git hash when displaying it in the app something like `v0.1.0-alpha5 (c292e59)` where the version number in our file is `0.1.0-alpha5`.
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET

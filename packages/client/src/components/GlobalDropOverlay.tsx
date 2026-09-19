@@ -91,10 +91,13 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
     const handleDragEnter = (e: DragEvent) => {
       e.preventDefault();
       dragCounter++;
-      if (
-        (e.dataTransfer && e.dataTransfer.types.includes('Files')) ||
-        e.dataTransfer?.types.includes('application/oldbear-asset')
-      ) {
+      // When dragging an asset from the Asset Manager/picker, keep the scene unobstructed (Task #123)
+      const isInternalAsset =
+        e.dataTransfer?.types.includes('application/oldbear-asset') ||
+        e.dataTransfer?.types.includes('application/json');
+
+      // Only show the file import screen when dragging external files from the OS
+      if (!isInternalAsset && e.dataTransfer && e.dataTransfer.types.includes('Files')) {
         setIsDragging(true);
       }
     };
@@ -500,15 +503,15 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
           style={{
             position: 'fixed',
             inset: 0,
-            backgroundColor: 'rgba(9, 13, 22, 0.85)',
-            backdropFilter: 'blur(8px)',
+            backgroundColor: 'rgba(9, 13, 22, 0.45)',
+            backdropFilter: 'blur(3px)',
             zIndex: 90,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             pointerEvents: 'none',
-            border: '4px dashed var(--accent-primary)',
+            border: '3px dashed var(--accent-primary)',
             margin: '0.5rem',
             borderRadius: 'var(--radius-lg)',
           }}
