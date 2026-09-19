@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { Token, Player, GameMap } from '@oldbear/shared';
-import { Heart, Shield, Plus, Minus, Settings, Trash2, ArrowRightLeft, Copy, UserCheck, Swords } from 'lucide-react';
+import { Heart, Shield, Plus, Minus, Settings, Trash2, ArrowRightLeft, Copy, UserCheck, Swords, RotateCw, Lock, Unlock } from 'lucide-react';
 
 interface TokenControlsProps {
   token: Token;
@@ -23,6 +23,103 @@ const ALL_CONDITIONS = [
   'Invisible', 'Paralyzed', 'Petrified', 'Poisoned', 'Prone', 'Restrained',
   'Stunned', 'Unconscious', 'Concentrating', 'Exhaustion'
 ];
+
+export const RotationCompass: React.FC<{
+  rotation: number;
+  onChange: (deg: number) => void;
+}> = ({ rotation, onChange }) => {
+  const compassRef = useRef<HTMLDivElement | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const calculateAngle = (clientX: number, clientY: number) => {
+    if (!compassRef.current) return;
+    const rect = compassRef.current.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const deg = (Math.atan2(clientY - cy, clientX - cx) * 180) / Math.PI + 90;
+    const normalized = Math.round((deg + 360) % 360);
+    onChange(normalized);
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    calculateAngle(e.clientX, e.clientY);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (!isDragging) return;
+    calculateAngle(e.clientX, e.clientY);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    setIsDragging(false);
+    try {
+      (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch (_) {}
+  };
+
+  return (
+    <div
+      ref={compassRef}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      style={{
+        width: '26px',
+        height: '26px',
+        borderRadius: '50%',
+        border: '1.5px solid rgba(255,255,255,0.2)',
+        backgroundColor: 'rgba(15, 23, 42, 0.85)',
+        position: 'relative',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'grab',
+        touchAction: 'none',
+        flexShrink: 0,
+      }}
+      title="Drag to rotate"
+    >
+      {/* North dot */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '2px',
+          width: '3px',
+          height: '3px',
+          borderRadius: '50%',
+          backgroundColor: '#94a3b8',
+        }}
+      />
+      {/* Rotating arrow indicator */}
+      <div
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'absolute',
+          transform: `rotate(${rotation}deg)`,
+          pointerEvents: 'none',
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <div
+          style={{
+            width: '0',
+            height: '0',
+            borderLeft: '3.5px solid transparent',
+            borderRight: '3.5px solid transparent',
+            borderBottom: '8px solid #6366f1',
+            marginTop: '3px',
+          }}
+        />
+      </div>
+    </div>
+  );
+};
 
 export const TokenControls: React.FC<TokenControlsProps> = ({
   token,
@@ -341,6 +438,50 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
             ))}
         </select>
       )}
+
+      {/* Rotation Control with Degree Input & Drag Compass (Task #114 & #115) */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+        <RotationCompass
+          rotation={token.rotation || 0}
+          onChange={(deg) => {
+            if (selectedTokens && selectedTokens.length > 1) {
+              selectedTokens.forEach((t) => onUpdateToken(t.id, { rotation: deg }));
+            } else {
+              onUpdateToken(token.id, { rotation: deg });
+            }
+          }}
+        />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '2px' }}>
+          <input
+            type="number"
+            min={0}
+            max={360}
+            value={Math.round(token.rotation || 0)}
+            onChange={(e) => {
+              const deg = ((parseFloat(e.target.value) || 0) % 360 + 360) % 360;
+              if (selectedTokens && selectedTokens.length > 1) {
+                selectedTokens.forEach((t) => onUpdateToken(t.id, { rotation: deg }));
+              } else {
+                onUpdateToken(token.id, { rotation: deg });
+              }
+            }}
+            style={{
+              width: '42px',
+              padding: '2px 4px',
+              fontSize: '0.78rem',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--bg-surface-elevated)',
+              border: '1px solid var(--border-subtle)',
+              color: 'white',
+              textAlign: 'center',
+            }}
+            title="Rotation in degrees (0 - 360°)"
+          />
+          <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>°</span>
+        </div>
+      </div>
+
+      <div style={{ width: '1px', height: '32px', background: 'var(--border-subtle)' }} />
 
       {/* Full Editor Modal, Duplicate & Delete */}
       <div style={{ display: 'flex', gap: '0.3rem' }}>

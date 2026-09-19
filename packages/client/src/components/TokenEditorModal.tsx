@@ -49,6 +49,8 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
   const [isProp, setIsProp] = useState(token.isProp || false);
   const [propWidth, setPropWidth] = useState<number | undefined>(token.propWidth ?? (token.isProp ? token.size : undefined));
   const [propHeight, setPropHeight] = useState<number | undefined>(token.propHeight ?? (token.isProp ? token.size : undefined));
+  const [rotation, setRotation] = useState<number>(token.rotation || 0);
+  const [locked, setLocked] = useState<boolean>(token.locked || false);
   const [conditions, setConditions] = useState<string[]>(token.conditions || []);
 
   const [previewImg, setPreviewImg] = useState<HTMLImageElement | null>(null);
@@ -92,6 +94,9 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
 
     ctx.save();
     ctx.translate(cx, cy);
+    if (rotation) {
+      ctx.rotate((rotation * Math.PI) / 180);
+    }
 
     const zoom = clipZoom;
     const panX = (clipPanX / 100) * r;
@@ -157,7 +162,7 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
     }
 
     ctx.restore();
-  }, [previewImg, clipShape, borderWidth, ringColor, fillColor, clipZoom, clipPanX, clipPanY, name, isDragging]);
+  }, [previewImg, clipShape, borderWidth, ringColor, fillColor, clipZoom, clipPanX, clipPanY, name, isDragging, rotation]);
 
   const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
     setIsDragging(true);
@@ -285,6 +290,8 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
       isProp,
       propWidth: isProp ? (propWidth !== undefined ? Number(propWidth) : Number(size)) : undefined,
       propHeight: isProp ? (propHeight !== undefined ? Number(propHeight) : Number(size)) : undefined,
+      rotation: Number(rotation) || 0,
+      locked,
       conditions,
     });
     onClose();
@@ -624,6 +631,53 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
               </select>
             </div>
           )}
+
+          <div>
+            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              Rotation ({rotation}°)
+            </label>
+            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', marginTop: '0.25rem' }}>
+              <input
+                type="range"
+                min={0}
+                max={359}
+                step={1}
+                value={rotation}
+                onChange={(e) => setRotation(Number(e.target.value))}
+                style={{ flex: 1, accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
+              />
+              <input
+                type="number"
+                min={0}
+                max={360}
+                value={rotation}
+                onChange={(e) => setRotation(((Number(e.target.value) % 360) + 360) % 360)}
+                style={{
+                  width: '54px',
+                  padding: '0.35rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'white',
+                  fontSize: '0.8rem',
+                  textAlign: 'center',
+                }}
+              />
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>°</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', marginTop: '0.8rem' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <input
+                type="checkbox"
+                checked={locked}
+                onChange={(e) => setLocked(e.target.checked)}
+                style={{ cursor: 'pointer', width: '16px', height: '16px' }}
+              />
+              <span>🔒 Lock {isProp ? 'Prop' : 'Token'} (prevent moving)</span>
+            </label>
+          </div>
 
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Border Shape</label>
