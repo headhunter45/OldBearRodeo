@@ -209,8 +209,6 @@ function nameGen(type) {
 
 | Rank | Feature | AI Credit Cost | Primary Cost Driver |
 | :---: | :--- | :---: | :--- |
-| **1** | Discord Webhook One-Way Sync | **★☆☆☆☆ (Minimal)** | Simple outbound HTTP POST; isolated, single file. |
-| **2** | CLI / Terminal Chat Client | **★☆☆☆☆ (Minimal)** | Standalone script consuming existing WS protocol. |
 | **3** | Direct JSON Paste / Drop Import | **★★☆☆☆ (Low)** | Pure client-side schema mapping, zero network auth. |
 | **4** | `/item` Command with Lookup & Cache | **★★☆☆☆ (Low-Med)** | Straightforward endpoint fetch & chat rendering. |
 | **5** | Direct Token Creation from DDB | **★★☆☆☆ (Low-Med)** | Reuses entity fetchers; spawns token on map. |

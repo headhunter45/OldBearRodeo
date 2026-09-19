@@ -8,8 +8,14 @@ A lightweight, zero-install, mobile-friendly virtual tabletop (VTT) and tactical
 1. [Key Features](#key-features)
 2. [Quickstart with Docker (Recommended)](#quickstart-with-docker-recommended)
 3. [Building, Pushing & Production Deployment](#building-pushing--production-deployment)
-4. [Native Local Development](#native-local-development)
-5. [User Manual & App Guide](#user-manual--app-guide)
+   - [The Container Images](#1-the-container-images)
+   - [Automated CI Build & Publish Script (`scripts/ci-build.sh`)](#2-automated-ci-build--publish-script-scriptsci-buildsh)
+   - [Manual Docker Compose Workflow](#3-manual-docker-compose-workflow)
+   - [Deploying on Your Production Server](#4-deploying-on-your-production-server)
+   - [Reverse Proxy & Nginx Proxy Manager (NPM)](#5-reverse-proxy--nginx-proxy-manager-npm-configuration)
+4. [Environment Variables Reference (`.env`)](#environment-variables-reference-env)
+5. [Native Local Development](#native-local-development)
+6. [User Manual & App Guide](#user-manual--app-guide)
    - [Starting a Game & Inviting Players](#starting-a-game--inviting-players)
    - [Map Management & Grid Alignment](#map-management--grid-alignment)
    - [Tokens & Combat Management](#tokens--combat-management)
@@ -19,8 +25,8 @@ A lightweight, zero-install, mobile-friendly virtual tabletop (VTT) and tactical
    - [Dice Roller & Initiative Tracker](#dice-roller--initiative-tracker)
    - [Full Data Backup & Browser Migration](#full-data-backup--browser-migration)
    - [Global Drag and Drop](#global-drag-and-drop)
-6. [Configuring Available Colors](#configuring-available-colors)
-7. [Architecture & Technology Stack](#architecture--technology-stack)
+7. [Configuring Available Colors](#configuring-available-colors)
+8. [Architecture & Technology Stack](#architecture--technology-stack)
 
 ---
 
@@ -98,27 +104,61 @@ Old Bear Rodeo is packaged into three self-contained container images (`oldbear_
 > [!TIP]
 > Because `nginx.conf` is baked into `oldbear_nginx`, you **do not** need to copy configuration files or map volume paths on your production host!
 
-### 2. Building & Tagging for a Container Registry
+### 2. Automated CI Build & Publish Script (`scripts/ci-build.sh`)
 
-You can build and tag all three images for your private or public registry (e.g., `registry.tomusan.com/` or `ghcr.io/username/`) using the `IMAGE_REGISTRY` environment variable:
+Old Bear Rodeo includes an automated production build and publication script in [`scripts/ci-build.sh`](file:///Users/tom/Projects/OldBearRodeo/scripts/ci-build.sh). This script handles multi-container builds, runs test suites, generates dual tags (`:latest` and the short git commit hash), and pushes directly to a remote registry:
+
+```bash
+./scripts/ci-build.sh [OPTIONS]
+```
+
+#### Command Options & Flags
+
+| Flag | Parameter | Description | Default |
+|:---|:---|:---|:---|
+| `--registry` | `<URL>` | Container registry prefix (e.g. `ghcr.io/myorg/` or `registry.tomusan.com/`) | `${IMAGE_REGISTRY:-registry.tomusan.com/}` |
+| `--tag` | `<TAG>` | Custom container image tag | Short git commit hash (`git rev-parse --short HEAD`) |
+| `--push` | *None* | Automatically push images to the container registry after building | `false` |
+| `--test` | *None* | Execute automated test suites (`npm test`) before building images | `false` |
+| `-h`, `--help` | *None* | Display usage information and available options | — |
+
+#### Common CI Script Workflows
+
+- **Local Production Build**:
+  ```bash
+  ./scripts/ci-build.sh
+  ```
+- **Test and Build**:
+  ```bash
+  ./scripts/ci-build.sh --test
+  ```
+- **Build, Tag with Git Commit, and Push to Default Registry**:
+  ```bash
+  ./scripts/ci-build.sh --test --push
+  ```
+- **Custom Registry and Semantic Version Release**:
+  ```bash
+  ./scripts/ci-build.sh --registry ghcr.io/myusername/ --tag v0.1.0 --test --push
+  ```
+
+---
+
+### 3. Manual Docker Compose Workflow
+
+You can also build and tag all three images manually using Docker Compose:
 
 ```bash
 # Build all 3 images with your registry prefix
 IMAGE_REGISTRY=registry.tomusan.com/ docker compose build
+
+# Push all 3 images to your registry
+IMAGE_REGISTRY=registry.tomusan.com/ docker compose push
 ```
 
 This compiles and tags:
 - `registry.tomusan.com/oldbear_server:latest`
 - `registry.tomusan.com/oldbear_client:latest`
 - `registry.tomusan.com/oldbear_nginx:latest`
-
-### 3. Pushing Images to Your Registry
-
-Push all images with a single command:
-
-```bash
-IMAGE_REGISTRY=registry.tomusan.com/ docker compose push
-```
 
 ### 4. Deploying on Your Production Server
 
@@ -227,6 +267,83 @@ When hosting behind an upstream reverse proxy (like Nginx Proxy Manager, Cloudfl
   > [!IMPORTANT]
   > In Nginx Proxy Manager, toggle **Websockets Support: ON** in the Proxy Host Details tab. If disabled, Nginx Proxy Manager strips the `Upgrade: websocket` and `Connection: Upgrade` headers, causing the WebSocket connection to `/ws` to fail with `404 Not Found`.
 
+
+---
+
+## Environment Variables Reference (`.env`)
+
+Old Bear Rodeo is configured using environment variables defined in `.env` (or `.env.production` for production deployments). A template file [` .env.example`](file:///Users/tom/Projects/OldBearRodeo/.env.example) is provided in the root directory.
+
+### Configuration Hierarchy
+- **`.env.example`**: Complete template documenting all variables, defaults, and usage examples.
+- **`.env`**: Local development environment configuration (read automatically by Docker Compose and Node.js).
+- **`.env.production`**: Production overrides for deployed server instances.
+
+---
+
+### Variable Reference
+
+#### 1. Network & Service Ports
+
+| Variable | Default | Description | Example |
+|:---|:---:|:---|:---|
+| `CLIENT_PORT` | `3000` | Port for the Vite development client server | `3000` |
+| `SERVER_PORT` | `3001` | Port for the Node.js Express API and WebSocket (`/ws`) server | `3001` |
+| `NGINX_PORT` | `80` | Host port mapped to the Nginx reverse proxy gateway container | `80` or `20001` |
+| `POSTGRES_PORT` | `5432` | Host port for the PostgreSQL database container | `5432` |
+
+#### 2. Database Configuration
+
+| Variable | Default | Description | Example |
+|:---|:---:|:---|:---|
+| `POSTGRES_USER` | `oldbear` | Username for the PostgreSQL database | `oldbear` |
+| `POSTGRES_PASSWORD` | `oldbear_secret_password` | Password for PostgreSQL authentication | `your_secure_password` |
+| `POSTGRES_DB` | `oldbear_vtt` | Name of the primary database | `oldbear_vtt` |
+| `DATABASE_URL` | *See note* | Complete PostgreSQL connection URI. If omitted or unreachable, server falls back to in-memory mode | `postgres://oldbear:secret@postgres:5432/oldbear_vtt` |
+
+#### 3. Environment & Runtime
+
+| Variable | Default | Description | Allowed Values |
+|:---|:---:|:---|:---|
+| `NODE_ENV` | `development` | Node.js execution environment | `development`, `production` |
+| `LOG_LEVEL` | `info` | Server console log verbosity | `debug`, `info`, `warn`, `error` |
+
+#### 4. Upload & Storage Limits
+
+| Variable | Default | Description | Example |
+|:---|:---:|:---|:---|
+| `MAX_UPLOAD_SIZE_MB` | `50` | Maximum file upload size limit in Megabytes for maps, tokens, and audio tracks | `50` (or `100` for high-res 4K maps) |
+
+#### 5. Security & CORS
+
+| Variable | Default | Description | Example |
+|:---|:---:|:---|:---|
+| `CORS_ORIGIN` | `*` | Allowed Origin header for REST API requests | `*` or `https://vtt.yourdomain.com` |
+| `SESSION_SECRET` | *dev secret* | Secret key used for session signing and authentication | `generate_random_hex_for_production` |
+
+#### 6. WebRTC Voice & P2P Networking (STUN / TURN)
+
+| Variable | Default | Description | Example |
+|:---|:---:|:---|:---|
+| `STUN_SERVER_URL` | `stun:stun.l.google.com:19302` | Public STUN server for NAT discovery | `stun:stun.l.google.com:19302` |
+| `TURN_SERVER_URL` | *None* | Optional TURN relay server for symmetric NATs and mobile carriers | `turn:turn.yourdomain.com:3478` |
+| `TURN_USERNAME` | *None* | Authentication username for TURN relay | `turnuser` |
+| `TURN_CREDENTIAL` | *None* | Authentication password/token for TURN relay | `turnsecret` |
+
+#### 7. Container Registry & Remote Deployment
+
+| Variable | Default | Description | Example |
+|:---|:---:|:---|:---|
+| `IMAGE_REGISTRY` | *None* | Docker container registry prefix with trailing slash | `registry.tomusan.com/` or `ghcr.io/myorg/` |
+| `IMAGE_TAG` | `latest` | Tag used for pulling, building, or running container images | `latest`, `v0.1.0`, or git commit |
+| `PGDATA_PATH` | *Named volume* | Host directory path for persistent PostgreSQL database storage | `/mnt/Data/Apps/oldbear-vtt/pgdata` |
+
+#### 8. UI & Notification Timers
+
+| Variable | Default | Description | Example |
+|:---|:---:|:---|:---|
+| `TOAST_DURATION_MS` | `4500` | Duration in milliseconds before ephemeral toasts and fog status banners auto-dismiss | `4500` |
+| `VITE_TOAST_DURATION_MS` | `4500` | Client-side Vite environment variable mirroring toast duration | `4500` |
 
 ---
 
