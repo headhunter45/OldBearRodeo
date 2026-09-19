@@ -140,7 +140,7 @@ function nameGen(type) {
 99. ✅ My mic started recording. It should start muted.
 100. ✅ We have client port and server port in our .env, but our dockerfile doesn't use them. Please ensure it uses them to put the containers on the right ports.
 101. ✅ Create a production .env.production and a either a production compose.yaml that uses it or update our current compose.yaml
-102. I want to create a ci script that builds the container in a production state so I can push it to another registry.
+102. ✅ I want to create a ci script that builds the container in a production state so I can push it to another registry.
 
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET

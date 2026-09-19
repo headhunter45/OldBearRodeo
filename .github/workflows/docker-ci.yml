@@ -1,0 +1,65 @@
+name: Docker Production Build & Publish
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      registry:
+        description: 'Docker registry URL prefix (e.g. registry.tomusan.com/ or ghcr.io/<org>/)'
+        required: false
+        default: 'registry.tomusan.com/'
+      push:
+        description: 'Push images to registry after building'
+        type: boolean
+        required: false
+        default: false
+
+jobs:
+  build-and-test:
+    name: Build & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run automated test suites
+        run: npm test
+
+      - name: Build TypeScript workspaces
+        run: npm run build
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry (if credentials provided)
+        if: ${{ secrets.REGISTRY_PASSWORD != '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_URL || 'registry.tomusan.com' }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - name: Run CI Build Script
+        env:
+          IMAGE_REGISTRY: ${{ inputs.registry || secrets.REGISTRY_PREFIX || 'registry.tomusan.com/' }}
+        run: |
+          PUSH_FLAG=""
+          if [ "${{ inputs.push || (github.ref == 'refs/heads/main' && secrets.REGISTRY_PASSWORD != '') }}" = "true" ]; then
+            PUSH_FLAG="--push"
+          fi
+          bash scripts/ci-build.sh ${PUSH_FLAG}

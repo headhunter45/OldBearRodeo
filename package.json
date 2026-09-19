@@ -9,10 +9,16 @@
   "scripts": {
     "dev": "concurrently -n \"SERVER,CLIENT\" -c \"cyan,magenta\" \"npm run dev -w @oldbear/server\" \"npm run dev -w @oldbear/client\"",
     "build": "npm run build -w @oldbear/shared && npm run build -w @oldbear/server && npm run build -w @oldbear/client",
-    "test": "npm run test -w @oldbear/shared && npm run test -w @oldbear/server && npm run test -w @oldbear/client"
+    "test": "npm run test -w @oldbear/shared && npm run test -w @oldbear/server && npm run test -w @oldbear/client",
+    "docker:build": "bash scripts/ci-build.sh",
+    "docker:push": "bash scripts/ci-build.sh --push"
   },
   "devDependencies": {
     "concurrently": "^9.1.2",
     "typescript": "^5.8.2"
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true,
+    "esbuild@0.28.2": true
   }
 }
