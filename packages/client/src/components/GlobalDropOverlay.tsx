@@ -125,17 +125,95 @@ export const GlobalDropOverlay: React.FC<GlobalDropOverlayProps> = ({
       const worldPos = screenToWorld ? screenToWorld(mouseX, mouseY) : { x: mouseX, y: mouseY };
       const existingList = Array.isArray(tokens) ? tokens : Object.values(tokens || {});
 
-      // 0. Internal asset drag from Asset Manager (Bug #73)
-      const internalAssetJson = e.dataTransfer?.getData('application/oldbear-asset');
+      // 0. Internal asset drag from Asset Manager (Bug #73 & Task #112)
+      const internalAssetJson =
+        e.dataTransfer?.getData('application/oldbear-asset') ||
+        e.dataTransfer?.getData('application/json');
       if (internalAssetJson) {
         try {
-          const asset: StoredAsset = JSON.parse(internalAssetJson);
-          const newToken = createMonsterToken(asset, activeMapId, worldPos.x, worldPos.y, existingList);
-          onAddToken(newToken);
-          showToast(`Spawned "${newToken.name}" onto the battlemap!`);
-          return;
+          const asset = JSON.parse(internalAssetJson);
+          if (asset && (asset.id || asset.name) && (asset.type || asset.dataUrl)) {
+            let newToken: Token;
+            if (asset.isProp || asset.type === 'prop') {
+              newToken = {
+                id: `token-${crypto.randomUUID()}`,
+                name: asset.name || 'Prop',
+                mapId: activeMapId,
+                x: worldPos.x,
+                y: worldPos.y,
+                size: asset.size || 1,
+                imageUrl: asset.dataUrl,
+                ringColor: asset.ringColor || '#10b981',
+                currentHp: asset.hp || 10,
+                maxHp: asset.maxHp || asset.hp || 10,
+                conditions: [],
+                rotation: 0,
+                fillColor: 'transparent',
+                clipCircle: false,
+                tempHp: 0,
+                speed: 0,
+                elevation: 0,
+                isProp: true,
+                layer: 'prop',
+                propWidth: asset.propWidth,
+                propHeight: asset.propHeight,
+                locked: asset.locked,
+              };
+            } else if (asset.type === 'monster' || asset.monsterData) {
+              newToken = createMonsterToken(asset, activeMapId, worldPos.x, worldPos.y, existingList);
+            } else if (asset.type === 'character' && asset.character) {
+              const char = asset.character;
+              newToken = {
+                id: `token-${crypto.randomUUID()}`,
+                name: char.name || asset.name || 'Character',
+                mapId: activeMapId,
+                x: worldPos.x,
+                y: worldPos.y,
+                size: 1,
+                rotation: 0,
+                imageUrl: char.avatarUrl || asset.dataUrl || '',
+                ringColor: '#6366f1',
+                fillColor: '#1e293b',
+                clipCircle: true,
+                currentHp: char.currentHp ?? char.maxHp ?? 10,
+                maxHp: char.maxHp ?? 10,
+                tempHp: 0,
+                conditions: [],
+                speed: char.speed || 30,
+                elevation: 0,
+                isProp: false,
+                layer: 'token',
+                character: char,
+              };
+            } else {
+              newToken = {
+                id: `token-${crypto.randomUUID()}`,
+                name: asset.name || 'Token',
+                mapId: activeMapId,
+                x: worldPos.x,
+                y: worldPos.y,
+                size: asset.size || 1,
+                rotation: 0,
+                imageUrl: asset.dataUrl,
+                ringColor: asset.ringColor || '#6366f1',
+                fillColor: '#1e293b',
+                clipCircle: true,
+                currentHp: asset.hp || 10,
+                maxHp: asset.maxHp || asset.hp || 10,
+                tempHp: 0,
+                conditions: [],
+                speed: asset.speed || 30,
+                elevation: 0,
+                isProp: false,
+                layer: 'token',
+              };
+            }
+            onAddToken(newToken);
+            showToast(`Spawned "${newToken.name}" onto the battlemap!`);
+            return;
+          }
         } catch (err) {
-          console.warn('Failed to parse dropped asset:', err);
+          // not an internal asset, proceed to files
         }
       }
 

@@ -1830,6 +1830,13 @@ export const App: React.FC = () => {
         isGm={isGm}
         activeMapId={currentMap?.id || session?.activeMapId || ''}
         gridSize={currentMap?.gridSize || 50}
+        tokens={session?.tokens}
+        screenToWorld={(x, y) => {
+          if (engineRef.current) {
+            return engineRef.current.viewport.screenToWorld(x, y);
+          }
+          return { x, y };
+        }}
         onAddMap={handleAddMap}
         onAddToken={(newToken) => {
           setSession((prev) => {

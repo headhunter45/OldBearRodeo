@@ -21,7 +21,9 @@ import {
   Skull,
   Shield,
   Package,
+  ChevronDown,
 } from 'lucide-react';
+import { useDraggableWindow } from '../hooks/useDraggableWindow.js';
 import { GameSession, GameMap, Token, DnDCharacter } from '@oldbear/shared';
 import { exportAllData, downloadBackupFile, importAllData } from '../storage/BackupManager.js';
 import {
@@ -127,6 +129,44 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   const [resultMessage, setResultMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+
+  // Draggable window state (Task #112)
+  const [isMinimized, setIsMinimized] = useState(false);
+  const { windowRef, position, isDragging: isWindowDragging, handleMouseDown } = useDraggableWindow({
+    storageKey: 'obr_asset_manager_pos',
+    initialX: typeof window !== 'undefined' ? Math.max(20, Math.min(window.innerWidth - 750, 80)) : 80,
+    initialY: 80,
+  });
+
+  const handleAssetDragStart = (e: React.DragEvent, asset: StoredAsset, type: 'token' | 'prop' | 'monster' | 'character') => {
+    const payload = {
+      ...asset,
+      type,
+      isProp: type === 'prop' || asset.isProp,
+    };
+    e.dataTransfer.setData('application/oldbear-asset', JSON.stringify(payload));
+    e.dataTransfer.setData('application/json', JSON.stringify(payload));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleCharacterDragStart = (e: React.DragEvent, charRecord: SavedCharacterRecord) => {
+    const char = charRecord.charData;
+    const assetLike = {
+      id: charRecord.id,
+      name: charRecord.name || char?.name || 'Character',
+      type: 'character',
+      dataUrl: charRecord.avatarUrl || char?.avatarUrl || '',
+      character: char,
+      hp: char?.currentHp ?? char?.maxHp ?? 10,
+      maxHp: char?.maxHp ?? 10,
+      speed: char?.speed || 30,
+      size: 1,
+      createdAt: Date.now(),
+    };
+    e.dataTransfer.setData('application/oldbear-asset', JSON.stringify(assetLike));
+    e.dataTransfer.setData('application/json', JSON.stringify(assetLike));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const assetUploadRef = useRef<HTMLInputElement | null>(null);
@@ -564,60 +604,94 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
 
   return (
     <div
+      ref={windowRef}
+      className="glass-panel-elevated animate-scale-up"
       style={{
         position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0,0,0,0.75)',
-        backdropFilter: 'blur(8px)',
-        zIndex: 60,
+        left: position ? `${position.x}px` : 'calc(50% - 370px)',
+        top: position ? `${position.y}px` : '80px',
+        width: '740px',
+        maxWidth: '95vw',
+        maxHeight: isMinimized ? '58px' : '88vh',
         display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '1rem',
+        flexDirection: 'column',
+        borderRadius: 'var(--radius-lg)',
+        overflow: 'hidden',
+        boxShadow: isWindowDragging ? '0 24px 48px rgba(0,0,0,0.75)' : '0 16px 36px rgba(0,0,0,0.55)',
+        zIndex: 55,
+        transition: isWindowDragging
+          ? 'none'
+          : 'max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        pointerEvents: 'auto',
       }}
-      onClick={onClose}
+      onClick={(e) => e.stopPropagation()}
     >
+      {/* Draggable Header */}
       <div
-        className="glass-panel-elevated animate-scale-up"
+        onMouseDown={handleMouseDown}
         style={{
-          width: '100%',
-          maxWidth: '720px',
-          maxHeight: '90vh',
+          padding: '0.9rem 1.25rem',
+          borderBottom: isMinimized ? 'none' : '1px solid var(--border-subtle)',
           display: 'flex',
-          flexDirection: 'column',
-          borderRadius: 'var(--radius-lg)',
-          overflow: 'hidden',
-          boxShadow: '0 20px 40px rgba(0,0,0,0.7)',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          backgroundColor: 'var(--bg-surface)',
+          cursor: isWindowDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
         }}
-        onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
-        <div
-          style={{
-            padding: '1.25rem 1.5rem',
-            borderBottom: '1px solid var(--border-subtle)',
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            backgroundColor: 'var(--bg-surface)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-            <Database size={22} color="var(--accent-primary)" />
-            <div>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.2rem', margin: 0 }}>
-                Asset Manager & Backup
-              </h2>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                Manage uploaded tokens, maps, sounds, and export/import data
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+          <Database size={20} color="var(--accent-primary)" />
+          <div>
+            <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.15rem', margin: 0 }}>
+              Asset Manager
+            </h2>
+            {!isMinimized && (
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                Drag items onto battlemap or deploy with 1-click
               </div>
-            </div>
+            )}
           </div>
-          <button className="btn-icon" onClick={onClose}>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          {/* Minimize / Expand button */}
+          <button
+            className="btn-icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMinimized((v) => !v);
+            }}
+            title={isMinimized ? 'Expand Asset Manager' : 'Minimize Asset Manager'}
+            style={{ width: '28px', height: '28px' }}
+          >
+            <ChevronDown
+              size={18}
+              className={`chevron-minimize ${isMinimized ? 'minimized' : ''}`}
+            />
+          </button>
+          <button
+            className="btn-icon"
+            onClick={onClose}
+            title="Close Asset Manager"
+            style={{ width: '28px', height: '28px' }}
+          >
             <X size={18} />
           </button>
         </div>
+      </div>
 
+      {/* Window Body (collapses when minimized) */}
+      <div
+        className={`draggable-window-body ${isMinimized ? 'minimized' : ''}`}
+        style={{
+          display: isMinimized ? 'none' : 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          overflow: 'hidden',
+          minHeight: 0,
+        }}
+      >
         {/* Tabs */}
         <div
           style={{
@@ -939,6 +1013,8 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                   return (
                     <div
                       key={charRecord.id}
+                      draggable={true}
+                      onDragStart={(e) => handleCharacterDragStart(e, charRecord)}
                       style={{
                         borderRadius: 'var(--radius-md)',
                         backgroundColor: 'var(--bg-surface-elevated)',
@@ -947,6 +1023,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                         display: 'flex',
                         flexDirection: 'column',
                         position: 'relative',
+                        cursor: 'grab',
                       }}
                     >
                       {/* Class Pill */}
@@ -1023,7 +1100,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                             onClick={() => handleDeployCharacter(charRecord)}
                             title="Spawn character token onto the battlemap"
                           >
-                            <Plus size={12} /> Deploy
+                            <Plus size={12} /> Deploy to Map
                           </button>
                         )}
                         <button
@@ -1068,6 +1145,8 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                   return (
                     <div
                       key={asset.id}
+                      draggable={true}
+                      onDragStart={(e) => handleAssetDragStart(e, asset, 'monster')}
                       style={{
                         borderRadius: 'var(--radius-md)',
                         backgroundColor: 'var(--bg-surface-elevated)',
@@ -1077,6 +1156,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                         flexDirection: 'column',
                         position: 'relative',
                         boxShadow: isSelected ? '0 0 10px rgba(244, 63, 94, 0.4)' : 'none',
+                        cursor: 'grab',
                       }}
                     >
                       {/* Checkbox badge */}
@@ -1160,7 +1240,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                             onClick={() => handleDeployMonster(asset)}
                             title="Spawn monster token onto the battlemap"
                           >
-                            <Plus size={12} /> Deploy
+                            <Plus size={12} /> Deploy to Map
                           </button>
                         )}
                         <button
@@ -1269,6 +1349,14 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                 return (
                   <div
                     key={asset.id}
+                    draggable={activeTab === 'tokens' || activeTab === 'props'}
+                    onDragStart={(e) => {
+                      if (activeTab === 'tokens') {
+                        handleAssetDragStart(e, asset, 'token');
+                      } else if (activeTab === 'props') {
+                        handleAssetDragStart(e, asset, 'prop');
+                      }
+                    }}
                     style={{
                       borderRadius: 'var(--radius-md)',
                       backgroundColor: 'var(--bg-surface-elevated)',
@@ -1278,6 +1366,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                       flexDirection: 'column',
                       position: 'relative',
                       boxShadow: isSelected ? '0 0 10px rgba(99, 102, 241, 0.4)' : 'none',
+                      cursor: (activeTab === 'tokens' || activeTab === 'props') ? 'grab' : 'default',
                     }}
                   >
                     {/* Checkbox badge */}
@@ -1344,7 +1433,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                         onClick={() => handleDeployToken(asset)}
                         title={activeTab === 'props' ? 'Spawn prop onto the battlemap' : 'Spawn token onto the battlemap'}
                       >
-                        <Plus size={12} /> Deploy
+                        <Plus size={12} /> Deploy to Map
                       </button>
                     )}
 
