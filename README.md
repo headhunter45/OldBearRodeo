@@ -2,6 +2,9 @@
 
 A lightweight, zero-install, mobile-friendly virtual tabletop (VTT) and tactical battlemap system designed for seamless tabletop roleplaying sessions. Built with modern TypeScript, WebRTC voice communication, HTML5 Canvas, and deep D&D Beyond character synchronization.
 
+- 💬 **Feedback & Bug Reports**: [Feedback Form](https://forms.gle/zD9Rmqj4c3Dffpw39)
+- 🐙 **GitHub Repository**: [headhunter45/OldBearRodeo](https://github.com/headhunter45/OldBearRodeo)
+
 ---
 
 ## Table of Contents
