@@ -158,6 +158,8 @@ function nameGen(type) {
     - *Cost Drivers*: Completely self-contained script; consumes existing WebSocket signaling protocol without modifying core engine.
     - Lightweight terminal client or script connecting to the WebSocket server (`/ws`) to monitor chat and roll dice from the command line or stream decks.
     - local history so up lets you go back through the commands and messages you typed.
+    - use python or something reliably multi platform but not java.
+    - call the executable "oldbearchat" and let us join by running `oldbearchat <invite url>` or `oldbearchat` and then in the chat context `/join <invite url>`. Take inspiration from irc/mirc for the ui and commands. We don't need to support multiple rooms or channels yet.
 107. Props should be tracked like tokens in the asset manager.
 108. Reorganize the hamburger menu.
   1. Sound status. The bar that's already there.
@@ -169,8 +171,13 @@ function nameGen(type) {
   7. Backup & Transfer Data -> Rename to Asset Manager and add a scene manager tab. move the scene manager into this Asset Manager.
   8. Voice & Audio settings
 109. Make a prompt to generate a favicon for the page. I will execute it and add the file later.
-110. Asset manager doesn't show props. 
-111. Find a way to keep highlights like the arrow, target, circle, and rectangle persist and be removed later.
+110. Asset manager doesn't show props. Add a props tab.
+111. Persistent highlights and drawings (spell templates, zones, arrows) with removal:
+  - Add a `📌 Persist` toggle in the drawing tools flyout and bottom toolbar (`⚡ Quick Ping` fades after 4s vs. `📌 Persist` stays on map; `Shift` key inverts mode on desktop).
+  - Treat persistent shapes (circle, rectangle, arrow, target) as entities on a drawing layer rendered directly on top of the background grid but beneath character tokens (so tokens can stand inside spell areas without blocking selection).
+  - Laser pointer remains strictly ephemeral.
+  - Allow the creator and any GM to select persistent shapes using the Arrow (`select`) tool to move or remove them.
+  - When a persistent shape is selected, display a minimal toolbar with a Delete button `🗑️` (or `Delete`/`Backspace` on desktop) and a Lock toggle `🔒` (from Task 115) to prevent accidental movement during battle.
 112. Make the Asset Manager a draggable, non-modal floating window without a dark backdrop overlay so the battlemap remains interactive underneath. Support dragging tokens, props, monsters, and characters directly out of the asset window onto the canvas scene to spawn them at the cursor, and include a "Deploy to Map" button on each asset card (dropping near viewport center/visible area), along with minimize/collapse and close controls.
 113. When managing props in the asset manager we should be able to set the prop dimensions in tiles as a decimal number so 1.5 x 3.24 or something like that.
 114. I want to be able to rotate props from their settings and the bottom toolbar when they are selected.
