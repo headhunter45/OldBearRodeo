@@ -1464,8 +1464,26 @@ export const App: React.FC = () => {
             tokens={session.tokens}
             selectedToken={selectedToken}
             players={session.players}
+            localPlayer={localPlayer}
             isGm={isGm}
             onClose={() => setShowInitiative(false)}
+            onRoll={(roll) => {
+              setActiveRollAnnouncement(roll);
+              setSession((prev) => {
+                if (!prev) return prev;
+                const history = prev.diceHistory || [];
+                if (history.some((r) => r.id === roll.id)) return prev;
+                return {
+                  ...prev,
+                  diceHistory: [...history, roll],
+                };
+              });
+              networkRef.current?.send({ type: 'dice-roll', roll });
+            }}
+            onSendMessage={(message) => {
+              networkRef.current?.send({ type: 'chat-send', message });
+              setChatMessages((prev) => [...prev, message]);
+            }}
             onSelectToken={(tokenId) => {
               const token = session.tokens[tokenId];
               if (!token) return;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { InitiativeState, InitiativeItem, Token, Player } from '@oldbear/shared';
+import { InitiativeState, InitiativeItem, Token, Player, DiceRollResult, ChatMessage } from '@oldbear/shared';
 import { Swords, Plus, ChevronRight, ChevronLeft, ArrowUpDown, Trash2, X, Dices, HelpCircle, ChevronDown, GripVertical, Pencil, Check } from 'lucide-react';
 import { useDraggableWindow } from '../hooks/useDraggableWindow.js';
 
@@ -9,9 +9,12 @@ interface InitiativeTrackerProps {
   tokens: Record<string, Token>;
   selectedToken?: Token | null;
   players?: Record<string, Player> | Player[];
+  localPlayer?: Player | null;
   isGm: boolean;
   onClose?: () => void;
   onSelectToken?: (tokenId: string) => void;
+  onRoll?: (roll: DiceRollResult) => void;
+  onSendMessage?: (msg: ChatMessage) => void;
 }
 
 export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
@@ -20,9 +23,12 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
   tokens,
   selectedToken,
   players,
+  localPlayer,
   isGm,
   onClose,
   onSelectToken,
+  onRoll,
+  onSendMessage,
 }) => {
   const [newName, setNewName] = useState('');
   const [newInit, setNewInit] = useState(10);
@@ -247,16 +253,43 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
   const handleAddSelectedToken = () => {
     if (!selectedToken) return;
     const bonus = getTokenInitiativeBonus(selectedToken);
-    const roll = Math.floor(Math.random() * 20) + 1 + bonus;
+    const d20 = Math.floor(Math.random() * 20) + 1;
+    const total = d20 + bonus;
     const item: InitiativeItem = {
       id: crypto.randomUUID(),
       tokenId: selectedToken.id,
       name: selectedToken.name,
-      initiative: roll,
+      initiative: total,
       hp: selectedToken.currentHp,
       maxHp: selectedToken.maxHp,
       color: selectedToken.ringColor,
     };
+
+    const rollResult: DiceRollResult = {
+      id: crypto.randomUUID(),
+      userId: localPlayer?.id || 'system',
+      userName: `${selectedToken.name} (Initiative)`,
+      userColor: selectedToken.ringColor || localPlayer?.color || '#f59e0b',
+      diceType: 'd20',
+      count: 1,
+      modifier: bonus,
+      rolls: [d20],
+      total,
+      timestamp: Date.now(),
+    };
+    onRoll?.(rollResult);
+
+    const bonusStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+    const chatMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      senderId: localPlayer?.id || 'system',
+      senderName: localPlayer?.name || 'Initiative Tracker',
+      senderColor: localPlayer?.color || '#f59e0b',
+      text: `🎲 **${selectedToken.name}** rolled Initiative: **${total}** (1d20 [${d20}] ${bonusStr})`,
+      timestamp: Date.now(),
+      roll: rollResult,
+    };
+    onSendMessage?.(chatMsg);
 
     const items = [...initiative.items, item].sort((a, b) => b.initiative - a.initiative);
     onUpdateInitiative({ ...initiative, items });
@@ -265,9 +298,37 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
   const handleRerollItem = (item: InitiativeItem) => {
     const token = item.tokenId ? tokens[item.tokenId] : Object.values(tokens).find((t) => t.name.toLowerCase() === item.name.toLowerCase());
     const bonus = getTokenInitiativeBonus(token, item.name);
-    const roll = Math.floor(Math.random() * 20) + 1 + bonus;
+    const d20 = Math.floor(Math.random() * 20) + 1;
+    const total = d20 + bonus;
+
+    const rollResult: DiceRollResult = {
+      id: crypto.randomUUID(),
+      userId: localPlayer?.id || 'system',
+      userName: `${item.name} (Initiative)`,
+      userColor: item.color || localPlayer?.color || '#f59e0b',
+      diceType: 'd20',
+      count: 1,
+      modifier: bonus,
+      rolls: [d20],
+      total,
+      timestamp: Date.now(),
+    };
+    onRoll?.(rollResult);
+
+    const bonusStr = bonus >= 0 ? `+${bonus}` : `${bonus}`;
+    const chatMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      senderId: localPlayer?.id || 'system',
+      senderName: localPlayer?.name || 'Initiative Tracker',
+      senderColor: localPlayer?.color || '#f59e0b',
+      text: `🎲 **${item.name}** rerolled Initiative: **${total}** (1d20 [${d20}] ${bonusStr})`,
+      timestamp: Date.now(),
+      roll: rollResult,
+    };
+    onSendMessage?.(chatMsg);
+
     const items = initiative.items
-      .map((i) => (i.id === item.id ? { ...i, initiative: roll } : i))
+      .map((i) => (i.id === item.id ? { ...i, initiative: total } : i))
       .sort((a, b) => b.initiative - a.initiative);
     onUpdateInitiative({ ...initiative, items });
   };
