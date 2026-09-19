@@ -1662,7 +1662,6 @@ export const App: React.FC = () => {
               }
             }}
           />
-        </div>
       )}
 
       {/* Slide-out Character Sheet Flyout */}

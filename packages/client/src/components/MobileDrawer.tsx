@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Player } from '@oldbear/shared';
 import { VoiceState } from '../network/VoiceManager.js';
+import { FULL_VERSION_STRING } from '../config/version.js';
 
 import { COLOR_VALUES } from '../config/colors.js';
 
@@ -167,9 +168,14 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span style={{ fontSize: '1.25rem' }}>🐻</span>
-            <span style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.02em' }}>
-              Old Bear Rodeo
-            </span>
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <span style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.02em', lineHeight: 1.1 }}>
+                Old Bear Rodeo
+              </span>
+              <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.03em' }}>
+                {FULL_VERSION_STRING}
+              </span>
+            </div>
           </div>
           <button className="btn-icon" onClick={handleClose} style={{ width: '32px', height: '32px' }}>
             <X size={18} />

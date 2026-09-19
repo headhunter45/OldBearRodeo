@@ -202,7 +202,7 @@ function nameGen(type) {
 120. ✅ Make dice roller a draggable window
 121. ✅ Make character sheet a draggable window.
 123. ✅ When dragging an asset onto the scene we should not get the drop files to import screen. We should still see the scene so we can see where we are dragging.
-124. Store the version somewhere we can use it in ci when building and tagging containers. If we have to manually update it I want to do it in one place. If possible include the short git hash when displaying it in the app something like `v0.1.0-alpha5 (c292e59)` where the version number in our file is `0.1.0-alpha5`.
+124. ✅ Store the version somewhere we can use it in ci when building and tagging containers. If we have to manually update it I want to do it in one place. If possible include the short git hash when displaying it in the app something like `v0.1.0-alpha5 (c292e59)` where the version number in our file is `0.1.0-alpha5`.
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
 - On mobile selecting a character with the arrow or moving them is nearly impossible. It feels like the cursor is the bottom right of my finger instead of the middle. The place I have to tap on the token is tiny. Even after using the box to select the token when I use the arrow to move it it deselects everything and pans the map.

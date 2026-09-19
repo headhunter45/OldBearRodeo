@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Player, GameMap } from '@oldbear/shared';
 import { VoiceState } from '../network/VoiceManager.js';
+import { FULL_VERSION_STRING } from '../config/version.js';
 
 interface TopBarProps {
   roomName: string;
@@ -134,7 +135,7 @@ export const TopBar: React.FC<TopBarProps> = ({
                 opacity: 0.8,
               }}
             >
-              v0.1.0
+              {FULL_VERSION_STRING}
             </span>
           </div>
         </div>

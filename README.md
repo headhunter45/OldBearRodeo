@@ -106,7 +106,13 @@ Old Bear Rodeo is packaged into three self-contained container images (`oldbear_
 
 ### 2. Automated CI Build & Publish Script (`scripts/ci-build.sh`)
 
-Old Bear Rodeo includes an automated production build and publication script in [`scripts/ci-build.sh`](file:///Users/tom/Projects/OldBearRodeo/scripts/ci-build.sh). This script handles multi-container builds, runs test suites, generates dual tags (`:latest` and the short git commit hash), and pushes directly to a remote registry:
+Old Bear Rodeo includes an automated production build and publication script in [`scripts/ci-build.sh`](file:///Users/tom/Projects/OldBearRodeo/scripts/ci-build.sh). 
+
+#### Single Source of Truth Versioning (`VERSION`)
+The repository root contains a [`VERSION`](file:///Users/tom/Projects/OldBearRodeo/VERSION) file (e.g. `0.1.0-alpha5`). 
+- When updated, this single file controls the application version across the Vite frontend, backend container metadata, and container registry image tags.
+- The web app dynamically renders the version along with the short git commit hash, e.g. `v0.1.0-alpha5 (c292e59)`, in the TopBar and Mobile Drawer.
+- The CI script automatically tags images with the version from `VERSION` (or custom `--tag`), the short git commit hash, and `:latest`.
 
 ```bash
 ./scripts/ci-build.sh [OPTIONS]
@@ -117,7 +123,7 @@ Old Bear Rodeo includes an automated production build and publication script in 
 | Flag | Parameter | Description | Default |
 |:---|:---|:---|:---|
 | `--registry` | `<URL>` | Container registry prefix (e.g. `ghcr.io/myorg/` or `registry.tomusan.com/`) | `${IMAGE_REGISTRY:-registry.tomusan.com/}` |
-| `--tag` | `<TAG>` | Custom container image tag | Short git commit hash (`git rev-parse --short HEAD`) |
+| `--tag` | `<TAG>` | Primary container image tag | Sourced from [`VERSION`](file:///Users/tom/Projects/OldBearRodeo/VERSION) (e.g. `0.1.0-alpha5`) |
 | `--push` | *None* | Automatically push images to the container registry after building | `false` |
 | `--test` | *None* | Execute automated test suites (`npm test`) before building images | `false` |
 | `-h`, `--help` | *None* | Display usage information and available options | — |

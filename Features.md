@@ -258,7 +258,12 @@ Accessible via the Drawing Tools sub-menu in the left HUD or number keys (`1` - 
   6. *Soundboard*
   7. *Asset Manager* (Includes Scene Manager)
   8. *Voice & Audio settings*
-- **TopBar Layout (Task #116)**: Baseline-aligned top bar featuring room controls, player avatars, audio indicators, and version badge (`v0.1.0`).
+- **TopBar Layout (Task #116, #124)**: Baseline-aligned top bar featuring room controls, player avatars, audio indicators, and dynamic single-source-of-truth version badge with short git commit hash (e.g. `v0.1.0-alpha5 (c292e59)`).
+- **Draggable & Minimizable Windows (Task #120, #121)**:
+  - *Dice Roller* (`#120`): Freely draggable anywhere on screen, minimizable to a compact header chip, with persistent coordinates stored in `localStorage`.
+  - *Character Sheet* (`#121`): Freely draggable floating window with collapse/minimize chevron, enabling players to reference stats and spells without obscuring the combat map.
+  - *Initiative Tracker & Chat*: Fully movable and minimizable.
+- **Unobstructed Asset Dragging (Task #123)**: Dragging tokens, props, and monsters from the Asset Manager directly onto the board leaves the scene completely unobstructed (no modal backdrop or full-screen blur), so GMs can accurately place assets onto specific map tiles and grid coordinates.
 - **Random Name Generator**: Fantasy name generator assigns incoming players thematic names with distinct GM labeling.
 - **Keyboard Shortcuts**:
 
@@ -284,10 +289,11 @@ Accessible via the Drawing Tools sub-menu in the left HUD or number keys (`1` - 
 
 ## 17. DevOps, Docker & Deployment
 
+- **Single Source of Truth Versioning (`VERSION`) (Task #124)**: Central `VERSION` file in the project root governing application versioning across frontend displays, container image tags, and CI metadata.
 - **Containerized Stack**: Multi-container architecture managed via `compose.yaml` (development) and `compose.prod.yaml` (production):
   - `client`: Vite frontend served via Nginx.
   - `server`: Node.js signaling and API backend.
   - `nginx`: Reverse proxy routing WebSocket (`/ws`), API proxy (`/api`), and frontend assets.
   - `db`: Optional PostgreSQL service with automatic in-memory fallback.
-- **Environment Configuration**: Centralized `.env` and `.env.example` managing `PORT_CLIENT`, `PORT_SERVER`, `PORT_NGINX`, and session parameters.
-- **Automated CI / Build Script (`scripts/build-and-push.sh`)**: Script to build, tag, and publish multi-arch container images to remote registries.
+- **Environment Configuration**: Centralized `.env` and `.env.example` managing `CLIENT_PORT`, `SERVER_PORT`, `NGINX_PORT`, and session parameters.
+- **Automated CI Build & Publish Script (`scripts/ci-build.sh`) (Task #124)**: Script to build, test, tag (using `VERSION`, git commit hash, and `:latest`), and publish production container images to remote registries.
