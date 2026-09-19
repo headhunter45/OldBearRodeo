@@ -648,6 +648,9 @@ export const App: React.FC = () => {
         setSelectedTokens(toks);
         setSelectedToken(toks[0] || null);
       },
+      onToolChange: (tool) => {
+        setActiveTool(tool);
+      },
       onMarkerAdd: (marker) => {
         networkRef.current?.send({
           type: 'marker-add',

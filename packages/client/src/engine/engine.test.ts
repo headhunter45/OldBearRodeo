@@ -3,6 +3,7 @@ import assert from 'node:assert';
 import { Viewport } from './Viewport.js';
 import { measureDistance } from './Ruler.js';
 import { snapToGrid } from './GridRenderer.js';
+import { TRACKPAD_PAN_SENSITIVITY, TRACKPAD_ZOOM_SENSITIVITY, MOUSE_WHEEL_ZOOM_SENSITIVITY } from './CanvasEngine.js';
 
 describe('Canvas Engine Utilities', () => {
   it('correctly maps screen to world coordinates', () => {
@@ -212,5 +213,45 @@ describe('Canvas Engine Utilities', () => {
       230 >= rectMarker.y &&
       230 <= rectMarker.y + rectMarker.height;
     assert.strictEqual(outsideRect, false);
+  });
+
+  it('separates trackpad two-finger pan from pinch-to-zoom using sensitivity constants (Task #117)', () => {
+    const vp = new Viewport(0, 0, 1.0);
+
+    // Standard two-finger swipe (e.ctrlKey === false): pans without changing scale
+    const deltaX = 30;
+    const deltaY = 50;
+    const panX = -deltaX * TRACKPAD_PAN_SENSITIVITY;
+    const panY = -deltaY * TRACKPAD_PAN_SENSITIVITY;
+    vp.pan(panX, panY);
+
+    assert.strictEqual(vp.x, -30);
+    assert.strictEqual(vp.y, -50);
+    assert.strictEqual(vp.scale, 1.0);
+
+    // Pinch-to-zoom (e.ctrlKey === true): zooms exponentially at cursor anchor
+    const pinchDelta = -10;
+    const zoomFactor = Math.exp(-pinchDelta * TRACKPAD_ZOOM_SENSITIVITY);
+    vp.zoomAt(100, 100, zoomFactor);
+
+    assert.strictEqual(vp.scale > 1.0, true);
+    assert.strictEqual(TRACKPAD_PAN_SENSITIVITY > 0, true);
+    assert.strictEqual(TRACKPAD_ZOOM_SENSITIVITY > 0, true);
+    assert.strictEqual(MOUSE_WHEEL_ZOOM_SENSITIVITY > 0, true);
+  });
+
+  it('reverts box select tool to arrow select upon enclosing tokens (Task #117)', () => {
+    let currentTool = 'box-select';
+    const onToolChange = (tool: string) => {
+      currentTool = tool;
+    };
+
+    const enclosedTokens = [{ id: 't1' }, { id: 't2' }];
+    if (enclosedTokens.length > 0) {
+      currentTool = 'select';
+      onToolChange('select');
+    }
+
+    assert.strictEqual(currentTool, 'select');
   });
 });

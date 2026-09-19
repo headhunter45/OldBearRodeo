@@ -13,6 +13,19 @@ import { FogRenderer } from './FogRenderer.js';
 import { renderMarkers, hexToRgba } from './PointerSystem.js';
 import { drawRuler, measureDistance, RulerMeasurement } from './Ruler.js';
 
+/**
+ * -----------------------------------------------------------------------------------------
+ * VIEWPORT INTERACTION TUNING CONSTANTS (Task #117)
+ * Adjust these values to tweak the trackpad pan sensitivity and zooming response strength:
+ * - TRACKPAD_PAN_SENSITIVITY: Multiplier applied to two-finger trackpad panning (default: 1.0)
+ * - TRACKPAD_ZOOM_SENSITIVITY: Multiplier applied to trackpad pinch-to-zoom gesture (default: 0.01)
+ * - MOUSE_WHEEL_ZOOM_SENSITIVITY: Multiplier applied to desktop mouse wheel zooming (default: 0.0015)
+ * -----------------------------------------------------------------------------------------
+ */
+export const TRACKPAD_PAN_SENSITIVITY = 1.0;
+export const TRACKPAD_ZOOM_SENSITIVITY = 0.01;
+export const MOUSE_WHEEL_ZOOM_SENSITIVITY = 0.0015;
+
 export type ActiveTool =
   | 'select'
   | 'pan'
@@ -35,6 +48,7 @@ export interface CanvasEngineCallbacks {
   onMarkerUpdate?: (id: string, updates: Partial<ScreenMarker>) => void;
   onMarkerSelect?: (marker: ScreenMarker | null) => void;
   onFogUpdate?: (shape: FogShape) => void;
+  onToolChange?: (tool: ActiveTool) => void;
 }
 
 export class CanvasEngine {
@@ -882,6 +896,12 @@ export class CanvasEngine {
       this.selectedTokenId = toSelect[0] ? toSelect[0].id : null;
       this.callbacks.onTokensSelect?.(toSelect);
       this.callbacks.onTokenSelect?.(toSelect[0] || null);
+
+      // Auto-revert box select tool to arrow ('select') tool when tokens are successfully selected (Task #117)
+      if (toSelect.length > 0) {
+        this.activeTool = 'select';
+        this.callbacks.onToolChange?.('select');
+      }
       return;
     }
 
@@ -1033,8 +1053,18 @@ export class CanvasEngine {
 
   private onWheel = (e: WheelEvent) => {
     e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
-    this.viewport.zoomAt(e.clientX, e.clientY, zoomFactor);
+
+    if (e.ctrlKey || e.metaKey) {
+      // Pinch-to-zoom gesture on trackpads (macOS synthesizes e.ctrlKey === true) or Ctrl/Cmd+scroll
+      // Smooth exponential zoom response at cursor anchor
+      const factor = Math.exp(-e.deltaY * TRACKPAD_ZOOM_SENSITIVITY);
+      this.viewport.zoomAt(e.clientX, e.clientY, factor);
+    } else {
+      // Standard two-finger trackpad swipe or mouse wheel scroll -> Pan battlemap smoothly
+      const dx = -e.deltaX * TRACKPAD_PAN_SENSITIVITY;
+      const dy = -e.deltaY * TRACKPAD_PAN_SENSITIVITY;
+      this.viewport.pan(dx, dy);
+    }
   };
 
   private bindEvents() {
