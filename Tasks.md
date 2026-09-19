@@ -170,7 +170,7 @@ function nameGen(type) {
   6. Soundboard
   7. Backup & Transfer Data -> Rename to Asset Manager and add a scene manager tab. move the scene manager into this Asset Manager.
   8. Voice & Audio settings
-109. Make a prompt to generate a favicon for the page. I will execute it and add the file later.
+109. ✅ Make a prompt to generate a favicon for the page. I will execute it and add the file later.
 110. Asset manager doesn't show props. Add a props tab.
 111. Persistent highlights and drawings (spell templates, zones, arrows) with removal:
   - Add a `📌 Persist` toggle in the drawing tools flyout and bottom toolbar (`⚡ Quick Ping` fades after 4s vs. `📌 Persist` stays on map; `Shift` key inverts mode on desktop).
