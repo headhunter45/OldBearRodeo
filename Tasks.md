@@ -190,7 +190,12 @@ function nameGen(type) {
 118. Arc / Cone spell template indicator tool with optional persistence:
   - Add an Arc / Cone indicator tool to the drawing tools sub-menu (for spells like Burning Hands, Cone of Cold, Acid Breath, etc.).
   - Drawing workflow: tap/click origin (caster) and drag outward to set direction and length/radius with live preview badge (`${radiusFt} ft cone`).
-  - Angle/spread controls: default to standard 53.13° / 60° cone spread, with an interactive arc edge drag handle and quick preset chips on the toolbar (53°, 60°, 90°, 120°, 180°).
+  - Angle & spread defaults:
+    - Non-persistent mode (`⚡ Quick Ping`): fixed at 60° default without cluttering handles during the quick ping.
+    - Persistent mode (`📌 Persist`): defaults to 60°, but includes an interactive edge handle dot to freely drag and adjust the spread angle (plus toolbar preset chips: 53°, 60°, 90°, 120°, 180°).
+  - Dual Cone / Triangle visualization:
+    - Render the circular cone arc in the primary highlight color.
+    - Render the area where a flat-ended triangle cone covers but the circular arc does not (the outer triangle corners / difference) in a second, darker or contrasting accent color, clearly distinguishing both circular and triangular ruleset interpretations at a glance.
   - Fully supports the `📌 Persist` toggle from Task 111 so it can be used either as an ephemeral ping or kept on the board as a persistent zone.
   - Selectable, rotatable, and removable with the Delete button `🗑️` by the creator or GM.
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
