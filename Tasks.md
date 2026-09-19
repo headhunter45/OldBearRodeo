@@ -147,23 +147,28 @@ function nameGen(type) {
 
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
-- **Discord Activity Integration**: Embed OldBearRodeo directly inside Discord voice channels using the Discord Embedded App SDK so players can launch and join sessions with a single click from their voice call, without needing room codes or link sharing.
-- **Discord Two-Way Bot Sync**: Full two-way sync where messages typed in Discord are also relayed into OldBearRodeo chat via a Discord bot gateway.
-- **WebRTC Webcam Video**: Floating, draggable picture-in-picture webcam tiles for players with volume sliders, speaking rings, and minimize/dock controls.
-- **Live Video Feed Tokens**: Render a player's live webcam video feed directly inside their controlling token on the canvas battlemap using `ctx.drawImage(videoElement)`.
-- **CLI / Terminal Chat Client**: Lightweight terminal client or script connecting to the WebSocket server (`/ws`) to monitor chat and roll dice from the command line or stream decks.
-- **`/item` Command with D&D Beyond Lookup & Caching**:
-  - `/item list`: Outputs a list of items the user currently has (visible only to the user).
-  - `/item <dndbeyond url or id>`: Fetches item details from D&D Beyond (e.g. `https://www.dndbeyond.com/magic-items/9228356-bag-of-holding` or ID `9228356-bag-of-holding`) and displays the formatted description in chat.
-  - Cache all unique items locally in storage by their D&D Beyond ID (e.g., `9228356-bag-of-holding`) so repeated lookups do not hit the site again.
-- **D&D Beyond Monster, Item & Character Importing by URL / ID**:
-  - Allow importing and caching monsters, items, and characters from D&D Beyond by pasting their URL or slug/ID (e.g., `https://www.dndbeyond.com/monsters/16939-kobold` for monsters).
-  - Cache all fetched entities in local storage for fast offline access and search.
-- **Direct Token Creation from D&D Beyond**:
-  - Add tokens directly from D&D Beyond monster or character URLs/IDs, automatically caching the official avatar/token art and populating the statblock on the token.
-- **D&D Beyond Homebrew and Private Characters Support**:
-  - Add support for importing private character sheets and homebrew content (e.g., via user-supplied D&D Beyond `CobaltSession` authentication cookie/token in settings, or via a companion browser extension).
-- Discord webhook one-way chat & roll sync:
+
+### AI Credit Usage Difficulty Ranking (Lowest to Highest)
+| Rank | Feature | AI Credit Cost | Primary Cost Driver |
+| :---: | :--- | :---: | :--- |
+| **1** | Discord Webhook One-Way Sync | **★☆☆☆☆ (Minimal)** | Simple outbound HTTP POST; isolated, single file. |
+| **2** | CLI / Terminal Chat Client | **★☆☆☆☆ (Minimal)** | Standalone script consuming existing WS protocol. |
+| **3** | Direct JSON Paste / Drop Import | **★★☆☆☆ (Low)** | Pure client-side schema mapping, zero network auth. |
+| **4** | `/item` Command with Lookup & Cache | **★★☆☆☆ (Low-Med)** | Straightforward endpoint fetch & chat rendering. |
+| **5** | Direct Token Creation from DDB | **★★☆☆☆ (Low-Med)** | Reuses entity fetchers; spawns token on map. |
+| **6** | DDB Monster/Item/Character by URL | **★★★☆☆ (Medium)** | Extensive parsing, statblock formatting, and local caching. |
+| **7** | Pathbuilder 2e Import & PF2e Ruleset | **★★★☆☆ (Medium)** | Public schema, but significant UI additions (MAP, TEML). |
+| **8** | Live Video Feed Tokens | **★★★☆☆ (Medium-High)** | Canvas render loop integration and stream track sync. |
+| **9** | WebRTC Webcam Video | **★★★★☆ (High)** | Multi-peer video mesh renegotiation, UI tiles, bandwidth. |
+| **10** | Discord Two-Way Bot Sync | **★★★★☆ (High)** | Long-running gateway bot daemon, room routing, rate limits. |
+| **11** | DDB Auth / Cobalt / Browser Extension | **★★★★☆ (Very High)** | Cloudflare WAF, MV3 extension architecture, auth cookies. |
+| **12** | Discord Activity (Embedded App SDK) | **★★★★★ (Extreme)** | Untestable in local isolation; requires OAuth & iframe RPCs. |
+| **13** | System-Agnostic Manifest & Schema | **★★★★★ (Extreme)** | Full architectural refactor of sheets, tokens, & rules. |
+
+---
+
+- **Discord webhook one-way chat & roll sync** `[AI Credit Cost: ★☆☆☆☆ - Minimal]`:
+    - *Cost Drivers*: Minimal context footprint; simple outbound HTTP POST to webhook URL.
     - Add one-way sync from OldBearRodeo to a Discord text channel via a Discord webhook URL.
     - Add `/discord webhook <webhook url>` to configure the webhook URL.
     - Add `/discord webhook none` to clear/disable the webhook.
@@ -171,25 +176,58 @@ function nameGen(type) {
     - All output from `/discord` commands must only be visible to the user executing them (ephemeral / whisper).
     - Only allow GMs to execute `/discord` commands.
     - When enabled, chat messages and dice rolls are automatically posted to the Discord channel via the webhook.
-- Sort out dndbeyond authentication.
-    - Copy the CobaltSession auth token and forward to the api. Store this in settings or enter via a command.
-    - Add a browser extension with a 1 click send to oldbear any supported url type.
-    - Dire json paste/drop. This is probably worth having anyway to import a character.
-- **Pathbuilder 2e (Pathfinder 2e) Character Import & Ruleset Support**:
-  - **Import Methods**:
-    - Direct Web Sync via Pathbuilder 2e ID or URL (`https://pathbuilder2e.com/json.php?id=<build_id>`) in `/sync` command and Character Sheet dialog.
-    - Drag-and-drop / file upload of Pathbuilder 2e exported `.json` character files onto the Battlemap (direct token spawn) and into the Asset Manager (library storage).
-  - **Data Model & Ruleset Integration**:
-    - Tag characters and tokens with `system: 'pf2e'`.
-    - Support PF2e 3-action economy with action cost glyphs (`◆`, `◆◆`, `◆◆◆`, `↺`, `◇`) on attacks, spells, and actions.
-    - Support Multiple Attack Penalty (MAP) buttons on strike actions (0, -5, -10 or -4, -8 for agile weapons).
-    - Support TEML proficiency progression (Trained, Expert, Master, Legendary) for skills, perception, saving throws, and attack rolls.
-    - Dynamic `/attack`, `/spell`, and `/skill` chat commands tailored to PF2e modifiers and conditions.
-- **System-Agnostic Ruleset Manifest & Characterfiles Schema Integration**:
-  - Integrate with external generic tabletop entity project providing system-agnostic specifications for characters, monsters, spells, items, and actions.
-  - **Manifest & Display Templates**:
-    - Support loading system definition manifests containing display templates, stat attributes, resource pools, and roll expressions without hardcoding game rules into the core VTT engine.
-    - Render character sheets, token stat overlays, and dice roll buttons dynamically based on the active system manifest's template schema.
-  - **Unified Asset & Token Pipeline**:
-    - Map ingested characterfile entities directly into OldBearRodeo tokens, inventory, spellbooks, and action lists regardless of whether the system is D&D 5e, Pathfinder 2e, OSR, Call of Cthulhu, or a custom homebrew system.
+- **CLI / Terminal Chat Client** `[AI Credit Cost: ★☆☆☆☆ - Minimal]`:
+    - *Cost Drivers*: Completely self-contained script; consumes existing WebSocket signaling protocol without modifying core engine.
+    - Lightweight terminal client or script connecting to the WebSocket server (`/ws`) to monitor chat and roll dice from the command line or stream decks.
+- **`/item` Command with D&D Beyond Lookup & Caching** `[AI Credit Cost: ★★☆☆☆ - Low-Medium]`:
+    - *Cost Drivers*: HTML/JSON scraping of public endpoints; straightforward PostgreSQL/localStorage cache.
+    - `/item list`: Outputs a list of items the user currently has (visible only to the user).
+    - `/item <dndbeyond url or id>`: Fetches item details from D&D Beyond (e.g. `https://www.dndbeyond.com/magic-items/9228356-bag-of-holding` or ID `9228356-bag-of-holding`) and displays the formatted description in chat.
+    - Cache all unique items locally in storage by their D&D Beyond ID (e.g., `9228356-bag-of-holding`) so repeated lookups do not hit the site again.
+- **D&D Beyond Monster, Item & Character Importing by URL / ID** `[AI Credit Cost: ★★★☆☆ - Medium]`:
+    - *Cost Drivers*: Moderate token footprint; mapping diverse statblock fields into existing data models and handling asset caching.
+    - Allow importing and caching monsters, items, and characters from D&D Beyond by pasting their URL or slug/ID (e.g., `https://www.dndbeyond.com/monsters/16939-kobold` for monsters).
+    - Cache all fetched entities in local storage for fast offline access and search.
+- **Direct Token Creation from D&D Beyond** `[AI Credit Cost: ★★☆☆☆ - Low-Medium]`:
+    - *Cost Drivers*: Reuses entity parsing pipeline; spawns token on battlemap with cached avatar and populated stats.
+    - Add tokens directly from D&D Beyond monster or character URLs/IDs, automatically caching the official avatar/token art and populating the statblock on the token.
+- **Pathbuilder 2e (Pathfinder 2e) Character Import & Ruleset Support** `[AI Credit Cost: ★★★☆☆ - Medium]`:
+    - *Cost Drivers*: Pathbuilder JSON schema is open and straightforward, but adding PF2e action cost glyphs (`◆`), MAP calculations, and TEML proficiency requires extensive UI additions across multiple client components.
+    - **Import Methods**:
+        - Direct Web Sync via Pathbuilder 2e ID or URL (`https://pathbuilder2e.com/json.php?id=<build_id>`) in `/sync` command and Character Sheet dialog.
+        - Drag-and-drop / file upload of Pathbuilder 2e exported `.json` character files onto the Battlemap (direct token spawn) and into the Asset Manager (library storage).
+    - **Data Model & Ruleset Integration**:
+        - Tag characters and tokens with `system: 'pf2e'`.
+        - Support PF2e 3-action economy with action cost glyphs (`◆`, `◆ practical`, `◆◆◆`, `↺`, `◇`) on attacks, spells, and actions.
+        - Support Multiple Attack Penalty (MAP) buttons on strike actions (0, -5, -10 or -4, -8 for agile weapons).
+        - Support TEML proficiency progression (Trained, Expert, Master, Legendary) for skills, perception, saving throws, and attack rolls.
+        - Dynamic `/attack`, `/spell`, and `/skill` chat commands tailored to PF2e modifiers and conditions.
+- **Live Video Feed Tokens** `[AI Credit Cost: ★★★☆☆ - Medium-High]`:
+    - *Cost Drivers*: Hooking media stream video into HTML5 Canvas via `ctx.drawImage()` requires managing video element lifecycle and maintaining a smooth 60 FPS canvas loop.
+    - Render a player's live webcam video feed directly inside their controlling token on the canvas battlemap using `ctx.drawImage(videoElement)`.
+- **WebRTC Webcam Video** `[AI Credit Cost: ★★★★☆ - High]`:
+    - *Cost Drivers*: Multi-peer WebRTC mesh video transceivers, negotiation race conditions, floating/draggable PIP controls, and bitrate tuning across browser clients.
+    - Floating, draggable picture-in-picture webcam tiles for players with volume sliders, speaking rings, and minimize/dock controls.
+- **Discord Two-Way Bot Sync** `[AI Credit Cost: ★★★★☆ - High]`:
+    - *Cost Drivers*: Running a persistent Discord gateway bot daemon, managing channel-to-room mappings, rate-limits, and avoiding recursive loopbacks between OldBear and Discord.
+    - Full two-way sync where messages typed in Discord are also relayed into OldBearRodeo chat via a Discord bot gateway.
+- **Sort out D&D Beyond Authentication & Private Sheets** `[AI Credit Cost: ★★★★☆ - Very High]`:
+    - *Cost Drivers*: D&D Beyond Cloudflare WAF / bot protection, non-public Cobalt APIs, and Manifest V3 browser extension architecture consume high debugging credits.
+    - Direct JSON paste/drop (`[AI Credit Cost: ★★☆☆☆ - Low]`): Simple client-side schema mapping without network authentication.
+    - Copy CobaltSession auth token and forward to the API; store in settings or enter via command.
+    - Add a browser extension with a 1-click send to OldBear for any supported URL type.
+- **D&D Beyond Homebrew and Private Characters Support** `[AI Credit Cost: ★★★★☆ - Very High]`:
+    - Add support for importing private character sheets and homebrew content (e.g., via user-supplied D&D Beyond `CobaltSession` authentication cookie/token in settings, or via a companion browser extension).
+- **Discord Activity Integration** `[AI Credit Cost: ★★★★★ - Extreme]`:
+    - *Cost Drivers*: Cannot be verified locally by an AI agent in isolation; requires Discord Developer Portal setup, public tunnel (Cloudflare/ngrok), OAuth2 exchange, and Embedded App SDK iframe RPCs.
+    - Embed OldBearRodeo directly inside Discord voice channels using the Discord Embedded App SDK so players can launch and join sessions with a single click from their voice call, without needing room codes or link sharing.
+- **System-Agnostic Ruleset Manifest & Characterfiles Schema Integration** `[AI Credit Cost: ★★★★★ - Extreme]`:
+    - *Cost Drivers*: Architectural overhaul replacing hardcoded 5e assumptions with dynamic manifest schemas, expression parsers, and generic UI generators across shared, server, and client packages.
+    - Integrate with external generic tabletop entity project providing system-agnostic specifications for characters, monsters, spells, items, and actions.
+    - **Manifest & Display Templates**:
+        - Support loading system definition manifests containing display templates, stat attributes, resource pools, and roll expressions without hardcoding game rules into the core VTT engine.
+        - Render character sheets, token stat overlays, and dice roll buttons dynamically based on the active system manifest's template schema.
+    - **Unified Asset & Token Pipeline**:
+        - Map ingested characterfile entities directly into OldBearRodeo tokens, inventory, spellbooks, and action lists regardless of whether the system is D&D 5e, Pathfinder 2e, OSR, Call of Cthulhu, or a custom homebrew system.
+
 
