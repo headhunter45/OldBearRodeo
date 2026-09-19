@@ -20,6 +20,7 @@ import {
   Layers,
   Skull,
   Shield,
+  Package,
 } from 'lucide-react';
 import { GameSession, GameMap, Token, DnDCharacter } from '@oldbear/shared';
 import { exportAllData, downloadBackupFile, importAllData } from '../storage/BackupManager.js';
@@ -89,7 +90,7 @@ interface DataBackupModalProps {
   onClose: () => void;
 }
 
-export type AssetTab = 'tokens' | 'monsters' | 'characters' | 'maps' | 'scenes' | 'audio';
+export type AssetTab = 'tokens' | 'props' | 'monsters' | 'characters' | 'maps' | 'scenes' | 'audio';
 
 export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   session,
@@ -261,7 +262,8 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   const monsterAssets = assets.filter((a) => Boolean(a.monsterData || (a.type as string) === 'monster' || (a.character && a.character.actions)));
   const mapAssets = assets.filter((a) => a.type === 'map');
   const audioAssets = assets.filter((a) => a.type === 'audio');
-  const tokenAssets = assets.filter((a) => (a.type === 'token' || a.type === 'prop') && !a.monsterData && (!a.character || !a.character.actions));
+  const propAssets = assets.filter((a) => (a.type === 'prop' || a.isProp) && !a.monsterData && (!a.character || !a.character.actions));
+  const tokenAssets = assets.filter((a) => a.type === 'token' && !a.isProp && !a.monsterData && (!a.character || !a.character.actions));
 
   const filteredAssets =
     activeTab === 'maps'
@@ -270,6 +272,8 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
       ? monsterAssets
       : activeTab === 'audio'
       ? audioAssets
+      : activeTab === 'props'
+      ? propAssets
       : tokenAssets;
 
   // Multiselect toggles
@@ -647,6 +651,28 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
           </button>
 
           <button
+            className={`tab-btn ${activeTab === 'props' ? 'active' : ''}`}
+            onClick={() => {
+              setActiveTab('props');
+              setSelectedAssetIds([]);
+            }}
+            style={{
+              padding: '0.75rem 1.1rem',
+              border: 'none',
+              background: 'none',
+              color: activeTab === 'props' ? '#eab308' : 'var(--text-secondary)',
+              borderBottom: activeTab === 'props' ? '2px solid #eab308' : '2px solid transparent',
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+            }}
+          >
+            <Package size={16} /> Props ({propAssets.length})
+          </button>
+
+          <button
             className={`tab-btn ${activeTab === 'monsters' ? 'active' : ''}`}
             onClick={() => {
               setActiveTab('monsters');
@@ -799,7 +825,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             >
               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                 <label className="btn btn-primary" style={{ cursor: 'pointer', display: 'inline-flex', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                  <Plus size={14} /> Upload {activeTab === 'monsters' ? 'Monster (.monster, .json)' : activeTab === 'characters' ? 'Character (.json)' : activeTab === 'maps' ? 'Map' : activeTab === 'audio' ? 'Sound' : 'Token'}...
+                  <Plus size={14} /> Upload {activeTab === 'monsters' ? 'Monster (.monster, .json)' : activeTab === 'characters' ? 'Character (.json)' : activeTab === 'maps' ? 'Map' : activeTab === 'audio' ? 'Sound' : activeTab === 'props' ? 'Prop' : 'Token'}...
                   <input
                     ref={assetUploadRef}
                     type="file"
@@ -1302,7 +1328,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                       )}
                     </div>
 
-                    {activeTab === 'tokens' && onAddToken && (
+                    {(activeTab === 'tokens' || activeTab === 'props') && onAddToken && (
                       <button
                         className="btn btn-secondary"
                         style={{
@@ -1316,7 +1342,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                           gap: '4px',
                         }}
                         onClick={() => handleDeployToken(asset)}
-                        title="Spawn token onto the battlemap"
+                        title={activeTab === 'props' ? 'Spawn prop onto the battlemap' : 'Spawn token onto the battlemap'}
                       >
                         <Plus size={12} /> Deploy
                       </button>
