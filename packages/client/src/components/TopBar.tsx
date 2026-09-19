@@ -104,19 +104,39 @@ export const TopBar: React.FC<TopBarProps> = ({
           >
             🐻
           </div>
-          <span
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontWeight: 800,
-              fontSize: '1.1rem',
-              letterSpacing: '-0.02em',
-              background: 'linear-gradient(135deg, #ffffff, #94a3b8)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-            }}
-          >
-            Old Bear Rodeo
-          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', position: 'relative', justifyContent: 'center' }}>
+            <span
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontWeight: 800,
+                fontSize: '1.1rem',
+                letterSpacing: '-0.02em',
+                background: 'linear-gradient(135deg, #ffffff, #94a3b8)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                lineHeight: 1.1,
+              }}
+            >
+              Old Bear Rodeo
+            </span>
+            <span
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: '1px',
+                marginTop: '1px',
+                fontSize: '0.58rem',
+                fontWeight: 600,
+                letterSpacing: '0.04em',
+                color: 'var(--text-muted)',
+                lineHeight: 1,
+                pointerEvents: 'none',
+                opacity: 0.8,
+              }}
+            >
+              v0.1.0
+            </span>
+          </div>
         </div>
 
         <div className="topbar-map-label" style={{ width: '1px', height: '20px', background: 'var(--border-subtle)' }} />
