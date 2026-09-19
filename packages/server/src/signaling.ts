@@ -141,6 +141,7 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
           color: playerColor || '#3b82f6',
           connected: true,
           assignedTokenIds: [],
+          isMuted: true,
         };
         session.players[playerId] = player;
       }

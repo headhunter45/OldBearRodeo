@@ -66,7 +66,7 @@ export const App: React.FC = () => {
   // Voice Chat State
   const [voiceState, setVoiceState] = useState<VoiceState>({
     isInitialized: false,
-    isMuted: false,
+    isMuted: true,
     isForceMuted: false,
     isDeafened: false,
     isSpeaking: false,

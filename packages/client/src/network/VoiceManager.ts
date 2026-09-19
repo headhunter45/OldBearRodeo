@@ -344,11 +344,23 @@ export class VoiceManager {
       return this.state.isMuted;
     }
     this.state.isMuted = !this.state.isMuted;
-    if (!this.state.isMuted && !this.localMicStream) {
-      // Request mic permission and acquire stream now that user unmuted
-      this.acquireMicrophone(this.state.selectedInputId);
+    if (!this.state.isMuted) {
+      if (!this.localMicStream) {
+        // Request mic permission and acquire stream now that user unmuted
+        this.acquireMicrophone(this.state.selectedInputId);
+      } else {
+        this.updateMicGainsAndTracks();
+      }
     } else {
+      // User muted: stop tracks so browser/OS recording indicator turns OFF
+      if (this.localMicStream) {
+        this.localMicStream.getTracks().forEach((t) => t.stop());
+        this.localMicStream = null;
+      }
       this.updateMicGainsAndTracks();
+      for (const cb of this.onTrackChangeCallbacks) {
+        cb(null);
+      }
     }
     this.notifyState();
     return this.state.isMuted;
@@ -356,11 +368,21 @@ export class VoiceManager {
 
   setMuted(muted: boolean) {
     this.state.isMuted = muted;
-    if (!muted && !this.localMicStream) {
-      // Request mic permission and acquire stream now that user unmuted
-      this.acquireMicrophone(this.state.selectedInputId);
+    if (!muted) {
+      if (!this.localMicStream) {
+        this.acquireMicrophone(this.state.selectedInputId);
+      } else {
+        this.updateMicGainsAndTracks();
+      }
     } else {
+      if (this.localMicStream) {
+        this.localMicStream.getTracks().forEach((t) => t.stop());
+        this.localMicStream = null;
+      }
       this.updateMicGainsAndTracks();
+      for (const cb of this.onTrackChangeCallbacks) {
+        cb(null);
+      }
     }
     this.notifyState();
   }
@@ -379,7 +401,14 @@ export class VoiceManager {
   handleForceMuted() {
     this.state.isForceMuted = true;
     this.state.isMuted = true;
+    if (this.localMicStream) {
+      this.localMicStream.getTracks().forEach((t) => t.stop());
+      this.localMicStream = null;
+    }
     this.updateMicGainsAndTracks();
+    for (const cb of this.onTrackChangeCallbacks) {
+      cb(null);
+    }
     this.notifyState();
   }
 
