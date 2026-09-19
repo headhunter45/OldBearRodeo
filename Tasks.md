@@ -143,12 +143,39 @@ function nameGen(type) {
 102. ✅ I want to create a ci script that builds the container in a production state so I can push it to another registry.
 103. When I roll initiative in the initiative tracker it doesn't show up as a roll in the dice tool. It does show up in chat which is great, but it doesn't show what the roll and bonus were.
 104. When I edit in the initiative tracker, make the current number stay and put the input field where the name and hp text are.
-
+105. - **Discord webhook one-way chat & roll sync** `[AI Credit Cost: ★☆☆☆☆ - Minimal]`:
+    - *Cost Drivers*: Minimal context footprint; simple outbound HTTP POST to webhook URL.
+    - Add one-way sync from OldBearRodeo to a Discord text channel via a Discord webhook URL.
+    - Add `/discord webhook <webhook url>` to configure the webhook URL.
+    - Add `/discord webhook none` to clear/disable the webhook.
+    - Running `/discord` with no parameters should display usage instructions.
+    - All output from `/discord` commands must only be visible to the user executing them (ephemeral / whisper).
+    - Only allow GMs to execute `/discord` commands.
+    - When enabled, chat messages and dice rolls are automatically posted to the Discord channel via the webhook.
+106. - **CLI / Terminal Chat Client** `[AI Credit Cost: ★☆☆☆☆ - Minimal]`:
+    - *Cost Drivers*: Completely self-contained script; consumes existing WebSocket signaling protocol without modifying core engine.
+    - Lightweight terminal client or script connecting to the WebSocket server (`/ws`) to monitor chat and roll dice from the command line or stream decks.
+    - local history so up lets you go back through the commands and messages you typed.
+107. Props should be tracked like tokens in the asset manager.
+108. Reorganize the hamburger menu.
+  1. Sound status. The bar that's already there.
+  2. Chat
+  3. Character Sheets and Spells -> rename to Characters
+  4. Initiative Tracker
+  5. Add Token this should let the user add any tokens, props, monster tokens, or character tokens they have access to. Preferably into a visible area or just off the board, but not on top of another token/prop.
+  6. Soundboard
+  7. Backup & Transfer Data -> Rename to Asset Manager and add a scene manager tab. move the scene manager into this Asset Manager.
+  8. Voice & Audio settings
+109. Make a prompt to generate a favicon for the page. I will execute it and add the file later.
+110. Asset manager doesn't show props. 
+111. Find a way to keep highlights like the arrow, target, circle, and rectangle persist and be removed later.
+112. Make the Asset Manager a draggable, non-modal floating window without a dark backdrop overlay so the battlemap remains interactive underneath. Support dragging tokens, props, monsters, and characters directly out of the asset window onto the canvas scene to spawn them at the cursor, and include a "Deploy to Map" button on each asset card (dropping near viewport center/visible area), along with minimize/collapse and close controls.
 
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
 
 ### AI Credit Usage Difficulty Ranking (Lowest to Highest)
+
 | Rank | Feature | AI Credit Cost | Primary Cost Driver |
 | :---: | :--- | :---: | :--- |
 | **1** | Discord Webhook One-Way Sync | **★☆☆☆☆ (Minimal)** | Simple outbound HTTP POST; isolated, single file. |
@@ -167,18 +194,6 @@ function nameGen(type) {
 
 ---
 
-- **Discord webhook one-way chat & roll sync** `[AI Credit Cost: ★☆☆☆☆ - Minimal]`:
-    - *Cost Drivers*: Minimal context footprint; simple outbound HTTP POST to webhook URL.
-    - Add one-way sync from OldBearRodeo to a Discord text channel via a Discord webhook URL.
-    - Add `/discord webhook <webhook url>` to configure the webhook URL.
-    - Add `/discord webhook none` to clear/disable the webhook.
-    - Running `/discord` with no parameters should display usage instructions.
-    - All output from `/discord` commands must only be visible to the user executing them (ephemeral / whisper).
-    - Only allow GMs to execute `/discord` commands.
-    - When enabled, chat messages and dice rolls are automatically posted to the Discord channel via the webhook.
-- **CLI / Terminal Chat Client** `[AI Credit Cost: ★☆☆☆☆ - Minimal]`:
-    - *Cost Drivers*: Completely self-contained script; consumes existing WebSocket signaling protocol without modifying core engine.
-    - Lightweight terminal client or script connecting to the WebSocket server (`/ws`) to monitor chat and roll dice from the command line or stream decks.
 - **`/item` Command with D&D Beyond Lookup & Caching** `[AI Credit Cost: ★★☆☆☆ - Low-Medium]`:
     - *Cost Drivers*: HTML/JSON scraping of public endpoints; straightforward PostgreSQL/localStorage cache.
     - `/item list`: Outputs a list of items the user currently has (visible only to the user).
