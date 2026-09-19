@@ -16,6 +16,7 @@ interface MapManagerModalProps {
   onUpdateMap: (mapId: string, updates: Partial<GameMap>) => void;
   onDeleteMap: (mapId: string) => void;
   onClose: () => void;
+  embedded?: boolean;
 }
 
 export const MapManagerModal: React.FC<MapManagerModalProps> = ({
@@ -30,6 +31,7 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
   onUpdateMap,
   onDeleteMap,
   onClose,
+  embedded,
 }) => {
   const [selectedMapForEdit, setSelectedMapForEdit] = useState<GameMap | null>(null);
   const [showNewSceneModal, setShowNewSceneModal] = useState(false);
@@ -161,36 +163,9 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
     onSelectGmPreviewMap(selectedMapForEdit.id);
   };
 
-  return (
-    <>
-      <div
-        style={{
-          position: 'fixed',
-          inset: 0,
-          backgroundColor: 'rgba(0,0,0,0.75)',
-          backdropFilter: 'blur(8px)',
-          zIndex: 50,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '1rem',
-        }}
-        onClick={onClose}
-      >
-        <div
-          className="glass-panel-elevated animate-fade-in"
-          style={{
-            width: '100%',
-            maxWidth: '750px',
-            maxHeight: '90vh',
-            overflowY: selectedMapForEdit || showNewSceneModal ? 'hidden' : 'auto',
-            padding: '1.5rem',
-            backgroundColor: 'rgba(17, 24, 39, 0.95)',
-            border: '1px solid var(--border-strong)',
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-        {/* Header */}
+  const mainContent = (
+    <div>
+      {!embedded && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <Map size={24} color="var(--accent-primary)" />
@@ -202,8 +177,9 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
             <X size={18} />
           </button>
         </div>
+      )}
 
-        {/* Upload Map Button with Multiple Select */}
+      {/* Upload Map Button with Multiple Select */}
         <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
           <label className="btn btn-primary" style={{ cursor: 'pointer', display: 'inline-flex' }}>
             <Upload size={16} /> Upload Maps (Select Multiple)
@@ -407,8 +383,10 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
           })}
         </div>
       </div>
-    </div>
+  );
 
+  const extraModals = (
+    <>
       {/* Map Settings Modal Dialog (fixes double scrollbar #94) */}
       {selectedMapForEdit && (
         <MapSettingsModal
@@ -560,6 +538,51 @@ export const MapManagerModal: React.FC<MapManagerModalProps> = ({
           </div>
         </div>
       )}
+    </>
+  );
+
+  if (embedded) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {mainContent}
+        {extraModals}
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <div
+        style={{
+          position: 'fixed',
+          inset: 0,
+          backgroundColor: 'rgba(0,0,0,0.75)',
+          backdropFilter: 'blur(8px)',
+          zIndex: 50,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '1rem',
+        }}
+        onClick={onClose}
+      >
+        <div
+          className="glass-panel-elevated animate-fade-in"
+          style={{
+            width: '100%',
+            maxWidth: '750px',
+            maxHeight: '90vh',
+            overflowY: selectedMapForEdit || showNewSceneModal ? 'hidden' : 'auto',
+            padding: '1.5rem',
+            backgroundColor: 'rgba(17, 24, 39, 0.95)',
+            border: '1px solid var(--border-strong)',
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {mainContent}
+        </div>
+      </div>
+      {extraModals}
     </>
   );
 };

@@ -26,9 +26,9 @@ import { SoundboardModal } from './components/SoundboardModal.js';
 import { MobileDrawer } from './components/MobileDrawer.js';
 import { VoiceManager, VoiceState } from './network/VoiceManager.js';
 import { VoiceSettingsModal } from './components/VoiceSettingsModal.js';
-import { DataBackupModal } from './components/DataBackupModal.js';
+import { DataBackupModal, AssetTab } from './components/DataBackupModal.js';
 import { GlobalDropOverlay } from './components/GlobalDropOverlay.js';
-import { TokenPickerModal } from './components/TokenPickerModal.js';
+import { TokenPickerModal, TokenSpawnData } from './components/TokenPickerModal.js';
 import { BatchTokenTransferModal } from './components/BatchTokenTransferModal.js';
 import { PlayerTokenPickerModal } from './components/PlayerTokenPickerModal.js';
 import { RollAnnouncementBanner } from './components/RollAnnouncementBanner.js';
@@ -92,6 +92,7 @@ export const App: React.FC = () => {
   const [showMapManager, setShowMapManager] = useState(false);
   const [showSoundboard, setShowSoundboard] = useState(false);
   const [showBackupModal, setShowBackupModal] = useState(false);
+  const [backupModalTab, setBackupModalTab] = useState<AssetTab | undefined>(undefined);
   const [showMobileDrawer, setShowMobileDrawer] = useState(false);
   const [showTokenPickerModal, setShowTokenPickerModal] = useState(false);
   const [showBatchTransferModal, setShowBatchTransferModal] = useState(false);
@@ -783,11 +784,24 @@ export const App: React.FC = () => {
 
   };
 
-  const handleCreateNewTokenFromPicker = (data: { name: string; imageUrl?: string; size: number }) => {
+  const handleCreateNewTokenFromPicker = (data: TokenSpawnData) => {
     if (!session || !localPlayer) return;
     const currentMapId = isGm && gmPreviewMapId ? gmPreviewMapId : session.activeMapId;
-    const gridSize = currentMap?.gridSize || 50;
-    const pos = findUnoccupiedPosition(currentMapId, 400, 400, gridSize);
+    const activeMap = session.maps.find((m) => m.id === currentMapId) || session.maps[0];
+    const gridSize = activeMap?.gridSize || 50;
+    const isProp = Boolean(data.isProp);
+
+    // Calculate spawn position: near current center of screen in world coordinates, or (400, 400)
+    let startX = 400;
+    let startY = 400;
+    if (engineRef.current) {
+      try {
+        const center = engineRef.current.screenToWorld(window.innerWidth / 2, window.innerHeight / 2);
+        startX = Math.round(center.x);
+        startY = Math.round(center.y);
+      } catch {}
+    }
+    const pos = findUnoccupiedPosition(currentMapId, startX, startY, gridSize);
 
     const newToken: Token = {
       id: `token-${crypto.randomUUID()}`,
@@ -798,19 +812,22 @@ export const App: React.FC = () => {
       y: pos.y,
       size: data.size || 1,
       rotation: 0,
-      ringColor: localPlayer.color || '#3b82f6',
-      fillColor: '#1e293b',
-      clipCircle: true,
-      clipShape: 'circle',
-      currentHp: 20,
-      maxHp: 20,
+      ringColor: data.ringColor || (isProp ? '#94a3b8' : (localPlayer.color || '#3b82f6')),
+      fillColor: data.fillColor || (isProp ? '#1e293b' : '#1e3a8a'),
+      clipCircle: data.clipCircle ?? !isProp,
+      clipShape: data.clipShape || (isProp ? 'square' : 'circle'),
+      currentHp: data.currentHp ?? (isProp ? 0 : (data.maxHp || 20)),
+      maxHp: data.maxHp ?? (isProp ? 0 : (data.maxHp || 20)),
       tempHp: 0,
-      speed: 30,
+      speed: data.speed ?? (isProp ? 0 : 30),
       ownerId: isGm ? undefined : localPlayer.id,
-      isPlayerToken: !isGm,
+      isPlayerToken: !isGm && !isProp,
       conditions: [],
-      isProp: false,
-      layer: 'token',
+      isProp,
+      layer: data.layer || (isProp ? 'prop' : 'token'),
+      character: data.character,
+      propWidth: data.propWidth,
+      propHeight: data.propHeight,
     };
 
     setSession((prev) => {
@@ -1643,16 +1660,29 @@ export const App: React.FC = () => {
           isGm={isGm}
           tokens={session?.tokens || {}}
           activeMapId={currentMap?.id || session?.activeMapId || ''}
+          initialTab={backupModalTab}
+          maps={session?.maps || []}
+          currentGmPreviewMapId={gmPreviewMapId}
+          onSelectGmPreviewMap={(id) => setGmPreviewMapId(id)}
+          onSetActiveMapForPlayers={handleSetActiveMapForPlayers}
+          onSendPlayersWithTokens={handleSendPlayersWithTokens}
+          onOpenBatchTokenTransfer={() => setShowBatchTransferModal(true)}
+          onUpdateMap={handleUpdateMap}
+          onDeleteMap={handleDeleteMap}
           onAddToken={(newToken) => {
+            const currentMapId = currentMap?.id || session?.activeMapId || '';
+            const gridSize = currentMap?.gridSize || 50;
+            const pos = findUnoccupiedPosition(currentMapId, newToken.x || 400, newToken.y || 400, gridSize);
+            const tokenWithPos = { ...newToken, x: pos.x, y: pos.y };
             setSession((prev) => {
               if (!prev) return prev;
               return {
                 ...prev,
-                tokens: { ...prev.tokens, [newToken.id]: newToken },
+                tokens: { ...prev.tokens, [tokenWithPos.id]: tokenWithPos },
               };
             });
-            networkRef.current?.send({ type: 'token-add', token: newToken });
-            engineRef.current?.selectToken(newToken.id);
+            networkRef.current?.send({ type: 'token-add', token: tokenWithPos });
+            engineRef.current?.selectToken(tokenWithPos.id);
           }}
           onAddMap={handleAddMap}
           onRestoreSession={(restoredSession) => {
@@ -1762,9 +1792,15 @@ export const App: React.FC = () => {
         onOpenDice={() => setShowDiceRoller(true)}
         onOpenInitiative={() => setShowInitiative(true)}
         onOpenCharacter={() => setShowCharacterFlyout(true)}
-        onOpenMaps={() => setShowMapManager(true)}
+        onOpenMaps={() => {
+          setBackupModalTab('scenes');
+          setShowBackupModal(true);
+        }}
         onOpenSoundboard={() => setShowSoundboard(true)}
-        onOpenBackup={() => setShowBackupModal(true)}
+        onOpenBackup={() => {
+          setBackupModalTab('tokens');
+          setShowBackupModal(true);
+        }}
         onToggleChat={() => {
           setIsChatOpen((v) => {
             if (!v) setUnreadChatCount(0);

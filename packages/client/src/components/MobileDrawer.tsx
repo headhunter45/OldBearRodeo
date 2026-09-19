@@ -245,93 +245,9 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
           </div>
         </div>
 
-        {/* Main Tool Actions (under audio controls) */}
+        {/* Main Tool Actions (reorganized per Task #108) */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem', marginBottom: '1.25rem' }}>
-          <button
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-            onClick={() => {
-              onClose();
-              onOpenDice();
-            }}
-          >
-            <Dices size={18} color="var(--accent-primary)" /> Dice Roller
-          </button>
-
-          <button
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-            onClick={() => {
-              onClose();
-              onOpenCharacter();
-            }}
-          >
-            <User size={18} color="var(--accent-primary)" /> Character Sheet & Spells
-          </button>
-
-          <button
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-            onClick={() => {
-              onClose();
-              onOpenInitiative();
-            }}
-          >
-            <Swords size={18} color="var(--accent-gold)" /> Initiative Tracker
-          </button>
-
-          {isGm && (
-            <>
-              <button
-                className="btn btn-secondary"
-                style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-                onClick={() => {
-                  onClose();
-                  onOpenMaps();
-                }}
-              >
-                <Map size={18} color="#38bdf8" /> Scene Manager
-              </button>
-
-              {onAddNewToken && (
-                <button
-                  className="btn btn-secondary"
-                  style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-                  onClick={() => {
-                    onClose();
-                    onAddNewToken();
-                  }}
-                >
-                  <Plus size={18} color="#10b981" /> Add Token
-                </button>
-              )}
-            </>
-          )}
-
-          {onOpenBackup && (
-            <button
-              className="btn btn-secondary"
-              style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-              onClick={() => {
-                onClose();
-                onOpenBackup();
-              }}
-            >
-              <Database size={18} color="var(--accent-primary)" /> Backup & Transfer Data
-            </button>
-          )}
-
-          <button
-            className="btn btn-secondary"
-            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
-            onClick={() => {
-              onClose();
-              onOpenSoundboard();
-            }}
-          >
-            <Volume2 size={18} color="var(--accent-emerald)" /> Soundboard
-          </button>
-
+          {/* 2. Chat */}
           {onToggleChat && (
             <button
               className={`btn btn-secondary ${isChatOpen ? 'active' : ''}`}
@@ -349,7 +265,7 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             >
               <MessageSquare size={18} color="var(--accent-primary)" />
               <span style={{ flex: 1, textAlign: 'left' }}>
-                {isChatOpen ? 'Close Chat Window' : 'Chat & Dice Commands'}
+                {isChatOpen ? 'Close Chat' : 'Chat'}
               </span>
               {unreadChatCount && unreadChatCount > 0 ? (
                 <span
@@ -368,6 +284,71 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             </button>
           )}
 
+          {/* 3. Characters (renamed from Character Sheets and Spells) */}
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+            onClick={() => {
+              onClose();
+              onOpenCharacter();
+            }}
+          >
+            <User size={18} color="var(--accent-primary)" /> Characters
+          </button>
+
+          {/* 4. Initiative Tracker */}
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+            onClick={() => {
+              onClose();
+              onOpenInitiative();
+            }}
+          >
+            <Swords size={18} color="var(--accent-gold)" /> Initiative Tracker
+          </button>
+
+          {/* 5. Add Token (tokens, props, monsters, characters) */}
+          {onAddNewToken && (
+            <button
+              className="btn btn-secondary"
+              style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+              onClick={() => {
+                onClose();
+                onAddNewToken();
+              }}
+            >
+              <Plus size={18} color="#10b981" /> Add Token
+            </button>
+          )}
+
+          {/* 6. Soundboard */}
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+            onClick={() => {
+              onClose();
+              onOpenSoundboard();
+            }}
+          >
+            <Volume2 size={18} color="var(--accent-emerald)" /> Soundboard
+          </button>
+
+          {/* 7. Asset Manager (renamed from Backup & Transfer Data, incorporates Scene Manager) */}
+          {onOpenBackup && (
+            <button
+              className="btn btn-secondary"
+              style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
+              onClick={() => {
+                onClose();
+                onOpenBackup();
+              }}
+            >
+              <Database size={18} color="var(--accent-primary)" /> Asset Manager
+            </button>
+          )}
+
+          {/* 8. Voice & Audio Settings */}
           <button
             className="btn btn-secondary"
             style={{ justifyContent: 'flex-start', padding: '0.65rem' }}
@@ -377,6 +358,18 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
             }}
           >
             <Radio size={18} color="var(--accent-primary)" /> Voice & Audio Settings
+          </button>
+
+          {/* Dice Roller Tool */}
+          <button
+            className="btn btn-secondary"
+            style={{ justifyContent: 'flex-start', padding: '0.65rem', opacity: 0.9 }}
+            onClick={() => {
+              onClose();
+              onOpenDice();
+            }}
+          >
+            <Dices size={18} color="var(--accent-primary)" /> Dice Roller
           </button>
         </div>
 

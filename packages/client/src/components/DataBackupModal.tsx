@@ -66,11 +66,22 @@ function deleteSavedCharacter(id: string, isGm: boolean) {
   }
 }
 
+import { MapManagerModal } from './MapManagerModal.js';
+
 interface DataBackupModalProps {
   session?: GameSession | null;
   isGm: boolean;
   tokens?: Record<string, Token> | Token[];
   activeMapId?: string;
+  initialTab?: AssetTab;
+  maps?: GameMap[];
+  currentGmPreviewMapId?: string;
+  onSelectGmPreviewMap?: (mapId: string) => void;
+  onSetActiveMapForPlayers?: (mapId: string) => void;
+  onSendPlayersWithTokens?: (mapId: string) => void;
+  onOpenBatchTokenTransfer?: () => void;
+  onUpdateMap?: (mapId: string, updates: Partial<GameMap>) => void;
+  onDeleteMap?: (mapId: string) => void;
   onRestoreSession?: (session: GameSession) => void;
   onAddMap?: (map: GameMap) => void;
   onSpawnToken?: (asset: StoredAsset) => void;
@@ -78,20 +89,29 @@ interface DataBackupModalProps {
   onClose: () => void;
 }
 
-type AssetTab = 'tokens' | 'monsters' | 'characters' | 'maps' | 'audio';
+export type AssetTab = 'tokens' | 'monsters' | 'characters' | 'maps' | 'scenes' | 'audio';
 
 export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   session,
   isGm,
   tokens,
   activeMapId,
+  initialTab,
+  maps,
+  currentGmPreviewMapId,
+  onSelectGmPreviewMap,
+  onSetActiveMapForPlayers,
+  onSendPlayersWithTokens,
+  onOpenBatchTokenTransfer,
+  onUpdateMap,
+  onDeleteMap,
   onRestoreSession,
   onAddMap,
   onSpawnToken,
   onAddToken,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<AssetTab>('tokens');
+  const [activeTab, setActiveTab] = useState<AssetTab>(initialTab || 'tokens');
   const [assets, setAssets] = useState<StoredAsset[]>([]);
   const [savedCharacters, setSavedCharacters] = useState<SavedCharacterRecord[]>([]);
   const [selectedAssetIds, setSelectedAssetIds] = useState<string[]>([]);
@@ -692,6 +712,30 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
             <Map size={16} /> Maps ({mapAssets.length})
           </button>
 
+          {isGm && (
+            <button
+              className={`tab-btn ${activeTab === 'scenes' ? 'active' : ''}`}
+              onClick={() => {
+                setActiveTab('scenes');
+                setSelectedAssetIds([]);
+              }}
+              style={{
+                padding: '0.75rem 1.1rem',
+                border: 'none',
+                background: 'none',
+                color: activeTab === 'scenes' ? '#38bdf8' : 'var(--text-secondary)',
+                borderBottom: activeTab === 'scenes' ? '2px solid #38bdf8' : '2px solid transparent',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+              }}
+            >
+              <Layers size={16} /> Scenes ({(maps || session?.maps || []).length})
+            </button>
+          )}
+
           <button
             className={`tab-btn ${activeTab === 'audio' ? 'active' : ''}`}
             onClick={() => {
@@ -742,95 +786,112 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
         {/* Content Body: Asset Previews with Multiselect */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '1.25rem' }}>
           {/* Asset Action Controls */}
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '1rem',
-              flexWrap: 'wrap',
-              gap: '0.5rem',
-            }}
-          >
-            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-              <label className="btn btn-primary" style={{ cursor: 'pointer', display: 'inline-flex', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
-                <Plus size={14} /> Upload {activeTab === 'monsters' ? 'Monster (.monster, .json)' : activeTab === 'characters' ? 'Character (.json)' : activeTab === 'maps' ? 'Map' : activeTab === 'audio' ? 'Sound' : 'Token'}...
-                <input
-                  ref={assetUploadRef}
-                  type="file"
-                  multiple
-                  accept={
-                    activeTab === 'audio'
-                      ? 'audio/*'
-                      : activeTab === 'monsters'
-                      ? '.monster,.json,image/*'
-                      : activeTab === 'characters'
-                      ? '.json,image/*'
-                      : 'image/*'
-                  }
-                  style={{ display: 'none' }}
-                  onChange={handleAssetUpload}
-                />
-              </label>
+          {activeTab !== 'scenes' && (
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '1rem',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                <label className="btn btn-primary" style={{ cursor: 'pointer', display: 'inline-flex', padding: '0.4rem 0.8rem', fontSize: '0.8rem' }}>
+                  <Plus size={14} /> Upload {activeTab === 'monsters' ? 'Monster (.monster, .json)' : activeTab === 'characters' ? 'Character (.json)' : activeTab === 'maps' ? 'Map' : activeTab === 'audio' ? 'Sound' : 'Token'}...
+                  <input
+                    ref={assetUploadRef}
+                    type="file"
+                    multiple
+                    accept={
+                      activeTab === 'audio'
+                        ? 'audio/*'
+                        : activeTab === 'monsters'
+                        ? '.monster,.json,image/*'
+                        : activeTab === 'characters'
+                        ? '.json,image/*'
+                        : 'image/*'
+                    }
+                    style={{ display: 'none' }}
+                    onChange={handleAssetUpload}
+                  />
+                </label>
 
-              {activeTab !== 'characters' && filteredAssets.length > 0 && (
-                <>
-                  <button className="btn btn-secondary" style={{ padding: '0.4rem 0.7rem', fontSize: '0.75rem' }} onClick={selectAll}>
-                    Select All
-                  </button>
-                  <button className="btn btn-secondary" style={{ padding: '0.4rem 0.7rem', fontSize: '0.75rem' }} onClick={deselectAll}>
-                    Clear
-                  </button>
-                </>
-              )}
-            </div>
+                {activeTab !== 'characters' && filteredAssets.length > 0 && (
+                  <>
+                    <button className="btn btn-secondary" style={{ padding: '0.4rem 0.7rem', fontSize: '0.75rem' }} onClick={selectAll}>
+                      Select All
+                    </button>
+                    <button className="btn btn-secondary" style={{ padding: '0.4rem 0.7rem', fontSize: '0.75rem' }} onClick={deselectAll}>
+                      Deselect All
+                    </button>
+                  </>
+                )}
+              </div>
 
-            {selectedAssetIds.length > 0 && activeTab !== 'characters' && (
-              <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-                {activeTab === 'maps' && onAddMap && (
+              {selectedAssetIds.length > 0 && activeTab !== 'characters' && (
+                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  {activeTab === 'maps' && onAddMap && (
+                    <button
+                      className="btn btn-primary"
+                      style={{
+                        padding: '0.4rem 0.8rem',
+                        fontSize: '0.8rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '5px',
+                      }}
+                      onClick={() => {
+                        selectedAssetIds.forEach((id) => {
+                          const asset = assets.find((a) => a.id === id);
+                          if (asset) handleMakeScene(asset);
+                        });
+                        setSelectedAssetIds([]);
+                      }}
+                      title="Make scenes from selected maps"
+                    >
+                      <Layers size={14} /> Make Scene from Selected ({selectedAssetIds.length})
+                    </button>
+                  )}
                   <button
-                    className="btn btn-primary"
+                    className="btn"
                     style={{
+                      backgroundColor: 'rgba(244, 63, 94, 0.2)',
+                      color: '#f43f5e',
+                      border: '1px solid rgba(244, 63, 94, 0.4)',
                       padding: '0.4rem 0.8rem',
                       fontSize: '0.8rem',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '5px',
+                      gap: '4px',
                     }}
-                    onClick={() => {
-                      selectedAssetIds.forEach((id) => {
-                        const asset = assets.find((a) => a.id === id);
-                        if (asset) handleMakeScene(asset);
-                      });
-                      setSelectedAssetIds([]);
-                    }}
-                    title="Make scenes from selected maps"
+                    onClick={handleDeleteSelected}
                   >
-                    <Layers size={14} /> Make Scene from Selected ({selectedAssetIds.length})
+                    <Trash2 size={14} /> Delete Selected ({selectedAssetIds.length})
                   </button>
-                )}
-                <button
-                  className="btn"
-                  style={{
-                    backgroundColor: 'rgba(244, 63, 94, 0.2)',
-                    color: '#f43f5e',
-                    border: '1px solid rgba(244, 63, 94, 0.4)',
-                    padding: '0.4rem 0.8rem',
-                    fontSize: '0.8rem',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px',
-                  }}
-                  onClick={handleDeleteSelected}
-                >
-                  <Trash2 size={14} /> Delete Selected ({selectedAssetIds.length})
-                </button>
-              </div>
-            )}
-          </div>
+                </div>
+              )}
+            </div>
+          )}
 
-          {/* Characters Tab Grid */}
-          {activeTab === 'characters' ? (
+          {/* Scenes Tab Grid (Scene Manager moved into Asset Manager per Task #108) */}
+          {activeTab === 'scenes' ? (
+            <MapManagerModal
+              embedded={true}
+              maps={maps || session?.maps || []}
+              activeMapId={activeMapId || session?.activeMapId || ''}
+              currentGmPreviewMapId={currentGmPreviewMapId || activeMapId || ''}
+              onSelectGmPreviewMap={onSelectGmPreviewMap || (() => {})}
+              onSetActiveMapForPlayers={onSetActiveMapForPlayers || (() => {})}
+              onSendPlayersWithTokens={onSendPlayersWithTokens}
+              onOpenBatchTokenTransfer={onOpenBatchTokenTransfer}
+              onAddMap={onAddMap || (() => {})}
+              onUpdateMap={onUpdateMap || (() => {})}
+              onDeleteMap={onDeleteMap || (() => {})}
+              onClose={onClose}
+            />
+          ) : activeTab === 'characters' ? (
             savedCharacters.length === 0 ? (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
                 No imported characters yet. Click Upload Character (.json) above or import a character from D&D Beyond in the Character Sheet!
