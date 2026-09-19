@@ -126,7 +126,8 @@ export function renderToken(
 
     // Render name label for props when selected or GM
     if (isSelected && token.name) {
-      renderTokenLabel(ctx, token.name, cx, cy + propH / 2 + 12);
+      const displayName = token.locked ? `🔒 ${token.name}` : token.name;
+      renderTokenLabel(ctx, displayName, cx, cy + propH / 2 + 12);
     }
     return;
   }
@@ -208,7 +209,8 @@ export function renderToken(
   renderHealthBar(ctx, token, cx, cy - radius - 14, tokenDiameter, isGm || canControl);
 
   // 7. Token Name Label
-  renderTokenLabel(ctx, token.name, cx, cy + radius + 12);
+  const displayName = token.locked ? `🔒 ${token.name}` : token.name;
+  renderTokenLabel(ctx, displayName, cx, cy + radius + 12);
 }
 
 function renderHealthBar(

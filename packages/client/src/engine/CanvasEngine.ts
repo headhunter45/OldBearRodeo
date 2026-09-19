@@ -708,6 +708,7 @@ export class CanvasEngine {
         for (const id of this.selectedTokenIds) {
           if (id === this.draggingToken.id) continue;
           const tok = this.session.tokens[id];
+          if (tok?.locked) continue;
           const initial = this.dragGroupInitialPositions.get(id);
           if (tok && initial) {
             tok.x = initial.x + deltaX;
