@@ -187,6 +187,12 @@ function nameGen(type) {
   - Separate two-finger trackpad panning from pinch-to-zoom: standard two-finger swipe (`e.ctrlKey === false`) should pan the battlemap smoothly via `this.viewport.pan(-deltaX, -deltaY)`, while trackpad pinch (`e.ctrlKey === true`) or Ctrl/Cmd+scroll zooms smoothly at the cursor.
   - Expose adjustable top-level sensitivity constants in `packages/client/src/engine/CanvasEngine.ts` (`TRACKPAD_PAN_SENSITIVITY`, `TRACKPAD_ZOOM_SENSITIVITY`, `MOUSE_WHEEL_ZOOM_SENSITIVITY`) so scrolling and zooming speed can be easily dialed in.
   - When the box select tool successfully selects one or more tokens, automatically switch the active tool back to the arrow (`select`) tool.
+118. Arc / Cone spell template indicator tool with optional persistence:
+  - Add an Arc / Cone indicator tool to the drawing tools sub-menu (for spells like Burning Hands, Cone of Cold, Acid Breath, etc.).
+  - Drawing workflow: tap/click origin (caster) and drag outward to set direction and length/radius with live preview badge (`${radiusFt} ft cone`).
+  - Angle/spread controls: default to standard 53.13° / 60° cone spread, with an interactive arc edge drag handle and quick preset chips on the toolbar (53°, 60°, 90°, 120°, 180°).
+  - Fully supports the `📌 Persist` toggle from Task 111 so it can be used either as an ephemeral ping or kept on the board as a persistent zone.
+  - Selectable, rotatable, and removable with the Delete button `🗑️` by the creator or GM.
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
 - On mobile selecting a character with the arrow or moving them is nearly impossible. It feels like the cursor is the bottom right of my finger instead of the middle. The place I have to tap on the token is tiny. Even after using the box to select the token when I use the arrow to move it it deselects everything and pans the map.
 - On mobile the bar to interact with my token is off screen in portrait and slightly cut off in landscape.
