@@ -172,7 +172,7 @@ function nameGen(type) {
   8. Voice & Audio settings
 109. ✅ Make a prompt to generate a favicon for the page. I will execute it and add the file later.
 110. ✅ Asset manager doesn't show props. Add a props tab.
-111. Persistent highlights and drawings (spell templates, zones, arrows) with removal:
+111. ✅ Persistent highlights and drawings (spell templates, zones, arrows) with removal:
   - Add a `📌 Persist` toggle in the drawing tools flyout and bottom toolbar (`⚡ Quick Ping` fades after 4s vs. `📌 Persist` stays on map; `Shift` key inverts mode on desktop).
   - Treat persistent shapes (circle, rectangle, arrow, target) as entities on a drawing layer rendered directly on top of the background grid but beneath character tokens (so tokens can stand inside spell areas without blocking selection).
   - Laser pointer remains strictly ephemeral.

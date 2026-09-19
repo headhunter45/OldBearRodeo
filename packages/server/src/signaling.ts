@@ -409,10 +409,40 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
       const session = getSession(ws.roomId);
       if (session) {
         session.markers.push(msg.marker);
-        // keep maximum 50 markers
-        if (session.markers.length > 50) session.markers.shift();
+        // keep maximum 100 markers, but don't drop persistent markers if possible
+        if (session.markers.length > 100) {
+          const firstNonPersistIdx = session.markers.findIndex((m) => !m.persist);
+          if (firstNonPersistIdx !== -1) {
+            session.markers.splice(firstNonPersistIdx, 1);
+          } else {
+            session.markers.shift();
+          }
+        }
       }
       broadcastToRoom(ws.roomId, { type: 'marker-added', marker: msg.marker }, ws);
+      break;
+    }
+
+    case 'marker-delete': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        session.markers = session.markers.filter((m) => m.id !== msg.id);
+      }
+      broadcastToRoom(ws.roomId, { type: 'marker-deleted', id: msg.id });
+      break;
+    }
+
+    case 'marker-update': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        const marker = session.markers.find((m) => m.id === msg.id);
+        if (marker) {
+          Object.assign(marker, msg.updates);
+        }
+      }
+      broadcastToRoom(ws.roomId, { type: 'marker-updated', id: msg.id, updates: msg.updates });
       break;
     }
 

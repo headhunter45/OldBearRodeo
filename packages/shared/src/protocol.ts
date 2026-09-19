@@ -26,6 +26,8 @@ export type ClientToServerMessage =
   | { type: 'map-switch'; mapId: string }
   | { type: 'fog-update'; mapId: string; globalCovered?: boolean; newShape?: FogShape; clearShapes?: boolean }
   | { type: 'marker-add'; marker: ScreenMarker }
+  | { type: 'marker-delete'; id: string }
+  | { type: 'marker-update'; id: string; updates: Partial<ScreenMarker> }
   | { type: 'dice-roll'; roll: DiceRollResult }
   | { type: 'initiative-update'; initiative: InitiativeState }
   | { type: 'player-update'; updates: Partial<Player> }
@@ -67,6 +69,8 @@ export type ServerToClientMessage =
   | { type: 'map-switched'; mapId: string }
   | { type: 'fog-updated'; mapId: string; globalCovered?: boolean; newShape?: FogShape; clearShapes?: boolean }
   | { type: 'marker-added'; marker: ScreenMarker }
+  | { type: 'marker-deleted'; id: string }
+  | { type: 'marker-updated'; id: string; updates: Partial<ScreenMarker> }
   | { type: 'dice-rolled'; roll: DiceRollResult }
   | { type: 'initiative-updated'; initiative: InitiativeState }
   | { type: 'player-updated'; playerId: string; updates: Partial<Player> }

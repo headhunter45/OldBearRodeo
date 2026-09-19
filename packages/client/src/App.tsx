@@ -36,6 +36,7 @@ import { TurnAnnouncementBanner, TurnAnnouncement } from './components/TurnAnnou
 import { ChatPanel } from './components/ChatPanel.js';
 import { TOAST_DURATION_MS } from './config/toast.js';
 import { Mic, Radio, Compass, Check, AlertTriangle, RefreshCw } from 'lucide-react';
+import { MarkerControls } from './components/MarkerControls.js';
 
 export const App: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -43,13 +44,15 @@ export const App: React.FC = () => {
   const networkRef = useRef<NetworkClient | null>(null);
   const voiceManagerRef = useRef<VoiceManager | null>(null);
 
-  // App State
+  // Connection & Room
+  const [roomId, setRoomId] = useState<string>('');
+  const [roomUrl, setRoomUrl] = useState<string>('');
   const [session, setSession] = useState<GameSession | null>(null);
   const sessionRef = useRef<GameSession | null>(null);
   sessionRef.current = session;
-
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const showToast = (msg: string, durationMs = TOAST_DURATION_MS) => {
+
+  const showToast = (msg: string, durationMs: number = TOAST_DURATION_MS) => {
     setToastMessage(msg);
     setTimeout(() => {
       setToastMessage((cur) => (cur === msg ? null : cur));
@@ -62,6 +65,8 @@ export const App: React.FC = () => {
   const [snapEnabled, setSnapEnabled] = useState(true);
   const [selectedToken, setSelectedToken] = useState<Token | null>(null);
   const [selectedTokens, setSelectedTokens] = useState<Token[]>([]);
+  const [selectedMarker, setSelectedMarker] = useState<ScreenMarker | null>(null);
+  const [persistMarkersMode, setPersistMarkersMode] = useState<boolean>(false);
 
   // Voice Chat State
   const [voiceState, setVoiceState] = useState<VoiceState>({
@@ -368,6 +373,35 @@ export const App: React.FC = () => {
           break;
         }
 
+        case 'marker-deleted': {
+          setSession((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              markers: prev.markers.filter((m) => m.id !== msg.id),
+            };
+          });
+          setSelectedMarker((cur) => (cur?.id === msg.id ? null : cur));
+          if (engineRef.current && engineRef.current.selectedMarkerId === msg.id) {
+            engineRef.current.selectedMarkerId = null;
+          }
+          break;
+        }
+
+        case 'marker-updated': {
+          setSession((prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              markers: prev.markers.map((m) =>
+                m.id === msg.id ? { ...m, ...msg.updates } : m
+              ),
+            };
+          });
+          setSelectedMarker((cur) => (cur?.id === msg.id ? { ...cur, ...msg.updates } : cur));
+          break;
+        }
+
         case 'dice-rolled': {
           setActiveRollAnnouncement(msg.roll);
           setSession((prev) => {
@@ -620,6 +654,17 @@ export const App: React.FC = () => {
           marker,
         });
       },
+      onMarkerSelect: (marker) => setSelectedMarker(marker),
+      onMarkerDelete: (id) => {
+        networkRef.current?.send({ type: 'marker-delete', id });
+        setSession((prev) => prev ? { ...prev, markers: prev.markers.filter((m) => m.id !== id) } : prev);
+        setSelectedMarker((cur) => (cur?.id === id ? null : cur));
+      },
+      onMarkerUpdate: (id, updates) => {
+        networkRef.current?.send({ type: 'marker-update', id, updates });
+        setSession((prev) => prev ? { ...prev, markers: prev.markers.map((m) => m.id === id ? { ...m, ...updates } : m) } : prev);
+        setSelectedMarker((cur) => (cur?.id === id ? { ...cur, ...updates } : cur));
+      },
       onFogUpdate: (newShape) => {
         const targetMapId = engine.currentMapId;
         setSession((prev) => {
@@ -706,6 +751,53 @@ export const App: React.FC = () => {
       type: 'token-delete',
       id,
     });
+  };
+
+  const handleDeleteMarker = (id: string) => {
+    networkRef.current?.send({
+      type: 'marker-delete',
+      id,
+    });
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        markers: prev.markers.filter((m) => m.id !== id),
+      };
+    });
+    if (selectedMarker?.id === id) {
+      setSelectedMarker(null);
+    }
+    if (engineRef.current && engineRef.current.selectedMarkerId === id) {
+      engineRef.current.selectedMarkerId = null;
+    }
+  };
+
+  const handleUpdateMarker = (id: string, updates: Partial<ScreenMarker>) => {
+    networkRef.current?.send({
+      type: 'marker-update',
+      id,
+      updates,
+    });
+    setSession((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        markers: prev.markers.map((m) =>
+          m.id === id ? { ...m, ...updates } : m
+        ),
+      };
+    });
+    if (selectedMarker?.id === id) {
+      setSelectedMarker((prev) => (prev ? { ...prev, ...updates } : null));
+    }
+  };
+
+  const handleTogglePersistMarkers = (persist: boolean) => {
+    setPersistMarkersMode(persist);
+    if (engineRef.current) {
+      engineRef.current.setPersistMarkersMode(persist);
+    }
   };
 
   const handleTransferToken = (id: string, toMapId: string) => {
@@ -1266,11 +1358,23 @@ export const App: React.FC = () => {
         return;
       }
 
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedMarker) {
+        const target = e.target as HTMLElement | null;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+          return;
+        }
+        e.preventDefault();
+        handleDeleteMarker(selectedMarker.id);
+        return;
+      }
+
       if (e.key === 'Escape') {
         setSelectedToken(null);
         setSelectedTokens([]);
+        setSelectedMarker(null);
         if (engineRef.current) {
           engineRef.current.measuringTape = null;
+          engineRef.current.selectedMarkerId = null;
         }
       }
 
@@ -1286,7 +1390,7 @@ export const App: React.FC = () => {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedToken, selectedTokens, session, localPlayer, currentMap, isGm]);
+  }, [selectedToken, selectedTokens, selectedMarker, session, localPlayer, currentMap, isGm]);
 
   const handleRecordRoll = (roll: DiceRollResult) => {
     setSession((prev) => {
@@ -1432,7 +1536,25 @@ export const App: React.FC = () => {
         onClearAllFog={handleClearAllFog}
         userColor={localPlayer?.color || '#6366f1'}
         onChangeColor={(c) => handleUpdateProfile(localPlayer?.name || 'Player', c)}
+        persistMarkersMode={persistMarkersMode}
+        onTogglePersistMarkers={handleTogglePersistMarkers}
       />
+
+      {/* Selected Persistent Shape Controls */}
+      {selectedMarker && session && (
+        <MarkerControls
+          marker={selectedMarker}
+          onDelete={handleDeleteMarker}
+          onToggleLock={(id, locked) => handleUpdateMarker(id, { locked })}
+          onClose={() => {
+            setSelectedMarker(null);
+            if (engineRef.current) {
+              engineRef.current.selectedMarkerId = null;
+            }
+          }}
+          canControl={isGm || selectedMarker.userId === localPlayer?.id}
+        />
+      )}
 
       {/* Selected Token Floating Controls */}
       {selectedToken && session && (

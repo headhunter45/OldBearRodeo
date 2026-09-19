@@ -113,7 +113,7 @@ export interface FogState {
   shapes: FogShape[];
 }
 
-export type MarkerType = 'laser' | 'arrow' | 'crosshair' | 'circle' | 'rectangle';
+export type MarkerType = 'laser' | 'arrow' | 'crosshair' | 'circle' | 'rectangle' | 'cone';
 
 export interface ScreenMarker {
   id: string;
@@ -127,10 +127,15 @@ export interface ScreenMarker {
   points?: FogPoint[]; // for laser trails
   targetX?: number; // for arrow
   targetY?: number;
-  radius?: number; // for circle
+  radius?: number; // for circle or cone
   width?: number; // for rectangle
   height?: number;
-  durationMs: number; // how long it stays on screen
+  angle?: number; // for cone / directional angle
+  spreadAngle?: number; // for cone spread angle in degrees
+  persist?: boolean; // stays on map until deleted
+  locked?: boolean; // locked from accidental movement
+  mapId?: string; // associated map
+  durationMs: number; // how long it stays on screen (if not persist)
   createdAt: number; // epoch ms
 }
 

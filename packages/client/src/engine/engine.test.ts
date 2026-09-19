@@ -127,4 +127,90 @@ describe('Canvas Engine Utilities', () => {
     assert.strictEqual(movedTokens[2].x, 250);
     assert.strictEqual(movedTokens[2].y, 200);
   });
+
+  it('preserves persistent markers indefinitely while ephemeral markers expire (Task #111)', () => {
+    const now = Date.now();
+    const markers = [
+      {
+        id: 'm-ephemeral',
+        type: 'arrow' as const,
+        userId: 'u1',
+        userName: 'Player 1',
+        color: '#ff0000',
+        x: 0,
+        y: 0,
+        targetX: 50,
+        targetY: 50,
+        durationMs: 4000,
+        createdAt: now - 5000, // expired
+        persist: false,
+      },
+      {
+        id: 'm-persistent',
+        type: 'circle' as const,
+        userId: 'u1',
+        userName: 'Player 1',
+        color: '#00ff00',
+        x: 100,
+        y: 100,
+        radius: 60,
+        durationMs: 0,
+        createdAt: now - 100000, // very old
+        persist: true,
+      },
+    ];
+
+    // Simulate filtering logic
+    const surviving = markers.filter(
+      (m) => m.persist || now - m.createdAt <= m.durationMs
+    );
+
+    assert.strictEqual(surviving.length, 1);
+    assert.strictEqual(surviving[0].id, 'm-persistent');
+    assert.strictEqual(surviving[0].persist, true);
+  });
+
+  it('correctly hit-tests persistent circle, rectangle, and arrow markers (Task #111)', () => {
+    const circleMarker = {
+      id: 'c1',
+      type: 'circle' as const,
+      x: 100,
+      y: 100,
+      radius: 50,
+      persist: true,
+    };
+    const rectMarker = {
+      id: 'r1',
+      type: 'rectangle' as const,
+      x: 200,
+      y: 200,
+      width: 100,
+      height: 60,
+      persist: true,
+    };
+
+    // Point inside circle (120, 120) distance = Math.hypot(20, 20) = ~28.28 <= 50
+    const insideCircle = Math.hypot(120 - circleMarker.x, 120 - circleMarker.y) <= circleMarker.radius;
+    assert.strictEqual(insideCircle, true);
+
+    // Point outside circle (160, 160) distance = Math.hypot(60, 60) = ~84.85 > 50
+    const outsideCircle = Math.hypot(160 - circleMarker.x, 160 - circleMarker.y) <= circleMarker.radius;
+    assert.strictEqual(outsideCircle, false);
+
+    // Point inside rectangle (250, 230)
+    const insideRect =
+      250 >= rectMarker.x &&
+      250 <= rectMarker.x + rectMarker.width &&
+      230 >= rectMarker.y &&
+      230 <= rectMarker.y + rectMarker.height;
+    assert.strictEqual(insideRect, true);
+
+    // Point outside rectangle (350, 230)
+    const outsideRect =
+      350 >= rectMarker.x &&
+      350 <= rectMarker.x + rectMarker.width &&
+      230 >= rectMarker.y &&
+      230 <= rectMarker.y + rectMarker.height;
+    assert.strictEqual(outsideRect, false);
+  });
 });

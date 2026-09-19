@@ -5,20 +5,24 @@ export function renderMarkers(
   markers: ScreenMarker[],
   now: number,
   gridSize: number = 50,
-  scaleFtPerCell: number = 5
+  scaleFtPerCell: number = 5,
+  selectedMarkerId: string | null = null
 ): ScreenMarker[] {
-  // Return non-expired markers
+  // Return non-expired or persistent markers
   const activeMarkers: ScreenMarker[] = [];
 
   for (const marker of markers) {
     const elapsed = now - marker.createdAt;
-    if (elapsed > marker.durationMs) {
+    const isPersist = Boolean(marker.persist);
+
+    if (!isPersist && elapsed > marker.durationMs) {
       continue;
     }
     activeMarkers.push(marker);
 
-    const progress = elapsed / marker.durationMs;
-    const alpha = Math.max(0, 1 - progress);
+    const progress = elapsed / (marker.durationMs || 1);
+    const alpha = isPersist ? 1 : Math.max(0, 1 - progress);
+    const isSelected = selectedMarkerId === marker.id;
 
     ctx.save();
     ctx.globalAlpha = alpha;
@@ -28,16 +32,16 @@ export function renderMarkers(
         renderLaser(ctx, marker);
         break;
       case 'arrow':
-        renderArrow(ctx, marker);
+        renderArrow(ctx, marker, isSelected);
         break;
       case 'crosshair':
-        renderCrosshair(ctx, marker, elapsed);
+        renderCrosshair(ctx, marker, elapsed, isSelected);
         break;
       case 'circle':
-        renderCircle(ctx, marker, gridSize, scaleFtPerCell);
+        renderCircle(ctx, marker, gridSize, scaleFtPerCell, isSelected);
         break;
       case 'rectangle':
-        renderRectangle(ctx, marker, gridSize, scaleFtPerCell);
+        renderRectangle(ctx, marker, gridSize, scaleFtPerCell, isSelected);
         break;
     }
 
@@ -82,7 +86,7 @@ function renderLaser(ctx: CanvasRenderingContext2D, marker: ScreenMarker) {
   ctx.fill();
 }
 
-function renderArrow(ctx: CanvasRenderingContext2D, marker: ScreenMarker) {
+function renderArrow(ctx: CanvasRenderingContext2D, marker: ScreenMarker, isSelected?: boolean) {
   const targetX = marker.targetX ?? marker.x;
   const targetY = marker.targetY ?? marker.y;
   const fromX = marker.x;
@@ -90,6 +94,18 @@ function renderArrow(ctx: CanvasRenderingContext2D, marker: ScreenMarker) {
 
   const angle = Math.atan2(targetY - fromY, targetX - fromX);
   const headLen = 16;
+
+  if (isSelected) {
+    ctx.save();
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 8;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(fromX, fromY);
+    ctx.lineTo(targetX, targetY);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   ctx.beginPath();
   ctx.moveTo(fromX, fromY);
@@ -116,13 +132,25 @@ function renderArrow(ctx: CanvasRenderingContext2D, marker: ScreenMarker) {
   ctx.fill();
 
   // User label
-  renderUserLabel(ctx, marker.userName, fromX, fromY - 10, marker.color);
+  const labelPrefix = marker.locked ? '🔒 ' : marker.persist ? '📌 ' : '';
+  renderUserLabel(ctx, `${labelPrefix}${marker.userName}`, fromX, fromY - 10, marker.color);
 }
 
-function renderCrosshair(ctx: CanvasRenderingContext2D, marker: ScreenMarker, elapsed: number) {
+function renderCrosshair(ctx: CanvasRenderingContext2D, marker: ScreenMarker, elapsed: number, isSelected?: boolean) {
   const { x, y, color } = marker;
   const size = 18;
   const pulse = Math.sin(elapsed / 150) * 3;
+
+  if (isSelected) {
+    ctx.save();
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.arc(x, y, size + 8, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   ctx.strokeStyle = color;
   ctx.lineWidth = 2;
@@ -142,17 +170,30 @@ function renderCrosshair(ctx: CanvasRenderingContext2D, marker: ScreenMarker, el
   ctx.arc(x, y, size + 4 + pulse, 0, Math.PI * 2);
   ctx.stroke();
 
-  renderUserLabel(ctx, marker.userName, x, y - size - 12, color);
+  const labelPrefix = marker.locked ? '🔒 ' : marker.persist ? '📌 ' : '';
+  renderUserLabel(ctx, `${labelPrefix}${marker.userName}`, x, y - size - 12, color);
 }
 
 function renderCircle(
   ctx: CanvasRenderingContext2D,
   marker: ScreenMarker,
   gridSize: number,
-  scaleFtPerCell: number
+  scaleFtPerCell: number,
+  isSelected?: boolean
 ) {
   const { x, y, radius = 50, color } = marker;
   const radiusFt = Math.round((radius / gridSize) * scaleFtPerCell);
+
+  if (isSelected) {
+    ctx.save();
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3.5;
+    ctx.setLineDash([6, 6]);
+    ctx.beginPath();
+    ctx.arc(x, y, radius + 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
 
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
@@ -173,19 +214,30 @@ function renderCircle(
   ctx.fill();
 
   // Radius label
+  const labelPrefix = marker.locked ? '🔒 ' : marker.persist ? '📌 ' : '';
   const label = `${radiusFt} ft radius`;
-  renderUserLabel(ctx, `${marker.userName}: ${label}`, x, y - radius - 10, color);
+  renderUserLabel(ctx, `${labelPrefix}${marker.userName}: ${label}`, x, y - radius - 10, color);
 }
 
 function renderRectangle(
   ctx: CanvasRenderingContext2D,
   marker: ScreenMarker,
   gridSize: number,
-  scaleFtPerCell: number
+  scaleFtPerCell: number,
+  isSelected?: boolean
 ) {
   const { x, y, width = 100, height = 100, color } = marker;
   const widthFt = Math.round((Math.abs(width) / gridSize) * scaleFtPerCell);
   const heightFt = Math.round((Math.abs(height) / gridSize) * scaleFtPerCell);
+
+  if (isSelected) {
+    ctx.save();
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 3.5;
+    ctx.setLineDash([6, 6]);
+    ctx.strokeRect(x - 5, y - 5, width + 10, height + 10);
+    ctx.restore();
+  }
 
   ctx.fillStyle = hexToRgba(color, 0.2);
   ctx.fillRect(x, y, width, height);
@@ -197,8 +249,9 @@ function renderRectangle(
   ctx.shadowBlur = 8;
   ctx.strokeRect(x, y, width, height);
 
+  const labelPrefix = marker.locked ? '🔒 ' : marker.persist ? '📌 ' : '';
   const label = `${widthFt}ft × ${heightFt}ft`;
-  renderUserLabel(ctx, `${marker.userName}: ${label}`, x + width / 2, y - 10, color);
+  renderUserLabel(ctx, `${labelPrefix}${marker.userName}: ${label}`, x + width / 2, y - 10, color);
 }
 
 function renderUserLabel(

@@ -14,6 +14,8 @@ import {
   CloudOff,
   Grid,
   Ruler,
+  Pin,
+  Zap,
 } from 'lucide-react';
 import { ActiveTool } from '../engine/CanvasEngine.js';
 
@@ -31,6 +33,8 @@ interface ToolBarProps {
   onToggleGrid?: () => void;
   onCoverAllFog?: () => void;
   onClearAllFog?: () => void;
+  persistMarkersMode?: boolean;
+  onTogglePersistMarkers?: (persist: boolean) => void;
 }
 
 const COLORS = COLOR_VALUES;
@@ -47,6 +51,8 @@ export const ToolBar: React.FC<ToolBarProps> = ({
   onToggleGrid,
   onCoverAllFog,
   onClearAllFog,
+  persistMarkersMode = false,
+  onTogglePersistMarkers,
 }) => {
   const [showSelectMenu, setShowSelectMenu] = useState(false);
   const selectMenuRef = useRef<HTMLDivElement>(null);
@@ -333,6 +339,29 @@ export const ToolBar: React.FC<ToolBarProps> = ({
             >
               <Square size={16} />
               <span>Rectangle Zone (5)</span>
+            </button>
+
+            <div style={{ height: '1px', background: 'var(--border-subtle)', margin: '0.2rem 0' }} />
+
+            <button
+              className={`btn ${persistMarkersMode ? 'btn-primary' : 'btn-secondary'}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                padding: '0.35rem 0.6rem',
+                fontSize: '0.8rem',
+                justifyContent: 'flex-start',
+              }}
+              onClick={() => onTogglePersistMarkers?.(!persistMarkersMode)}
+              title={
+                persistMarkersMode
+                  ? 'Persistent Mode: Drawings remain permanently on map. Hold Shift while drawing to invert to Quick Ping.'
+                  : 'Quick Ping Mode: Drawings fade out after a few seconds. Hold Shift while drawing to invert to Persistent.'
+              }
+            >
+              {persistMarkersMode ? <Pin size={16} /> : <Zap size={16} />}
+              <span>{persistMarkersMode ? 'Mode: 📌 Persist' : 'Mode: ⚡ Quick Ping'}</span>
             </button>
           </div>
         )}

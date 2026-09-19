@@ -31,6 +31,9 @@ export interface CanvasEngineCallbacks {
   onTokenSelect?: (token: Token | null) => void;
   onTokensSelect?: (tokens: Token[]) => void;
   onMarkerAdd?: (marker: ScreenMarker) => void;
+  onMarkerDelete?: (id: string) => void;
+  onMarkerUpdate?: (id: string, updates: Partial<ScreenMarker>) => void;
+  onMarkerSelect?: (marker: ScreenMarker | null) => void;
   onFogUpdate?: (shape: FogShape) => void;
 }
 
@@ -57,6 +60,11 @@ export class CanvasEngine {
   dragCurrentPos: Point | null = null;
   activeRuler: RulerMeasurement | null = null;
   measuringTape: RulerMeasurement | null = null;
+
+  // Persistent marker state
+  persistMarkersMode: boolean = false;
+  selectedMarkerId: string | null = null;
+  draggingMarker: ScreenMarker | null = null;
 
   // Shape drawing state (for markers & fog)
   isDrawing: boolean = false;
@@ -149,6 +157,21 @@ export class CanvasEngine {
     // 3. Render Grid Layer
     renderGrid(ctx, currentMap, this.viewport, width, height);
 
+    // 3.5. Render Persistent Screen Markers (Drawing Layer on top of grid, beneath props and character tokens)
+    const persistentMarkers = (this.session.markers || []).filter(
+      (m) => m.persist && (!m.mapId || m.mapId === currentMap.id)
+    );
+    if (persistentMarkers.length > 0) {
+      renderMarkers(
+        ctx,
+        persistentMarkers,
+        now,
+        currentMap.gridSize,
+        currentMap.scaleFtPerCell,
+        this.selectedMarkerId
+      );
+    }
+
     // 4. Render Tokens and Props
     const tokens = Object.values(this.session.tokens).filter(
       (t) => t.mapId === currentMap.id
@@ -190,15 +213,20 @@ export class CanvasEngine {
       drawRuler(ctx, this.measuringTape);
     }
 
-    // 7. Render Ephemeral Screen Markers
-    if (this.session.markers && this.session.markers.length > 0) {
-      this.session.markers = renderMarkers(
+    // 7. Render Ephemeral Screen Markers (Pings, lasers above tokens)
+    const ephemeralMarkers = (this.session.markers || []).filter((m) => !m.persist);
+    if (ephemeralMarkers.length > 0) {
+      const activeEphemeral = renderMarkers(
         ctx,
-        this.session.markers,
+        ephemeralMarkers,
         now,
         currentMap.gridSize,
         currentMap.scaleFtPerCell
       );
+      this.session.markers = [
+        ...this.session.markers.filter((m) => m.persist),
+        ...activeEphemeral,
+      ];
     }
 
     // 8. Render Current Drawing In-Progress (markers/fog preview)
@@ -380,8 +408,8 @@ export class CanvasEngine {
 
     const worldPos = this.viewport.screenToWorld(e.clientX, e.clientY);
 
-    // Pan mode (middle click, space, or pan tool)
-    if (e.button === 1 || e.button === 2 || this.activeTool === 'pan' || e.shiftKey) {
+    // Pan mode (middle click, right click, or pan tool)
+    if (e.button === 1 || e.button === 2 || this.activeTool === 'pan') {
       return;
     }
 
@@ -435,6 +463,10 @@ export class CanvasEngine {
         this.measuringTape.color = this.localPlayer?.color || '#06b6d4';
       }
     } else if (this.activeTool === 'crosshair') {
+      const isPersistent = this.persistMarkersMode ? !e.shiftKey : !!e.shiftKey;
+      const currentMap =
+        this.session?.maps.find((m) => m.id === this.currentMapId) ||
+        this.session?.maps[0];
       this.broadcastMarker({
         id: crypto.randomUUID(),
         type: 'crosshair',
@@ -443,7 +475,9 @@ export class CanvasEngine {
         color: this.localPlayer?.color || '#3b82f6',
         x: worldPos.x,
         y: worldPos.y,
-        durationMs: 4000,
+        mapId: currentMap?.id,
+        persist: isPersistent,
+        durationMs: isPersistent ? 0 : 4000,
         createdAt: Date.now(),
       });
     } else {
@@ -512,6 +546,9 @@ export class CanvasEngine {
     }
 
     if (clickedToken) {
+      this.selectedMarkerId = null;
+      this.callbacks.onMarkerSelect?.(null);
+
       if (!this.selectedTokenIds.includes(clickedToken.id)) {
         this.selectedTokenId = clickedToken.id;
         this.selectedTokenIds = [clickedToken.id];
@@ -542,6 +579,22 @@ export class CanvasEngine {
       this.selectedTokenIds = [];
       this.callbacks.onTokenSelect?.(null);
       this.callbacks.onTokensSelect?.([]);
+
+      // Hit-test persistent markers on the drawing layer
+      const clickedMarker = this.findMatchingPersistentMarker(worldPos, currentMap);
+      if (clickedMarker && (isGm || clickedMarker.userId === localId)) {
+        this.selectedMarkerId = clickedMarker.id;
+        this.callbacks.onMarkerSelect?.(clickedMarker);
+
+        if (!clickedMarker.locked) {
+          this.draggingMarker = clickedMarker;
+          this.dragStartPos = { x: clickedMarker.x, y: clickedMarker.y };
+          this.dragCurrentPos = worldPos;
+        }
+      } else {
+        this.selectedMarkerId = null;
+        this.callbacks.onMarkerSelect?.(null);
+      }
     }
   }
 
@@ -585,8 +638,20 @@ export class CanvasEngine {
     const worldPos = this.viewport.screenToWorld(e.clientX, e.clientY);
 
     // Pan with mouse drag or pan tool
-    if (e.buttons === 4 || e.buttons === 2 || this.activeTool === 'pan' || (e.buttons === 1 && !this.draggingToken && !this.isDrawing)) {
+    if (e.buttons === 4 || e.buttons === 2 || this.activeTool === 'pan' || (e.buttons === 1 && !this.draggingToken && !this.isDrawing && !this.draggingMarker)) {
       this.viewport.pan(currentScreen.x - prevScreen.x, currentScreen.y - prevScreen.y);
+      return;
+    }
+
+    // Persistent Marker Dragging
+    if (this.draggingMarker && this.dragCurrentPos && !this.draggingMarker.locked) {
+      const dx = worldPos.x - this.dragCurrentPos.x;
+      const dy = worldPos.y - this.dragCurrentPos.y;
+      this.draggingMarker.x += dx;
+      this.draggingMarker.y += dy;
+      if (this.draggingMarker.targetX !== undefined) this.draggingMarker.targetX += dx;
+      if (this.draggingMarker.targetY !== undefined) this.draggingMarker.targetY += dy;
+      this.dragCurrentPos = worldPos;
       return;
     }
 
@@ -724,9 +789,21 @@ export class CanvasEngine {
       this.activeRuler = null;
     }
 
+    // Finish Persistent Marker Drag
+    if (this.draggingMarker) {
+      const marker = this.draggingMarker;
+      this.draggingMarker = null;
+      this.callbacks.onMarkerUpdate?.(marker.id, {
+        x: marker.x,
+        y: marker.y,
+        targetX: marker.targetX,
+        targetY: marker.targetY,
+      });
+    }
+
     // Finish Marker or Fog drawing
     if (this.isDrawing && this.drawStart && this.drawCurrent) {
-      this.finishDrawing();
+      this.finishDrawing(e);
     }
 
     this.isDrawing = false;
@@ -735,11 +812,15 @@ export class CanvasEngine {
     this.laserPoints = [];
   };
 
-  private finishDrawing() {
+  private finishDrawing(e?: PointerEvent) {
     if (!this.drawStart || !this.drawCurrent || !this.localPlayer) return;
 
     const { x: x1, y: y1 } = this.drawStart;
     const { x: x2, y: y2 } = this.drawCurrent;
+
+    const currentMap =
+      this.session?.maps.find((m) => m.id === this.currentMapId) ||
+      this.session?.maps[0];
 
     if (this.activeTool === 'measure') {
       return;
@@ -756,9 +837,6 @@ export class CanvasEngine {
       const minY = Math.min(y1, y2);
       const maxY = Math.max(y1, y2);
 
-      const currentMap =
-        this.session?.maps.find((m) => m.id === this.currentMapId) ||
-        this.session?.maps[0];
       if (!currentMap || !this.session) return;
 
       const tokens = Object.values(this.session.tokens).filter(
@@ -797,10 +875,12 @@ export class CanvasEngine {
         x: x2,
         y: y2,
         points: [...this.laserPoints],
+        persist: false,
         durationMs: 2000,
         createdAt: Date.now(),
       });
     } else if (this.activeTool === 'arrow') {
+      const isPersistent = this.persistMarkersMode ? !(e && e.shiftKey) : Boolean(e && e.shiftKey);
       this.broadcastMarker({
         id: crypto.randomUUID(),
         type: 'arrow',
@@ -811,11 +891,14 @@ export class CanvasEngine {
         y: y1,
         targetX: x2,
         targetY: y2,
-        durationMs: 5000,
+        mapId: currentMap?.id,
+        persist: isPersistent,
+        durationMs: isPersistent ? 0 : 5000,
         createdAt: Date.now(),
       });
     } else if (this.activeTool === 'circle') {
       const radius = Math.hypot(x2 - x1, y2 - y1);
+      const isPersistent = this.persistMarkersMode ? !(e && e.shiftKey) : Boolean(e && e.shiftKey);
       this.broadcastMarker({
         id: crypto.randomUUID(),
         type: 'circle',
@@ -825,10 +908,13 @@ export class CanvasEngine {
         x: x1,
         y: y1,
         radius,
-        durationMs: 6000,
+        mapId: currentMap?.id,
+        persist: isPersistent,
+        durationMs: isPersistent ? 0 : 6000,
         createdAt: Date.now(),
       });
     } else if (this.activeTool === 'rectangle') {
+      const isPersistent = this.persistMarkersMode ? !(e && e.shiftKey) : Boolean(e && e.shiftKey);
       this.broadcastMarker({
         id: crypto.randomUUID(),
         type: 'rectangle',
@@ -839,7 +925,9 @@ export class CanvasEngine {
         y: Math.min(y1, y2),
         width: Math.abs(x2 - x1),
         height: Math.abs(y2 - y1),
-        durationMs: 6000,
+        mapId: currentMap?.id,
+        persist: isPersistent,
+        durationMs: isPersistent ? 0 : 6000,
         createdAt: Date.now(),
       });
     } else if (this.activeTool.startsWith('fog')) {
@@ -866,6 +954,63 @@ export class CanvasEngine {
     this.callbacks.onMarkerAdd?.(marker);
   }
 
+  setPersistMarkersMode(persist: boolean) {
+    this.persistMarkersMode = persist;
+  }
+
+  deleteSelectedMarker() {
+    if (!this.selectedMarkerId) return;
+    const id = this.selectedMarkerId;
+    this.selectedMarkerId = null;
+    if (this.session) {
+      this.session.markers = this.session.markers.filter((m) => m.id !== id);
+    }
+    this.callbacks.onMarkerSelect?.(null);
+    this.callbacks.onMarkerDelete?.(id);
+  }
+
+  toggleLockSelectedMarker() {
+    if (!this.selectedMarkerId || !this.session) return;
+    const marker = this.session.markers.find((m) => m.id === this.selectedMarkerId);
+    if (!marker) return;
+    marker.locked = !marker.locked;
+    this.callbacks.onMarkerUpdate?.(marker.id, { locked: marker.locked });
+    this.callbacks.onMarkerSelect?.({ ...marker });
+  }
+
+  private findMatchingPersistentMarker(worldPos: Point, map: GameMap): ScreenMarker | null {
+    if (!this.session?.markers) return null;
+    const candidates = this.session.markers.filter(
+      (m) => m.persist && (!m.mapId || m.mapId === map.id)
+    );
+    for (let i = candidates.length - 1; i >= 0; i--) {
+      const m = candidates[i];
+      if (m.type === 'circle') {
+        const rad = m.radius || 50;
+        if (Math.hypot(worldPos.x - m.x, worldPos.y - m.y) <= rad) return m;
+      } else if (m.type === 'rectangle') {
+        const w = m.width || 100;
+        const h = m.height || 100;
+        const minX = Math.min(m.x, m.x + w);
+        const maxX = Math.max(m.x, m.x + w);
+        const minY = Math.min(m.y, m.y + h);
+        const maxY = Math.max(m.y, m.y + h);
+        if (worldPos.x >= minX && worldPos.x <= maxX && worldPos.y >= minY && worldPos.y <= maxY) {
+          return m;
+        }
+      } else if (m.type === 'arrow') {
+        const tx = m.targetX ?? m.x;
+        const ty = m.targetY ?? m.y;
+        if (distToSegment(worldPos, { x: m.x, y: m.y }, { x: tx, y: ty }) <= 20) {
+          return m;
+        }
+      } else if (m.type === 'crosshair') {
+        if (Math.hypot(worldPos.x - m.x, worldPos.y - m.y) <= 30) return m;
+      }
+    }
+    return null;
+  }
+
   private onWheel = (e: WheelEvent) => {
     e.preventDefault();
     const zoomFactor = e.deltaY < 0 ? 1.1 : 0.9;
@@ -890,4 +1035,12 @@ export class CanvasEngine {
     window.removeEventListener('pointercancel', this.onPointerUp);
     c.removeEventListener('wheel', this.onWheel);
   }
+}
+
+function distToSegment(p: Point, v: Point, w: Point): number {
+  const l2 = (v.x - w.x) ** 2 + (v.y - w.y) ** 2;
+  if (l2 === 0) return Math.hypot(p.x - v.x, p.y - v.y);
+  let t = ((p.x - v.x) * (w.x - v.x) + (p.y - v.y) * (w.y - v.y)) / l2;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(p.x - (v.x + t * (w.x - v.x)), p.y - (v.y + t * (w.y - v.y)));
 }
