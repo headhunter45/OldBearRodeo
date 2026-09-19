@@ -451,33 +451,33 @@ export const MobileDrawer: React.FC<MobileDrawerProps> = ({
                       style={{
                         display: 'flex',
                         alignItems: 'center',
-                      gap: '0.35rem',
-                      padding: '0.2rem 0.5rem',
-                      borderRadius: 'var(--radius-full)',
-                      backgroundColor: 'var(--bg-surface)',
-                      border: `1px solid ${effectivePlayer.color}44`,
-                      fontSize: '0.75rem',
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: '10px',
-                        height: '10px',
-                        borderRadius: '50%',
-                        backgroundColor: effectivePlayer.color,
+                        gap: '0.35rem',
+                        padding: '0.2rem 0.5rem',
+                        borderRadius: 'var(--radius-full)',
+                        backgroundColor: 'var(--bg-surface)',
+                        border: `1px solid ${effectivePlayer.color}44`,
+                        fontSize: '0.75rem',
                       }}
-                    />
-                    <span style={{ color: 'white', fontWeight: 600 }}>{effectivePlayer.name}</span>
-                    {effectivePlayer.role === 'gm' && (
-                      <span style={{ fontSize: '0.65rem', color: 'var(--accent-gold)' }}>GM</span>
-                    )}
-                  </div>
-                );
-              })}
+                    >
+                      <div
+                        style={{
+                          width: '10px',
+                          height: '10px',
+                          borderRadius: '50%',
+                          backgroundColor: effectivePlayer.color,
+                        }}
+                      />
+                      <span style={{ color: 'white', fontWeight: 600 }}>{effectivePlayer.name}</span>
+                      {effectivePlayer.role === 'gm' && (
+                        <span style={{ fontSize: '0.65rem', color: 'var(--accent-gold)' }}>GM</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        );
-      })()}
+          );
+        })()}
 
         {/* Footer: Share invite */}
         <div style={{ marginTop: 'auto', paddingTop: '1rem', borderTop: '1px solid var(--border-subtle)' }}>

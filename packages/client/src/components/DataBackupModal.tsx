@@ -312,12 +312,12 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     activeTab === 'maps'
       ? mapAssets
       : activeTab === 'monsters'
-      ? monsterAssets
-      : activeTab === 'audio'
-      ? audioAssets
-      : activeTab === 'props'
-      ? propAssets
-      : tokenAssets;
+        ? monsterAssets
+        : activeTab === 'audio'
+          ? audioAssets
+          : activeTab === 'props'
+            ? propAssets
+            : tokenAssets;
 
   // Multiselect toggles
   const toggleSelect = (id: string) => {
@@ -390,7 +390,7 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                   continue;
                 }
               }
-            } catch {}
+            } catch { }
           }
         } catch (err) {
           console.warn('Failed parsing JSON file:', err);
@@ -911,10 +911,10 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                       activeTab === 'audio'
                         ? 'audio/*'
                         : activeTab === 'monsters'
-                        ? '.monster,.json,image/*'
-                        : activeTab === 'characters'
-                        ? '.json,image/*'
-                        : 'image/*'
+                          ? '.monster,.json,image/*'
+                          : activeTab === 'characters'
+                            ? '.json,image/*'
+                            : 'image/*'
                     }
                     style={{ display: 'none' }}
                     onChange={handleAssetUpload}
@@ -985,13 +985,13 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
               maps={maps || session?.maps || []}
               activeMapId={activeMapId || session?.activeMapId || ''}
               currentGmPreviewMapId={currentGmPreviewMapId || activeMapId || ''}
-              onSelectGmPreviewMap={onSelectGmPreviewMap || (() => {})}
-              onSetActiveMapForPlayers={onSetActiveMapForPlayers || (() => {})}
+              onSelectGmPreviewMap={onSelectGmPreviewMap || (() => { })}
+              onSetActiveMapForPlayers={onSetActiveMapForPlayers || (() => { })}
               onSendPlayersWithTokens={onSendPlayersWithTokens}
               onOpenBatchTokenTransfer={onOpenBatchTokenTransfer}
-              onAddMap={onAddMap || (() => {})}
-              onUpdateMap={onUpdateMap || (() => {})}
-              onDeleteMap={onDeleteMap || (() => {})}
+              onAddMap={onAddMap || (() => { })}
+              onUpdateMap={onUpdateMap || (() => { })}
+              onDeleteMap={onDeleteMap || (() => { })}
               onClose={onClose}
             />
           ) : activeTab === 'characters' ? (

@@ -353,8 +353,8 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
         right: position ? 'auto' : '1rem',
         display: 'flex',
         flexDirection: 'column',
-        height: isMinimized ? '52px' : '100%',
-        maxHeight: isMinimized ? '52px' : '520px',
+        height: isMinimized ? '63px' : '100%',
+        maxHeight: isMinimized ? '63px' : '520px',
         width: '320px',
         padding: isMinimized ? '0.65rem 1rem' : '0.75rem 1rem',
         zIndex: 45,
@@ -426,328 +426,328 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
         }}
       >
 
-      {/* Turn Navigation */}
-      {isGm && (
-        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-          <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handlePrevTurn}>
-            <ChevronLeft size={16} /> Prev Turn
-          </button>
-          <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleNextTurn}>
-            Next Turn <ChevronRight size={16} />
-          </button>
-        </div>
-      )}
-
-      {/* Add Selected Token Button with optional custom score (Bug #53) */}
-      {isGm && selectedToken && (
-        <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.75rem' }}>
-          <button
-            className="btn btn-secondary"
-            style={{ flex: 1, fontSize: '0.8rem', justifyContent: 'center' }}
-            onClick={() => {
-              if (selectedInitScore.trim() !== '') {
-                const score = Number(selectedInitScore);
-                const item: InitiativeItem = {
-                  id: crypto.randomUUID(),
-                  tokenId: selectedToken.id,
-                  name: selectedToken.name,
-                  initiative: isNaN(score) ? 10 : score,
-                  hp: selectedToken.currentHp,
-                  maxHp: selectedToken.maxHp,
-                  color: selectedToken.ringColor,
-                };
-                const items = [...initiative.items, item].sort((a, b) => b.initiative - a.initiative);
-                onUpdateInitiative({ ...initiative, items });
-                setSelectedInitScore('');
-              } else {
-                handleAddSelectedToken();
-              }
-            }}
-          >
-            <Plus size={14} /> Add: {selectedToken.name}
-          </button>
-          <input
-            type="number"
-            placeholder="Score"
-            value={selectedInitScore}
-            onChange={(e) => setSelectedInitScore(e.target.value)}
-            title="Optional manual initiative score for token (leave blank to roll with character bonus)"
-            style={{
-              width: '56px',
-              padding: '0.35rem 0.4rem',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-subtle)',
-              color: 'white',
-              fontSize: '0.8rem',
-              textAlign: 'center',
-            }}
-          />
-        </div>
-      )}
-
-      {/* Combatants List */}
-      <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '0.75rem' }}>
-        {initiative.items.length === 0 ? (
-          <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '1rem' }}>
-            No combatants added yet.
+        {/* Turn Navigation */}
+        {isGm && (
+          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
+            <button className="btn btn-secondary" style={{ flex: 1 }} onClick={handlePrevTurn}>
+              <ChevronLeft size={16} /> Prev Turn
+            </button>
+            <button className="btn btn-primary" style={{ flex: 1 }} onClick={handleNextTurn}>
+              Next Turn <ChevronRight size={16} />
+            </button>
           </div>
-        ) : (
-          initiative.items.map((item, idx) => {
-            const isCurrent = idx === initiative.currentTurnIndex;
-            return (
-              <div
-                key={item.id}
-                draggable={!editingItemId}
-                onDragStart={(e) => handleDragStart(e, idx)}
-                onDragOver={(e) => handleDragOver(e, idx)}
-                onDragEnd={handleDragEnd}
-                onDrop={(e) => handleDrop(e, idx)}
-                onClick={() => {
-                  if (item.tokenId && onSelectToken) {
-                    onSelectToken(item.tokenId);
-                  }
-                }}
-                title={item.tokenId ? 'Click to select and focus token' : undefined}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: '0.45rem 0.55rem',
-                  borderRadius: 'var(--radius-sm)',
-                  backgroundColor: isCurrent ? 'rgba(99, 102, 241, 0.25)' : 'var(--bg-surface-elevated)',
-                  border: isCurrent ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
-                  borderTop:
-                    dragOverInfo?.index === idx && dragOverInfo.placement === 'before' && draggedIndex !== idx
-                      ? '2px solid var(--accent-primary)'
-                      : undefined,
-                  borderBottom:
-                    dragOverInfo?.index === idx && dragOverInfo.placement === 'after' && draggedIndex !== idx
-                      ? '2px solid var(--accent-primary)'
-                      : undefined,
-                  boxShadow: isCurrent ? '0 0 10px var(--accent-glow)' : 'none',
-                  opacity: draggedIndex === idx ? 0.4 : 1,
-                  cursor: item.tokenId ? 'pointer' : 'default',
-                  userSelect: 'none',
-                  transition: 'background-color 0.15s ease',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, minWidth: 0 }}>
-                  <GripVertical
-                    size={14}
-                    style={{ color: 'var(--text-muted)', cursor: 'grab', flexShrink: 0, pointerEvents: 'none' }}
-                  />
+        )}
 
-                  <div
-                    onClick={(e) => {
-                      if (isGm) {
-                        e.stopPropagation();
-                        setEditingItemId(item.id);
-                        setEditScore(item.initiative);
-                      }
-                    }}
-                    title={isGm ? "Click to edit initiative score" : undefined}
-                    style={{
-                      width: '28px',
-                      height: '28px',
-                      borderRadius: '50%',
-                      backgroundColor: item.color || '#6366f1',
-                      color: 'white',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontWeight: 700,
-                      fontSize: '0.8rem',
-                      cursor: isGm ? 'pointer' : 'default',
-                      userSelect: 'none',
-                      border: '1.5px solid rgba(255, 255, 255, 0.4)',
-                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                      flexShrink: 0,
-                    }}
-                  >
-                    {item.initiative}
+        {/* Add Selected Token Button with optional custom score (Bug #53) */}
+        {isGm && selectedToken && (
+          <div style={{ display: 'flex', gap: '0.35rem', marginBottom: '0.75rem' }}>
+            <button
+              className="btn btn-secondary"
+              style={{ flex: 1, fontSize: '0.8rem', justifyContent: 'center' }}
+              onClick={() => {
+                if (selectedInitScore.trim() !== '') {
+                  const score = Number(selectedInitScore);
+                  const item: InitiativeItem = {
+                    id: crypto.randomUUID(),
+                    tokenId: selectedToken.id,
+                    name: selectedToken.name,
+                    initiative: isNaN(score) ? 10 : score,
+                    hp: selectedToken.currentHp,
+                    maxHp: selectedToken.maxHp,
+                    color: selectedToken.ringColor,
+                  };
+                  const items = [...initiative.items, item].sort((a, b) => b.initiative - a.initiative);
+                  onUpdateInitiative({ ...initiative, items });
+                  setSelectedInitScore('');
+                } else {
+                  handleAddSelectedToken();
+                }
+              }}
+            >
+              <Plus size={14} /> Add: {selectedToken.name}
+            </button>
+            <input
+              type="number"
+              placeholder="Score"
+              value={selectedInitScore}
+              onChange={(e) => setSelectedInitScore(e.target.value)}
+              title="Optional manual initiative score for token (leave blank to roll with character bonus)"
+              style={{
+                width: '56px',
+                padding: '0.35rem 0.4rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-subtle)',
+                color: 'white',
+                fontSize: '0.8rem',
+                textAlign: 'center',
+              }}
+            />
+          </div>
+        )}
+
+        {/* Combatants List */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '0.75rem' }}>
+          {initiative.items.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: '1rem' }}>
+              No combatants added yet.
+            </div>
+          ) : (
+            initiative.items.map((item, idx) => {
+              const isCurrent = idx === initiative.currentTurnIndex;
+              return (
+                <div
+                  key={item.id}
+                  draggable={!editingItemId}
+                  onDragStart={(e) => handleDragStart(e, idx)}
+                  onDragOver={(e) => handleDragOver(e, idx)}
+                  onDragEnd={handleDragEnd}
+                  onDrop={(e) => handleDrop(e, idx)}
+                  onClick={() => {
+                    if (item.tokenId && onSelectToken) {
+                      onSelectToken(item.tokenId);
+                    }
+                  }}
+                  title={item.tokenId ? 'Click to select and focus token' : undefined}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.45rem 0.55rem',
+                    borderRadius: 'var(--radius-sm)',
+                    backgroundColor: isCurrent ? 'rgba(99, 102, 241, 0.25)' : 'var(--bg-surface-elevated)',
+                    border: isCurrent ? '1px solid var(--accent-primary)' : '1px solid var(--border-subtle)',
+                    borderTop:
+                      dragOverInfo?.index === idx && dragOverInfo.placement === 'before' && draggedIndex !== idx
+                        ? '2px solid var(--accent-primary)'
+                        : undefined,
+                    borderBottom:
+                      dragOverInfo?.index === idx && dragOverInfo.placement === 'after' && draggedIndex !== idx
+                        ? '2px solid var(--accent-primary)'
+                        : undefined,
+                    boxShadow: isCurrent ? '0 0 10px var(--accent-glow)' : 'none',
+                    opacity: draggedIndex === idx ? 0.4 : 1,
+                    cursor: item.tokenId ? 'pointer' : 'default',
+                    userSelect: 'none',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, minWidth: 0 }}>
+                    <GripVertical
+                      size={14}
+                      style={{ color: 'var(--text-muted)', cursor: 'grab', flexShrink: 0, pointerEvents: 'none' }}
+                    />
+
+                    <div
+                      onClick={(e) => {
+                        if (isGm) {
+                          e.stopPropagation();
+                          setEditingItemId(item.id);
+                          setEditScore(item.initiative);
+                        }
+                      }}
+                      title={isGm ? "Click to edit initiative score" : undefined}
+                      style={{
+                        width: '28px',
+                        height: '28px',
+                        borderRadius: '50%',
+                        backgroundColor: item.color || '#6366f1',
+                        color: 'white',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: '0.8rem',
+                        cursor: isGm ? 'pointer' : 'default',
+                        userSelect: 'none',
+                        border: '1.5px solid rgba(255, 255, 255, 0.4)',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {item.initiative}
+                    </div>
+
+                    {editingItemId === item.id ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: 0 }}>
+                        <input
+                          type="number"
+                          autoFocus
+                          value={editScore}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) => setEditScore(Number(e.target.value))}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              const items = initiative.items
+                                .map((it) => (it.id === item.id ? { ...it, initiative: editScore } : it))
+                                .sort((a, b) => b.initiative - a.initiative);
+                              onUpdateInitiative({ ...initiative, items });
+                              setEditingItemId(null);
+                            }
+                            if (e.key === 'Escape') setEditingItemId(null);
+                          }}
+                          style={{
+                            width: '80px',
+                            height: '26px',
+                            borderRadius: 'var(--radius-sm)',
+                            backgroundColor: 'var(--bg-surface)',
+                            border: '2px solid var(--accent-primary)',
+                            color: 'white',
+                            fontWeight: 700,
+                            fontSize: '0.85rem',
+                            textAlign: 'left',
+                            padding: '0 0.4rem',
+                          }}
+                        />
+                        <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.name}
+                        </span>
+                      </div>
+                    ) : (
+                      <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                        <div style={{ fontWeight: isCurrent ? 700 : 500, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {item.name}
+                        </div>
+                        {item.hp !== undefined && item.maxHp !== undefined && (
+                          <div style={{ fontSize: '0.7rem', color: '#10b981' }}>
+                            HP: {item.hp}/{item.maxHp}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  {editingItemId === item.id ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: 0 }}>
-                      <input
-                        type="number"
-                        autoFocus
-                        value={editScore}
-                        onClick={(e) => e.stopPropagation()}
-                        onChange={(e) => setEditScore(Number(e.target.value))}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                    {editingItemId === item.id ? (
+                      <>
+                        <button
+                          className="btn-icon"
+                          title="Save initiative score (Enter)"
+                          style={{
+                            width: '24px',
+                            height: '24px',
+                            color: '#10b981',
+                            border: '1px solid rgba(16, 185, 129, 0.5)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
                             const items = initiative.items
                               .map((it) => (it.id === item.id ? { ...it, initiative: editScore } : it))
                               .sort((a, b) => b.initiative - a.initiative);
                             onUpdateInitiative({ ...initiative, items });
                             setEditingItemId(null);
-                          }
-                          if (e.key === 'Escape') setEditingItemId(null);
-                        }}
-                        style={{
-                          width: '80px',
-                          height: '26px',
-                          borderRadius: 'var(--radius-sm)',
-                          backgroundColor: 'var(--bg-surface)',
-                          border: '2px solid var(--accent-primary)',
-                          color: 'white',
-                          fontWeight: 700,
-                          fontSize: '0.85rem',
-                          textAlign: 'left',
-                          padding: '0 0.4rem',
-                        }}
-                      />
-                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.name}
-                      </span>
-                    </div>
-                  ) : (
-                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
-                      <div style={{ fontWeight: isCurrent ? 700 : 500, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        {item.name}
-                      </div>
-                      {item.hp !== undefined && item.maxHp !== undefined && (
-                        <div style={{ fontSize: '0.7rem', color: '#10b981' }}>
-                          HP: {item.hp}/{item.maxHp}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                          }}
+                        >
+                          <Check size={13} />
+                        </button>
+                        <button
+                          className="btn-icon"
+                          title="Cancel (Esc)"
+                          style={{
+                            width: '24px',
+                            height: '24px',
+                            color: '#f43f5e',
+                            border: '1px solid rgba(244, 63, 94, 0.5)',
+                            backgroundColor: 'rgba(244, 63, 94, 0.2)',
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingItemId(null);
+                          }}
+                        >
+                          <X size={13} />
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        {isGm && (
+                          <button
+                            className="btn-icon"
+                            title="Reroll Initiative (using character bonus)"
+                            style={{ width: '24px', height: '24px', color: 'var(--text-secondary)' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRerollItem(item);
+                            }}
+                          >
+                            <Dices size={13} />
+                          </button>
+                        )}
+                        {isGm && (
+                          <button
+                            className="btn-icon"
+                            title="Edit Initiative Score"
+                            style={{ width: '24px', height: '24px', color: 'var(--text-secondary)' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingItemId(item.id);
+                              setEditScore(item.initiative);
+                            }}
+                          >
+                            <Pencil size={13} />
+                          </button>
+                        )}
+                        {isGm && (
+                          <button
+                            className="btn-icon"
+                            style={{ width: '24px', height: '24px', color: '#f43f5e' }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRemove(item.id);
+                            }}
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
+              );
+            })
+          )}
+        </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                  {editingItemId === item.id ? (
-                    <>
-                      <button
-                        className="btn-icon"
-                        title="Save initiative score (Enter)"
-                        style={{
-                          width: '24px',
-                          height: '24px',
-                          color: '#10b981',
-                          border: '1px solid rgba(16, 185, 129, 0.5)',
-                          backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          const items = initiative.items
-                            .map((it) => (it.id === item.id ? { ...it, initiative: editScore } : it))
-                            .sort((a, b) => b.initiative - a.initiative);
-                          onUpdateInitiative({ ...initiative, items });
-                          setEditingItemId(null);
-                        }}
-                      >
-                        <Check size={13} />
-                      </button>
-                      <button
-                        className="btn-icon"
-                        title="Cancel (Esc)"
-                        style={{
-                          width: '24px',
-                          height: '24px',
-                          color: '#f43f5e',
-                          border: '1px solid rgba(244, 63, 94, 0.5)',
-                          backgroundColor: 'rgba(244, 63, 94, 0.2)',
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingItemId(null);
-                        }}
-                      >
-                        <X size={13} />
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      {isGm && (
-                        <button
-                          className="btn-icon"
-                          title="Reroll Initiative (using character bonus)"
-                          style={{ width: '24px', height: '24px', color: 'var(--text-secondary)' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRerollItem(item);
-                          }}
-                        >
-                          <Dices size={13} />
-                        </button>
-                      )}
-                      {isGm && (
-                        <button
-                          className="btn-icon"
-                          title="Edit Initiative Score"
-                          style={{ width: '24px', height: '24px', color: 'var(--text-secondary)' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setEditingItemId(item.id);
-                            setEditScore(item.initiative);
-                          }}
-                        >
-                          <Pencil size={13} />
-                        </button>
-                      )}
-                      {isGm && (
-                        <button
-                          className="btn-icon"
-                          style={{ width: '24px', height: '24px', color: '#f43f5e' }}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemove(item.id);
-                          }}
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      )}
-                    </>
-                  )}
-                </div>
-              </div>
-            );
-          })
+        {/* Add Custom Combatant Form */}
+        {isGm && (
+          <form onSubmit={handleAddCustom} style={{ display: 'flex', gap: '0.35rem' }}>
+            <input
+              type="text"
+              placeholder="Combatant name"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              style={{
+                flex: 2,
+                padding: '0.4rem 0.6rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-subtle)',
+                color: 'white',
+                fontSize: '0.8rem',
+              }}
+            />
+            <input
+              type="number"
+              placeholder="Init"
+              value={newInit}
+              onChange={(e) => setNewInit(Number(e.target.value))}
+              style={{
+                width: '50px',
+                padding: '0.4rem 0.4rem',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-surface-elevated)',
+                border: '1px solid var(--border-subtle)',
+                color: 'white',
+                fontSize: '0.8rem',
+                textAlign: 'center',
+              }}
+            />
+            <button type="submit" className="btn btn-primary" style={{ padding: '0.4rem 0.6rem' }}>
+              <Plus size={16} />
+            </button>
+          </form>
         )}
-      </div>
-
-      {/* Add Custom Combatant Form */}
-      {isGm && (
-        <form onSubmit={handleAddCustom} style={{ display: 'flex', gap: '0.35rem' }}>
-          <input
-            type="text"
-            placeholder="Combatant name"
-            value={newName}
-            onChange={(e) => setNewName(e.target.value)}
-            style={{
-              flex: 2,
-              padding: '0.4rem 0.6rem',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-subtle)',
-              color: 'white',
-              fontSize: '0.8rem',
-            }}
-          />
-          <input
-            type="number"
-            placeholder="Init"
-            value={newInit}
-            onChange={(e) => setNewInit(Number(e.target.value))}
-            style={{
-              width: '50px',
-              padding: '0.4rem 0.4rem',
-              borderRadius: 'var(--radius-sm)',
-              background: 'var(--bg-surface-elevated)',
-              border: '1px solid var(--border-subtle)',
-              color: 'white',
-              fontSize: '0.8rem',
-              textAlign: 'center',
-            }}
-          />
-          <button type="submit" className="btn btn-primary" style={{ padding: '0.4rem 0.6rem' }}>
-            <Plus size={16} />
-          </button>
-        </form>
-      )}
       </div>
     </div>
   );
