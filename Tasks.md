@@ -144,7 +144,7 @@ function nameGen(type) {
 101. ✅ Create a production .env.production and a either a production compose.yaml that uses it or update our current compose.yaml
 102. ✅ I want to create a ci script that builds the container in a production state so I can push it to another registry.
 103. ✅ When I roll initiative in the initiative tracker it doesn't show up as a roll in the dice tool. It does show up in chat which is great, but it doesn't show what the roll and bonus were.
-104. When I edit in the initiative tracker, make the current number stay and put the input field where the name and hp text are.
+104. ✅ When I edit in the initiative tracker, make the current number stay and put the input field where the name and hp text are.
 105. - **Discord webhook one-way chat & roll sync** `[AI Credit Cost: ★☆☆☆☆ - Minimal]`:
     - *Cost Drivers*: Minimal context footprint; simple outbound HTTP POST to webhook URL.
     - Add one-way sync from OldBearRodeo to a Discord text channel via a Discord webhook URL.
@@ -198,6 +198,7 @@ function nameGen(type) {
     - Render the area where a flat-ended triangle cone covers but the circular arc does not (the outer triangle corners / difference) in a second, darker or contrasting accent color, clearly distinguishing both circular and triangular ruleset interpretations at a glance.
   - Fully supports the `📌 Persist` toggle from Task 111 so it can be used either as an ephemeral ping or kept on the board as a persistent zone.
   - Selectable, rotatable, and removable with the Delete button `🗑️` by the creator or GM.
+
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
 - On mobile selecting a character with the arrow or moving them is nearly impossible. It feels like the cursor is the bottom right of my finger instead of the middle. The place I have to tap on the token is tiny. Even after using the box to select the token when I use the arrow to move it it deselects everything and pans the map.
 - On mobile the bar to interact with my token is off screen in portrait and slightly cut off in landscape.

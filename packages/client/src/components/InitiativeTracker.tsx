@@ -532,82 +532,89 @@ export const InitiativeTracker: React.FC<InitiativeTrackerProps> = ({
                   transition: 'background-color 0.15s ease',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flex: 1, minWidth: 0 }}>
                   <GripVertical
                     size={14}
                     style={{ color: 'var(--text-muted)', cursor: 'grab', flexShrink: 0, pointerEvents: 'none' }}
                   />
 
+                  <div
+                    onClick={(e) => {
+                      if (isGm) {
+                        e.stopPropagation();
+                        setEditingItemId(item.id);
+                        setEditScore(item.initiative);
+                      }
+                    }}
+                    title={isGm ? "Click to edit initiative score" : undefined}
+                    style={{
+                      width: '28px',
+                      height: '28px',
+                      borderRadius: '50%',
+                      backgroundColor: item.color || '#6366f1',
+                      color: 'white',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontWeight: 700,
+                      fontSize: '0.8rem',
+                      cursor: isGm ? 'pointer' : 'default',
+                      userSelect: 'none',
+                      border: '1.5px solid rgba(255, 255, 255, 0.4)',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {item.initiative}
+                  </div>
+
                   {editingItemId === item.id ? (
-                    <input
-                      type="number"
-                      autoFocus
-                      value={editScore}
-                      onClick={(e) => e.stopPropagation()}
-                      onChange={(e) => setEditScore(Number(e.target.value))}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          const items = initiative.items
-                            .map((it) => (it.id === item.id ? { ...it, initiative: editScore } : it))
-                            .sort((a, b) => b.initiative - a.initiative);
-                          onUpdateInitiative({ ...initiative, items });
-                          setEditingItemId(null);
-                        }
-                        if (e.key === 'Escape') setEditingItemId(null);
-                      }}
-                      style={{
-                        width: '38px',
-                        height: '28px',
-                        borderRadius: 'var(--radius-sm)',
-                        backgroundColor: 'var(--bg-surface)',
-                        border: '2px solid var(--accent-primary)',
-                        color: 'white',
-                        fontWeight: 700,
-                        fontSize: '0.85rem',
-                        textAlign: 'center',
-                        padding: 0,
-                        flexShrink: 0,
-                      }}
-                    />
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', flex: 1, minWidth: 0 }}>
+                      <input
+                        type="number"
+                        autoFocus
+                        value={editScore}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => setEditScore(Number(e.target.value))}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const items = initiative.items
+                              .map((it) => (it.id === item.id ? { ...it, initiative: editScore } : it))
+                              .sort((a, b) => b.initiative - a.initiative);
+                            onUpdateInitiative({ ...initiative, items });
+                            setEditingItemId(null);
+                          }
+                          if (e.key === 'Escape') setEditingItemId(null);
+                        }}
+                        style={{
+                          width: '80px',
+                          height: '26px',
+                          borderRadius: 'var(--radius-sm)',
+                          backgroundColor: 'var(--bg-surface)',
+                          border: '2px solid var(--accent-primary)',
+                          color: 'white',
+                          fontWeight: 700,
+                          fontSize: '0.85rem',
+                          textAlign: 'left',
+                          padding: '0 0.4rem',
+                        }}
+                      />
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.name}
+                      </span>
+                    </div>
                   ) : (
-                    <div
-                      onClick={(e) => {
-                        if (isGm) {
-                          e.stopPropagation();
-                          setEditingItemId(item.id);
-                          setEditScore(item.initiative);
-                        }
-                      }}
-                      title={isGm ? "Click to edit initiative score" : undefined}
-                      style={{
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        backgroundColor: item.color || '#6366f1',
-                        color: 'white',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: '0.8rem',
-                        cursor: isGm ? 'pointer' : 'default',
-                        userSelect: 'none',
-                        border: '1.5px solid rgba(255, 255, 255, 0.4)',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                        flexShrink: 0,
-                      }}
-                    >
-                      {item.initiative}
+                    <div style={{ minWidth: 0, overflow: 'hidden' }}>
+                      <div style={{ fontWeight: isCurrent ? 700 : 500, fontSize: '0.85rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {item.name}
+                      </div>
+                      {item.hp !== undefined && item.maxHp !== undefined && (
+                        <div style={{ fontSize: '0.7rem', color: '#10b981' }}>
+                          HP: {item.hp}/{item.maxHp}
+                        </div>
+                      )}
                     </div>
                   )}
-                  <div>
-                    <div style={{ fontWeight: isCurrent ? 700 : 500, fontSize: '0.85rem' }}>{item.name}</div>
-                    {item.hp !== undefined && item.maxHp !== undefined && (
-                      <div style={{ fontSize: '0.7rem', color: '#10b981' }}>
-                        HP: {item.hp}/{item.maxHp}
-                      </div>
-                    )}
-                  </div>
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
