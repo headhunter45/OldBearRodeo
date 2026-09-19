@@ -154,7 +154,7 @@ function nameGen(type) {
     - All output from `/discord` commands must only be visible to the user executing them (ephemeral / whisper).
     - Only allow GMs to execute `/discord` commands.
     - When enabled, chat messages and dice rolls are automatically posted to the Discord channel via the webhook.
-106. - **CLI / Terminal Chat Client** `[AI Credit Cost: ★☆☆☆☆ - Minimal]`:
+106. ✅ - **CLI / Terminal Chat Client** `[AI Credit Cost: ★☆☆☆☆ - Minimal]`:
     - *Cost Drivers*: Completely self-contained script; consumes existing WebSocket signaling protocol without modifying core engine.
     - Lightweight terminal client or script connecting to the WebSocket server (`/ws`) to monitor chat and roll dice from the command line or stream decks.
     - local history so up lets you go back through the commands and messages you typed.

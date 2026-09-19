@@ -1,0 +1,499 @@
+#!/usr/bin/env python3
+"""
+Old Bear Rodeo - CLI / Terminal Chat Client (oldbearchat)
+A lightweight terminal chat and dice roller client for OldBearRodeo.
+Inspired by IRC / mIRC.
+"""
+
+import sys
+import os
+import socket
+import ssl
+import base64
+import struct
+import json
+import threading
+import time
+import random
+import re
+from datetime import datetime
+
+# Setup command line history with readline
+try:
+    import readline
+    HISTORY_FILE = os.path.expanduser("~/.oldbearchat_history")
+    if os.path.exists(HISTORY_FILE):
+        try:
+            readline.read_history_file(HISTORY_FILE)
+        except Exception:
+            pass
+    readline.set_history_length(1000)
+except ImportError:
+    HISTORY_FILE = None
+
+# ANSI Color codes
+C_RESET = "\033[0m"
+C_BOLD = "\033[1m"
+C_DIM = "\033[2m"
+C_CYAN = "\033[36m"
+C_GREEN = "\033[32m"
+C_YELLOW = "\033[33m"
+C_BLUE = "\033[34m"
+C_MAGENTA = "\033[35m"
+C_RED = "\033[31m"
+C_GRAY = "\033[90m"
+
+BANNER = (
+    C_CYAN + C_BOLD + "\n"
+    r"  ___  _     _   ____                  ____ _           _   " + "\n"
+    r" / _ \| |   | | | __ )  ___  __ _ _ __ / ___| |__   __ _| |_ " + "\n"
+    r"| | | | |   | | |  _ \ / _ \/ _` | '__| |   | '_ \ / _` | __|" + "\n"
+    r"| |_| | |___| | | |_) |  __/ (_| | |  | |___| | | | (_| | |_ " + "\n"
+    r" \___/|_____|_| |____/ \___|\__,_|_|   \____|_| |_|\__,_|\__|" + "\n"
+    + C_RESET + C_DIM + "           Old Bear Rodeo Terminal Chat Client v0.1.0" + C_RESET + "\n"
+)
+
+def parse_invite_url(raw_input, default_host="localhost", default_port=3000):
+    """
+    Parses invite URL, query string, or room ID into (host, port, use_ssl, room_id).
+    Examples:
+      - http://localhost:3000/?room=d4e5f6
+      - https://vtt.example.com/?room=room-123
+      - ws://192.168.1.50:3000/ws
+      - room-123
+    """
+    text = raw_input.strip()
+    use_ssl = False
+    host = default_host
+    port = default_port
+    room_id = text
+
+    if "://" in text:
+        proto, rest = text.split("://", 1)
+        use_ssl = proto in ("https", "wss")
+        if "/" in rest:
+            host_part, path = rest.split("/", 1)
+        else:
+            host_part, path = rest, ""
+
+        if ":" in host_part:
+            h, p = host_part.split(":", 1)
+            host = h
+            try:
+                port = int(p)
+            except ValueError:
+                port = 443 if use_ssl else 80
+        else:
+            host = host_part
+            port = 443 if use_ssl else 80
+
+        if "?room=" in path:
+            room_id = path.split("?room=")[1].split("&")[0]
+        elif path.strip("/") and path.strip("/") != "ws":
+            room_id = path.strip("/")
+    elif "?room=" in text:
+        room_id = text.split("?room=")[1].split("&")[0]
+
+    return host, port, use_ssl, room_id
+
+class RFC6455WebSocket:
+    """Zero-dependency pure Python RFC 6455 WebSocket client."""
+    def __init__(self, host, port, use_ssl, on_message, on_close=None):
+        self.host = host
+        self.port = port
+        self.use_ssl = use_ssl
+        self.on_message = on_message
+        self.on_close = on_close
+        self.sock = None
+        self.running = False
+        self.thread = None
+
+    def connect(self):
+        raw_sock = socket.create_connection((self.host, self.port), timeout=10)
+        if self.use_ssl:
+            ctx = ssl.create_default_context()
+            self.sock = ctx.wrap_socket(raw_sock, server_hostname=self.host)
+        else:
+            self.sock = raw_sock
+
+        key = base64.b64encode(os.urandom(16)).decode('ascii')
+        headers = [
+            "GET /ws HTTP/1.1",
+            f"Host: {self.host}:{self.port}",
+            "Upgrade: websocket",
+            "Connection: Upgrade",
+            f"Sec-WebSocket-Key: {key}",
+            "Sec-WebSocket-Version: 13",
+            "\r\n"
+        ]
+        self.sock.sendall("\r\n".join(headers).encode('utf-8'))
+
+        response = b""
+        while b"\r\n\r\n" not in response:
+            chunk = self.sock.recv(1024)
+            if not chunk:
+                raise ConnectionError("Connection closed during handshake")
+            response += chunk
+
+        status_line = response.split(b"\r\n")[0].decode('utf-8', errors='ignore')
+        if "101" not in status_line:
+            raise ConnectionError(f"Handshake failed: {status_line}")
+
+        self.running = True
+        self.thread = threading.Thread(target=self._recv_loop, daemon=True)
+        self.thread.start()
+
+    def send_text(self, text):
+        if not self.sock or not self.running:
+            return
+        payload = text.encode('utf-8')
+        length = len(payload)
+        header = bytearray([0x81]) # FIN + Text
+        mask_key = os.urandom(4)
+
+        if length <= 125:
+            header.append(0x80 | length)
+        elif length <= 65535:
+            header.append(0x80 | 126)
+            header.extend(struct.pack("!H", length))
+        else:
+            header.append(0x80 | 127)
+            header.extend(struct.pack("!Q", length))
+
+        header.extend(mask_key)
+        masked_payload = bytearray(length)
+        for i in range(length):
+            masked_payload[i] = payload[i] ^ mask_key[i % 4]
+
+        self.sock.sendall(bytes(header) + bytes(masked_payload))
+
+    def _recv_bytes(self, n):
+        data = bytearray()
+        while len(data) < n:
+            chunk = self.sock.recv(n - len(data))
+            if not chunk:
+                return None
+            data.extend(chunk)
+        return bytes(data)
+
+    def _recv_loop(self):
+        try:
+            while self.running:
+                b1_b2 = self._recv_bytes(2)
+                if not b1_b2:
+                    break
+                b1, b2 = b1_b2[0], b1_b2[1]
+                opcode = b1 & 0x0F
+                masked = (b2 & 0x80) != 0
+                payload_len = b2 & 0x7F
+
+                if payload_len == 126:
+                    len_bytes = self._recv_bytes(2)
+                    if not len_bytes: break
+                    payload_len = struct.unpack("!H", len_bytes)[0]
+                elif payload_len == 127:
+                    len_bytes = self._recv_bytes(8)
+                    if not len_bytes: break
+                    payload_len = struct.unpack("!Q", len_bytes)[0]
+
+                mask_key = self._recv_bytes(4) if masked else None
+                payload = self._recv_bytes(payload_len)
+                if payload is None: break
+
+                if masked and mask_key:
+                    unmasked = bytearray(payload_len)
+                    for i in range(payload_len):
+                        unmasked[i] = payload[i] ^ mask_key[i % 4]
+                    payload = bytes(unmasked)
+
+                if opcode == 0x1:
+                    self.on_message(payload.decode('utf-8', errors='ignore'))
+                elif opcode == 0x8:
+                    break
+                elif opcode == 0x9:
+                    pong = bytearray([0x8A, 0x80])
+                    pong.extend(os.urandom(4))
+                    self.sock.sendall(bytes(pong))
+        except Exception:
+            pass
+        finally:
+            self.running = False
+            if self.on_close:
+                self.on_close()
+
+    def close(self):
+        self.running = False
+        if self.sock:
+            try:
+                self.sock.close()
+            except Exception:
+                pass
+
+class OldBearChatClient:
+    def __init__(self, nickname=None):
+        self.nickname = nickname or f"Bear_{random.randint(100, 999)}"
+        self.color = "#3b82f6"
+        self.player_id = f"cli-{random.randint(10000, 99999)}"
+        self.room_id = None
+        self.ws = None
+        self.session_data = {}
+        self.is_gm = False
+        self.connected = False
+
+    def log(self, text, prefix="***"):
+        ts = datetime.now().strftime("%H:%M:%S")
+        print(f"\r{C_GRAY}[{ts}]{C_RESET} {text}")
+
+    def on_ws_message(self, raw_msg):
+        try:
+            msg = json.loads(raw_msg)
+        except Exception:
+            return
+
+        m_type = msg.get("type")
+
+        if m_type == "join-ack":
+            self.connected = True
+            self.player_id = msg.get("player", {}).get("id", self.player_id)
+            self.is_gm = msg.get("isGm", False)
+            session = msg.get("session", {})
+            self.session_data = session
+            role_str = f"{C_YELLOW}GM{C_RESET}" if self.is_gm else f"{C_CYAN}Player{C_RESET}"
+            self.log(f"{C_GREEN}*** Joined room \"{self.room_id}\" as {C_BOLD}{self.nickname}{C_RESET} ({role_str})")
+            players = session.get("players", {})
+            names = [p.get("name", "Unknown") for p in players.values()]
+            if names:
+                self.log(f"{C_DIM}*** Users present ({len(names)}): {', '.join(names)}{C_RESET}")
+
+        elif m_type == "chat-message":
+            chat = msg.get("message", {})
+            sender = chat.get("senderName", "Unknown")
+            text = chat.get("text", "")
+            is_ephemeral = chat.get("isEphemeral", False)
+
+            if chat.get("roll"):
+                r = chat["roll"]
+                mod_str = f"+{r['modifier']}" if r['modifier'] >= 0 else str(r['modifier'])
+                rolls_str = ", ".join(map(str, r.get("rolls", [])))
+                self.log(f"{C_MAGENTA}*** 🎲 {sender} rolled {r.get('count', 1)}{r.get('diceType', 'd20')}{mod_str}: {C_BOLD}{r.get('total')}{C_RESET}{C_MAGENTA} [{rolls_str}]{C_RESET}")
+            elif text.startswith("/me "):
+                action = text[4:]
+                self.log(f"{C_MAGENTA}* {sender} {action}{C_RESET}")
+            elif is_ephemeral:
+                self.log(f"{C_YELLOW}(private) <{sender}> {text}{C_RESET}")
+            else:
+                self.log(f"<{C_CYAN}{sender}{C_RESET}> {text}")
+
+        elif m_type == "dice-rolled":
+            r = msg.get("roll", {})
+            sender = r.get("userName", "Someone")
+            mod_str = f"+{r['modifier']}" if r.get('modifier', 0) >= 0 else str(r['modifier'])
+            rolls_str = ", ".join(map(str, r.get("rolls", [])))
+            self.log(f"{C_MAGENTA}*** 🎲 {sender} rolled {r.get('count', 1)}{r.get('diceType', 'd20')}{mod_str}: {C_BOLD}{r.get('total')}{C_RESET}{C_MAGENTA} [{rolls_str}]{C_RESET}")
+
+        elif m_type == "peer-joined":
+            p = msg.get("player", {})
+            self.log(f"{C_GREEN}*** {p.get('name', 'Someone')} has joined the room.{C_RESET}")
+
+        elif m_type == "peer-left":
+            self.log(f"{C_GRAY}*** A user has left the room.{C_RESET}")
+
+        elif m_type == "turn-announced" or m_type == "initiative-updated":
+            pass
+
+    def on_ws_close(self):
+        if self.connected:
+            self.log(f"{C_RED}*** Disconnected from room {self.room_id}.{C_RESET}")
+            self.connected = False
+
+    def join_room(self, url_or_id):
+        if self.ws:
+            self.ws.close()
+            self.ws = None
+            self.connected = False
+
+        host, port, use_ssl, room_id = parse_invite_url(url_or_id)
+        self.room_id = room_id
+        proto = "wss" if use_ssl else "ws"
+        self.log(f"*** Connecting to {proto}://{host}:{port}/ws for room \"{room_id}\"...")
+
+        try:
+            self.ws = RFC6455WebSocket(host, port, use_ssl, self.on_ws_message, self.on_ws_close)
+            self.ws.connect()
+            join_payload = {
+                "type": "join",
+                "roomId": self.room_id,
+                "playerName": self.nickname,
+                "playerColor": self.color,
+                "playerId": self.player_id,
+            }
+            self.ws.send_text(json.dumps(join_payload))
+        except Exception as e:
+            self.log(f"{C_RED}*** Connection failed: {e}{C_RESET}")
+
+    def send_chat(self, text):
+        if not self.ws or not self.connected:
+            self.log(f"{C_YELLOW}*** Not connected to any room. Use /join <invite url or room id> first.{C_RESET}")
+            return
+
+        msg_payload = {
+            "type": "chat-send",
+            "message": {
+                "id": f"msg-{int(time.time()*1000)}",
+                "senderId": self.player_id,
+                "senderName": self.nickname,
+                "senderColor": self.color,
+                "text": text,
+                "timestamp": int(time.time() * 1000),
+            }
+        }
+        self.ws.send_text(json.dumps(msg_payload))
+
+    def roll_dice(self, expr):
+        if not self.ws or not self.connected:
+            self.log(f"{C_YELLOW}*** Not connected to any room. Use /join <invite url or room id> first.{C_RESET}")
+            return
+
+        # Simple dice parser (e.g. 1d20+5, 2d6, d20)
+        match = re.match(r"^(\d*)d(\d+)(?:([+-])(\d+))?$", expr.strip(), re.IGNORECASE)
+        if not match:
+            self.log(f"{C_RED}*** Invalid dice format: \"{expr}\". Use e.g. /roll 1d20+4 or /roll 2d6{C_RESET}")
+            return
+
+        count = int(match.group(1)) if match.group(1) else 1
+        sides = int(match.group(2))
+        sign = -1 if match.group(3) == '-' else 1
+        mod = int(match.group(4)) * sign if match.group(4) else 0
+
+        rolls = [random.randint(1, sides) for _ in range(count)]
+        total = sum(rolls) + mod
+        dice_type = f"d{sides}" if f"d{sides}" in ['d4', 'd6', 'd8', 'd10', 'd12', 'd20', 'd100'] else "d20"
+
+        roll_result = {
+            "id": f"roll-{int(time.time()*1000)}",
+            "userId": self.player_id,
+            "userName": self.nickname,
+            "userColor": self.color,
+            "diceType": dice_type,
+            "count": count,
+            "modifier": mod,
+            "rolls": rolls,
+            "total": total,
+            "timestamp": int(time.time() * 1000),
+        }
+
+        # Broadcast as both dice-roll and chat-send with roll
+        self.ws.send_text(json.dumps({"type": "dice-roll", "roll": roll_result}))
+        mod_str = f"+{mod}" if mod >= 0 else str(mod)
+        chat_text = f"rolled {count}d{sides}{mod_str} = {total} [{', '.join(map(str, rolls))}]"
+        self.ws.send_text(json.dumps({
+            "type": "chat-send",
+            "message": {
+                "id": f"msg-{int(time.time()*1000)}",
+                "senderId": self.player_id,
+                "senderName": self.nickname,
+                "senderColor": self.color,
+                "text": chat_text,
+                "timestamp": int(time.time() * 1000),
+                "roll": roll_result,
+            }
+        }))
+
+    def run(self, initial_target=None):
+        print(BANNER)
+        if initial_target:
+            self.join_room(initial_target)
+        else:
+            self.log(f"*** Type {C_BOLD}/join <invite url or room id>{C_RESET} to connect.")
+            self.log(f"*** Type {C_BOLD}/help{C_RESET} for a list of commands, {C_BOLD}/quit{C_RESET} to exit.")
+
+        while True:
+            try:
+                prompt = f"{C_CYAN}{self.nickname}{C_RESET}> " if not self.connected else f"{C_GREEN}[{self.room_id}]{C_RESET} {C_CYAN}{self.nickname}{C_RESET}> "
+                user_input = input(prompt).strip()
+            except (KeyboardInterrupt, EOFError):
+                print()
+                self.log("*** Exiting oldbearchat. Goodbye!")
+                break
+
+            if not user_input:
+                continue
+
+            if user_input.startswith("/"):
+                parts = user_input.split(" ", 1)
+                cmd = parts[0].lower()
+                arg = parts[1].strip() if len(parts) > 1 else ""
+
+                if cmd in ("/quit", "/exit", "/q"):
+                    self.log("*** Goodbye!")
+                    break
+                elif cmd == "/join":
+                    if not arg:
+                        self.log(f"{C_YELLOW}Usage: /join <invite url or room id>{C_RESET}")
+                    else:
+                        self.join_room(arg)
+                elif cmd == "/nick":
+                    if not arg:
+                        self.log(f"Current nickname: {self.nickname}")
+                    else:
+                        old_nick = self.nickname
+                        self.nickname = arg
+                        self.log(f"*** Nickname changed from {old_nick} to {self.nickname}")
+                        if self.ws and self.connected:
+                            self.ws.send_text(json.dumps({
+                                "type": "player-update",
+                                "updates": {"name": self.nickname}
+                            }))
+                elif cmd == "/roll":
+                    if not arg:
+                        self.roll_dice("1d20")
+                    else:
+                        self.roll_dice(arg)
+                elif cmd == "/me":
+                    if arg:
+                        self.send_chat(f"/me {arg}")
+                elif cmd in ("/names", "/who"):
+                    if not self.connected:
+                        self.log(f"{C_YELLOW}*** Not in a room.{C_RESET}")
+                    else:
+                        players = self.session_data.get("players", {})
+                        names = [p.get("name", "Unknown") for p in players.values()]
+                        self.log(f"*** Users present ({len(names)}): {', '.join(names)}")
+                elif cmd == "/clear":
+                    os.system("clear" if os.name != "nt" else "cls")
+                elif cmd == "/help":
+                    self.log(f"""{C_BOLD}oldbearchat commands:{C_RESET}
+  /join <url|room>  - Connect to an OldBearRodeo room or invite URL
+  /nick <name>      - Change your nickname
+  /roll <expr>      - Roll dice (e.g. /roll 1d20+5, /roll 2d6)
+  /me <action>      - Perform an action emote
+  /names            - List participants in room
+  /clear            - Clear terminal screen
+  /quit             - Exit application
+  <message>         - Send chat message to current room""")
+                else:
+                    self.log(f"{C_YELLOW}*** Unknown command: {cmd}. Type /help for assistance.{C_RESET}")
+            else:
+                self.send_chat(user_input)
+
+        # Save history on exit
+        if HISTORY_FILE:
+            try:
+                readline.write_history_file(HISTORY_FILE)
+            except Exception:
+                pass
+        if self.ws:
+            self.ws.close()
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] in ("-h", "--help", "help"):
+        print("Usage: oldbearchat [ROOM_ID_OR_INVITE_URL]")
+        print("Examples:")
+        print("  oldbearchat")
+        print("  oldbearchat my-room-code")
+        print("  oldbearchat 'http://localhost:3000/?room=my-room-code'")
+        print("  npm run oldbearchat -- 'http://localhost:3000/?room=my-room-code'")
+        sys.exit(0)
+    target = sys.argv[1] if len(sys.argv) > 1 else None
+    client = OldBearChatClient()
+    client.run(target)
