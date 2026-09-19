@@ -66,10 +66,73 @@ export function renderToken(
   canControl: boolean,
   isGm: boolean
 ) {
+  const isProp = Boolean(token.isProp);
+  const propW = (isProp && token.propWidth !== undefined ? token.propWidth : token.size) * gridSize;
+  const propH = (isProp && token.propHeight !== undefined ? token.propHeight : token.size) * gridSize;
+  const cx = token.x + propW / 2;
+  const cy = token.y + propH / 2;
+
+  // Custom rendering for props (walls, furniture, carpets, decorative items)
+  if (isProp) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (token.rotation) {
+      ctx.rotate((token.rotation * Math.PI) / 180);
+    }
+
+    // Selection glow
+    if (isSelected) {
+      ctx.save();
+      ctx.strokeStyle = '#6366f1';
+      ctx.lineWidth = 3;
+      ctx.shadowColor = '#6366f1';
+      ctx.shadowBlur = 12;
+      if (typeof ctx.roundRect === 'function') {
+        ctx.beginPath();
+        ctx.roundRect(-propW / 2 - 3, -propH / 2 - 3, propW + 6, propH + 6, 4);
+        ctx.stroke();
+      } else {
+        ctx.strokeRect(-propW / 2 - 3, -propH / 2 - 3, propW + 6, propH + 6);
+      }
+      ctx.restore();
+    }
+
+    // Draw prop image or fallback block
+    const img = getCachedImage(token.imageUrl);
+    if (img) {
+      ctx.drawImage(img, -propW / 2, -propH / 2, propW, propH);
+    } else {
+      ctx.fillStyle = token.fillColor || 'rgba(30, 41, 59, 0.85)';
+      ctx.fillRect(-propW / 2, -propH / 2, propW, propH);
+      ctx.strokeStyle = token.ringColor || '#eab308';
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-propW / 2, -propH / 2, propW, propH);
+
+      ctx.fillStyle = '#f8fafc';
+      ctx.font = `600 ${Math.max(11, Math.min(propW, propH) * 0.2)}px Outfit, sans-serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(token.name || 'Prop', 0, 0);
+    }
+
+    // Optional border if ringColor is explicitly set
+    if (token.ringColor && token.ringColor !== 'transparent') {
+      ctx.strokeStyle = token.ringColor;
+      ctx.lineWidth = Math.max(1, token.borderWidth || 2);
+      ctx.strokeRect(-propW / 2, -propH / 2, propW, propH);
+    }
+
+    ctx.restore();
+
+    // Render name label for props when selected or GM
+    if (isSelected && token.name) {
+      renderTokenLabel(ctx, token.name, cx, cy + propH / 2 + 12);
+    }
+    return;
+  }
+
   const tokenDiameter = token.size * gridSize;
   const radius = tokenDiameter / 2;
-  const cx = token.x + radius;
-  const cy = token.y + radius;
   const shape = token.clipShape || (token.clipCircle === false ? 'square' : 'circle');
   const bWidth = token.borderWidth || Math.max(3, tokenDiameter * 0.05);
 

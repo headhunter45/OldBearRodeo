@@ -139,10 +139,13 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
   });
 
   const handleAssetDragStart = (e: React.DragEvent, asset: StoredAsset, type: 'token' | 'prop' | 'monster' | 'character') => {
+    const isProp = type === 'prop' || Boolean(asset.isProp);
     const payload = {
       ...asset,
       type,
-      isProp: type === 'prop' || asset.isProp,
+      isProp,
+      propWidth: asset.propWidth ?? (isProp ? asset.size ?? 1 : undefined),
+      propHeight: asset.propHeight ?? (isProp ? asset.size ?? 1 : undefined),
     };
     e.dataTransfer.setData('application/oldbear-asset', JSON.stringify(payload));
     e.dataTransfer.setData('application/json', JSON.stringify(payload));
@@ -1416,6 +1419,86 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
                         </>
                       )}
                     </div>
+
+                    {/* Dimension Controls for Props (Task #113) */}
+                    {activeTab === 'props' && (
+                      <div
+                        style={{
+                          padding: '0.2rem 0.5rem 0.35rem 0.5rem',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '4px',
+                          fontSize: '0.72rem',
+                          color: 'var(--text-secondary)',
+                          borderTop: '1px solid rgba(255,255,255,0.06)',
+                          background: 'rgba(0,0,0,0.25)',
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span style={{ fontWeight: 600, color: '#eab308' }}>Size:</span>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0.1"
+                          defaultValue={asset.propWidth ?? asset.size ?? 1}
+                          onBlur={async (e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val) && val > 0 && val !== asset.propWidth) {
+                              await updateAsset(asset.id, { propWidth: val });
+                              await loadAssets();
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          style={{
+                            width: '44px',
+                            padding: '1px 3px',
+                            fontSize: '0.72rem',
+                            borderRadius: '3px',
+                            background: '#090d16',
+                            border: '1px solid rgba(234, 179, 8, 0.4)',
+                            color: '#fff',
+                            textAlign: 'center',
+                          }}
+                          title="Prop Width in tiles (e.g. 1.5)"
+                        />
+                        <span>×</span>
+                        <input
+                          type="number"
+                          step="any"
+                          min="0.1"
+                          defaultValue={asset.propHeight ?? asset.size ?? 1}
+                          onBlur={async (e) => {
+                            const val = parseFloat(e.target.value);
+                            if (!isNaN(val) && val > 0 && val !== asset.propHeight) {
+                              await updateAsset(asset.id, { propHeight: val });
+                              await loadAssets();
+                            }
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              (e.target as HTMLInputElement).blur();
+                            }
+                          }}
+                          style={{
+                            width: '44px',
+                            padding: '1px 3px',
+                            fontSize: '0.72rem',
+                            borderRadius: '3px',
+                            background: '#090d16',
+                            border: '1px solid rgba(234, 179, 8, 0.4)',
+                            color: '#fff',
+                            textAlign: 'center',
+                          }}
+                          title="Prop Height in tiles (e.g. 3.24)"
+                        />
+                        <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)' }}>tiles</span>
+                      </div>
+                    )}
 
                     {(activeTab === 'tokens' || activeTab === 'props') && onAddToken && (
                       <button

@@ -47,6 +47,8 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
   const [clipPanX, setClipPanX] = useState(token.clipPanX || 0);
   const [clipPanY, setClipPanY] = useState(token.clipPanY || 0);
   const [isProp, setIsProp] = useState(token.isProp || false);
+  const [propWidth, setPropWidth] = useState<number | undefined>(token.propWidth ?? (token.isProp ? token.size : undefined));
+  const [propHeight, setPropHeight] = useState<number | undefined>(token.propHeight ?? (token.isProp ? token.size : undefined));
   const [conditions, setConditions] = useState<string[]>(token.conditions || []);
 
   const [previewImg, setPreviewImg] = useState<HTMLImageElement | null>(null);
@@ -281,6 +283,8 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
       ownerId: ownerId || (isPlayerToken ? 'unassigned' : undefined),
       isPlayerToken,
       isProp,
+      propWidth: isProp ? (propWidth !== undefined ? Number(propWidth) : Number(size)) : undefined,
+      propHeight: isProp ? (propHeight !== undefined ? Number(propHeight) : Number(size)) : undefined,
       conditions,
     });
     onClose();
@@ -548,27 +552,78 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
             />
           </div>
 
-          <div>
-            <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Size (Grid cells)</label>
-            <select
-              value={size}
-              onChange={(e) => setSize(Number(e.target.value))}
-              style={{
-                width: '100%',
-                padding: '0.5rem',
-                borderRadius: 'var(--radius-sm)',
-                background: 'var(--bg-surface-elevated)',
-                border: '1px solid var(--border-subtle)',
-                color: 'white',
-                marginTop: '0.25rem',
-              }}
-            >
-              <option value={1}>1x1 (Medium)</option>
-              <option value={2}>2x2 (Large)</option>
-              <option value={3}>3x3 (Huge)</option>
-              <option value={4}>4x4 (Gargantuan)</option>
-            </select>
-          </div>
+          {isProp ? (
+            <>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Prop Width (tiles)</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0.1"
+                  value={propWidth ?? size}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setPropWidth(isNaN(val) ? 1 : val);
+                  }}
+                  placeholder="e.g. 1.5"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'white',
+                    marginTop: '0.25rem',
+                  }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Prop Height (tiles)</label>
+                <input
+                  type="number"
+                  step="any"
+                  min="0.1"
+                  value={propHeight ?? size}
+                  onChange={(e) => {
+                    const val = parseFloat(e.target.value);
+                    setPropHeight(isNaN(val) ? 1 : val);
+                  }}
+                  placeholder="e.g. 3.24"
+                  style={{
+                    width: '100%',
+                    padding: '0.5rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--bg-surface-elevated)',
+                    border: '1px solid var(--border-subtle)',
+                    color: 'white',
+                    marginTop: '0.25rem',
+                  }}
+                />
+              </div>
+            </>
+          ) : (
+            <div>
+              <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Size (Grid cells)</label>
+              <select
+                value={size}
+                onChange={(e) => setSize(Number(e.target.value))}
+                style={{
+                  width: '100%',
+                  padding: '0.5rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--bg-surface-elevated)',
+                  border: '1px solid var(--border-subtle)',
+                  color: 'white',
+                  marginTop: '0.25rem',
+                }}
+              >
+                <option value={1}>1x1 (Medium)</option>
+                <option value={2}>2x2 (Large)</option>
+                <option value={3}>3x3 (Huge)</option>
+                <option value={4}>4x4 (Gargantuan)</option>
+              </select>
+            </div>
+          )}
 
           <div>
             <label style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Border Shape</label>

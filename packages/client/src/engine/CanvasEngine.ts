@@ -499,12 +499,28 @@ export class CanvasEngine {
     const matchingTokens: Token[] = [];
     for (let i = tokens.length - 1; i >= 0; i--) {
       const tok = tokens[i];
-      const tokDiameter = tok.size * currentMap.gridSize;
-      const radius = tokDiameter / 2;
-      const cx = tok.x + radius;
-      const cy = tok.y + radius;
-      if (Math.hypot(worldPos.x - cx, worldPos.y - cy) <= radius) {
-        matchingTokens.push(tok);
+      const isProp = Boolean(tok.isProp);
+      const propW = (isProp && tok.propWidth !== undefined ? tok.propWidth : tok.size) * currentMap.gridSize;
+      const propH = (isProp && tok.propHeight !== undefined ? tok.propHeight : tok.size) * currentMap.gridSize;
+      const cx = tok.x + propW / 2;
+      const cy = tok.y + propH / 2;
+
+      // Transform worldPos to token's local coordinate system taking rotation into account
+      const dx = worldPos.x - cx;
+      const dy = worldPos.y - cy;
+      const rotRad = ((tok.rotation || 0) * Math.PI) / 180;
+      const localX = dx * Math.cos(-rotRad) - dy * Math.sin(-rotRad);
+      const localY = dx * Math.sin(-rotRad) + dy * Math.cos(-rotRad);
+
+      if (isProp) {
+        if (Math.abs(localX) <= propW / 2 && Math.abs(localY) <= propH / 2) {
+          matchingTokens.push(tok);
+        }
+      } else {
+        const radius = (tok.size * currentMap.gridSize) / 2;
+        if (Math.hypot(localX, localY) <= radius) {
+          matchingTokens.push(tok);
+        }
       }
     }
     return matchingTokens;
@@ -561,8 +577,8 @@ export class CanvasEngine {
       const isControllable =
         isGm || clickedToken.ownerId === localId || Boolean(this.localPlayer?.assignedTokenIds?.includes(clickedToken.id));
 
-      // Player permissions check: Players can only move their own tokens
-      if (isControllable) {
+      // Player permissions check: Players can only move their own tokens, and cannot drag locked tokens/props
+      if (isControllable && !clickedToken.locked) {
         this.draggingToken = clickedToken;
         this.dragStartPos = { x: clickedToken.x, y: clickedToken.y };
         this.dragCurrentPos = worldPos;
@@ -660,12 +676,13 @@ export class CanvasEngine {
       const currentMap =
         this.session.maps.find((m) => m.id === this.currentMapId) ||
         this.session.maps[0];
-      const tokDiameter = this.draggingToken.size * currentMap.gridSize;
-      const radius = tokDiameter / 2;
+      const isProp = Boolean(this.draggingToken.isProp);
+      const propW = (isProp && this.draggingToken.propWidth !== undefined ? this.draggingToken.propWidth : this.draggingToken.size) * currentMap.gridSize;
+      const propH = (isProp && this.draggingToken.propHeight !== undefined ? this.draggingToken.propHeight : this.draggingToken.size) * currentMap.gridSize;
 
       // Offset token center to follow cursor
-      let newX = worldPos.x - radius;
-      let newY = worldPos.y - radius;
+      let newX = worldPos.x - propW / 2;
+      let newY = worldPos.y - propH / 2;
 
       if (this.snapEnabled) {
         const snapped = snapToGrid(
@@ -701,12 +718,12 @@ export class CanvasEngine {
 
       // Active ruler
       const startCenter: Point = {
-        x: this.dragStartPos.x + radius,
-        y: this.dragStartPos.y + radius,
+        x: this.dragStartPos.x + propW / 2,
+        y: this.dragStartPos.y + propH / 2,
       };
       const endCenter: Point = {
-        x: newX + radius,
-        y: newY + radius,
+        x: newX + propW / 2,
+        y: newY + propH / 2,
       };
 
       this.activeRuler = measureDistance(
@@ -849,9 +866,11 @@ export class CanvasEngine {
         isGm || t.ownerId === localId || Boolean(this.localPlayer?.assignedTokenIds?.includes(t.id));
 
       const enclosedTokens = tokens.filter((t) => {
-        const tokDiameter = t.size * currentMap.gridSize;
-        const cx = t.x + tokDiameter / 2;
-        const cy = t.y + tokDiameter / 2;
+        const isProp = Boolean(t.isProp);
+        const propW = (isProp && t.propWidth !== undefined ? t.propWidth : t.size) * currentMap.gridSize;
+        const propH = (isProp && t.propHeight !== undefined ? t.propHeight : t.size) * currentMap.gridSize;
+        const cx = t.x + propW / 2;
+        const cy = t.y + propH / 2;
         return cx >= minX && cx <= maxX && cy >= minY && cy <= maxY;
       });
 
