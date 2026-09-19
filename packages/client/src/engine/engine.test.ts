@@ -69,6 +69,19 @@ describe('Canvas Engine Utilities', () => {
     assert.strictEqual(measurementOver.color, '#ef4444');
   });
 
+  it('measures distance with measuring tape tool without speed limit (Task #97)', () => {
+    // 12 cells at 50px/cell, 5ft/cell = 60ft
+    const tapeMeasurement = measureDistance(
+      { x: 100, y: 100 },
+      { x: 700, y: 100 },
+      50,
+      Infinity,
+      5
+    );
+    assert.strictEqual(tapeMeasurement.distanceFt, 60);
+    assert.strictEqual(tapeMeasurement.isOverSpeed, false);
+  });
+
   it('selects all enclosed tokens with box select and moves them as a group (Bug #78)', () => {
     // Mock tokens within a map
     const mockTokens = [

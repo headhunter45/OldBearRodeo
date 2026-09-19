@@ -135,6 +135,12 @@ function nameGen(type) {
 94. ✅ When editing a scene in the settings for it I have two vertical scrollbars.
 95. ✅ When I change grid type in a scene settings it chagnes the type value for all scenes, but the grid drawn and snapped to is still squeare not hexagonal
 96. ✅ I don't see anything showing my imported monsters and characters. Please add them to the asset manager.
+97. ✅ Add a measuring tape. This should allow a user to see how far they are away from something.
+98. When using the circle, rectangle, or arrow indicator tools show the size of the rectangle, the length of the arrow and the radius of the circle as they are being drawn. This way I can make a 30' radius without guessing.
+99. My mic started recording. It should start muted.
+100. We have client port and server port in our .env, but our dockerfile doesn't use them. Please ensure it uses them to put the containers on the right ports.
+101. Create a production .env.production and a either a production compose.yaml that uses it or update our current compose.yaml
+102. I want to create a ci script that builds the container in a production state so I can push it to another registry.
 
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
@@ -166,3 +172,21 @@ function nameGen(type) {
     - Copy the CobaltSession auth token and forward to the api. Store this in settings or enter via a command.
     - Add a browser extension with a 1 click send to oldbear any supported url type.
     - Dire json paste/drop. This is probably worth having anyway to import a character.
+- **Pathbuilder 2e (Pathfinder 2e) Character Import & Ruleset Support**:
+  - **Import Methods**:
+    - Direct Web Sync via Pathbuilder 2e ID or URL (`https://pathbuilder2e.com/json.php?id=<build_id>`) in `/sync` command and Character Sheet dialog.
+    - Drag-and-drop / file upload of Pathbuilder 2e exported `.json` character files onto the Battlemap (direct token spawn) and into the Asset Manager (library storage).
+  - **Data Model & Ruleset Integration**:
+    - Tag characters and tokens with `system: 'pf2e'`.
+    - Support PF2e 3-action economy with action cost glyphs (`◆`, `◆◆`, `◆◆◆`, `↺`, `◇`) on attacks, spells, and actions.
+    - Support Multiple Attack Penalty (MAP) buttons on strike actions (0, -5, -10 or -4, -8 for agile weapons).
+    - Support TEML proficiency progression (Trained, Expert, Master, Legendary) for skills, perception, saving throws, and attack rolls.
+    - Dynamic `/attack`, `/spell`, and `/skill` chat commands tailored to PF2e modifiers and conditions.
+- **System-Agnostic Ruleset Manifest & Characterfiles Schema Integration**:
+  - Integrate with external generic tabletop entity project providing system-agnostic specifications for characters, monsters, spells, items, and actions.
+  - **Manifest & Display Templates**:
+    - Support loading system definition manifests containing display templates, stat attributes, resource pools, and roll expressions without hardcoding game rules into the core VTT engine.
+    - Render character sheets, token stat overlays, and dice roll buttons dynamically based on the active system manifest's template schema.
+  - **Unified Asset & Token Pipeline**:
+    - Map ingested characterfile entities directly into OldBearRodeo tokens, inventory, spellbooks, and action lists regardless of whether the system is D&D 5e, Pathfinder 2e, OSR, Call of Cthulhu, or a custom homebrew system.
+

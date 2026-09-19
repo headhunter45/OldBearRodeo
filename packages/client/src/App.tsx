@@ -662,6 +662,9 @@ export const App: React.FC = () => {
       engineRef.current.setActiveMap(mapIdToView);
     }
     engineRef.current.activeTool = activeTool;
+    if (activeTool !== 'measure') {
+      engineRef.current.measuringTape = null;
+    }
     engineRef.current.snapEnabled = snapEnabled;
   }, [session, localPlayer, isGm, gmPreviewMapId, activeTool, snapEnabled]);
 
@@ -1221,6 +1224,11 @@ export const App: React.FC = () => {
         setActiveTool('box-select');
         return;
       }
+      if (key === 'm') {
+        e.preventDefault();
+        setActiveTool('measure');
+        return;
+      }
       if (key === 'f') {
         if (isGm) {
           e.preventDefault();
@@ -1234,6 +1242,14 @@ export const App: React.FC = () => {
           setActiveTool('fog-reveal');
         }
         return;
+      }
+
+      if (e.key === 'Escape') {
+        setSelectedToken(null);
+        setSelectedTokens([]);
+        if (engineRef.current) {
+          engineRef.current.measuringTape = null;
+        }
       }
 
       if (key === 'd' || ((e.ctrlKey || e.metaKey) && key === 'd')) {
@@ -1275,7 +1291,7 @@ export const App: React.FC = () => {
           cursor:
             activeTool === 'pan'
               ? 'grab'
-              : activeTool === 'laser'
+              : activeTool === 'laser' || activeTool === 'measure'
               ? 'crosshair'
               : activeTool.startsWith('fog')
               ? 'crosshair'

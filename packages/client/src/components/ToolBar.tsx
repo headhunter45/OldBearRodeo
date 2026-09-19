@@ -13,6 +13,7 @@ import {
   CloudFog,
   CloudOff,
   Grid,
+  Ruler,
 } from 'lucide-react';
 import { ActiveTool } from '../engine/CanvasEngine.js';
 
@@ -336,6 +337,24 @@ export const ToolBar: React.FC<ToolBarProps> = ({
           </div>
         )}
       </div>
+
+      {/* Measuring Tape Tool (Task #97) */}
+      <button
+        className={`btn-icon ${activeTool === 'measure' ? 'active' : ''}`}
+        onClick={() => {
+          onSelectTool('measure');
+          setShowSelectMenu(false);
+          setShowHighlightMenu(false);
+          setShowFogMenu(false);
+          setShowGridMenu(false);
+        }}
+        title="Measuring Tape (M)"
+        style={{
+          color: activeTool === 'measure' ? '#38bdf8' : undefined,
+        }}
+      >
+        <Ruler size={18} />
+      </button>
 
       {/* GM Fog of War Tools Sub-menu (Bug #58) */}
       {isGm && (

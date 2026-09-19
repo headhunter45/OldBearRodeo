@@ -22,6 +22,7 @@ export type ActiveTool =
   | 'crosshair'
   | 'circle'
   | 'rectangle'
+  | 'measure'
   | 'fog-reveal'
   | 'fog-hide';
 
@@ -55,6 +56,7 @@ export class CanvasEngine {
   dragStartPos: Point | null = null;
   dragCurrentPos: Point | null = null;
   activeRuler: RulerMeasurement | null = null;
+  measuringTape: RulerMeasurement | null = null;
 
   // Shape drawing state (for markers & fog)
   isDrawing: boolean = false;
@@ -180,9 +182,12 @@ export class CanvasEngine {
       );
     }
 
-    // 6. Render Active Movement Ruler
+    // 6. Render Active Movement Ruler & Measuring Tape
     if (this.activeRuler) {
       drawRuler(ctx, this.activeRuler);
+    }
+    if (this.measuringTape) {
+      drawRuler(ctx, this.measuringTape);
     }
 
     // 7. Render Ephemeral Screen Markers
@@ -309,6 +314,40 @@ export class CanvasEngine {
         this.isDrawing = true;
         this.drawStart = worldPos;
         this.drawCurrent = worldPos;
+      }
+    } else if (this.activeTool === 'measure') {
+      const currentMap =
+        this.session?.maps.find((m) => m.id === this.currentMapId) ||
+        this.session?.maps[0];
+      let startPoint = worldPos;
+      if (currentMap) {
+        const matching = this.findMatchingTokens(worldPos, currentMap);
+        if (matching.length > 0) {
+          const tok = matching[0];
+          const radius = (tok.size * currentMap.gridSize) / 2;
+          startPoint = { x: tok.x + radius, y: tok.y + radius };
+        } else if (this.snapEnabled && !e.shiftKey) {
+          const offX = currentMap.gridOffsetX || 0;
+          const offY = currentMap.gridOffsetY || 0;
+          const half = currentMap.gridSize / 2;
+          startPoint = {
+            x: Math.round((worldPos.x - offX - half) / currentMap.gridSize) * currentMap.gridSize + offX + half,
+            y: Math.round((worldPos.y - offY - half) / currentMap.gridSize) * currentMap.gridSize + offY + half,
+          };
+        }
+      }
+      this.isDrawing = true;
+      this.drawStart = startPoint;
+      this.drawCurrent = startPoint;
+      if (currentMap) {
+        this.measuringTape = measureDistance(
+          startPoint,
+          startPoint,
+          currentMap.gridSize,
+          Infinity,
+          currentMap.scaleFtPerCell || 5
+        );
+        this.measuringTape.color = this.localPlayer?.color || '#06b6d4';
       }
     } else if (this.activeTool === 'crosshair') {
       this.broadcastMarker({
@@ -530,6 +569,40 @@ export class CanvasEngine {
       return;
     }
 
+    // Measuring tape in-progress
+    if (this.isDrawing && this.drawStart && this.activeTool === 'measure') {
+      const currentMap =
+        this.session?.maps.find((m) => m.id === this.currentMapId) ||
+        this.session?.maps[0];
+      let endPoint = worldPos;
+      if (currentMap) {
+        const matching = this.findMatchingTokens(worldPos, currentMap);
+        if (matching.length > 0) {
+          const tok = matching[0];
+          const radius = (tok.size * currentMap.gridSize) / 2;
+          endPoint = { x: tok.x + radius, y: tok.y + radius };
+        } else if (this.snapEnabled && !e.shiftKey) {
+          const offX = currentMap.gridOffsetX || 0;
+          const offY = currentMap.gridOffsetY || 0;
+          const half = currentMap.gridSize / 2;
+          endPoint = {
+            x: Math.round((worldPos.x - offX - half) / currentMap.gridSize) * currentMap.gridSize + offX + half,
+            y: Math.round((worldPos.y - offY - half) / currentMap.gridSize) * currentMap.gridSize + offY + half,
+          };
+        }
+        this.drawCurrent = endPoint;
+        this.measuringTape = measureDistance(
+          this.drawStart,
+          endPoint,
+          currentMap.gridSize,
+          Infinity,
+          currentMap.scaleFtPerCell || 5
+        );
+        this.measuringTape.color = this.localPlayer?.color || '#06b6d4';
+      }
+      return;
+    }
+
     // Drawing in-progress
     if (this.isDrawing && this.drawStart) {
       this.drawCurrent = worldPos;
@@ -582,6 +655,10 @@ export class CanvasEngine {
 
     const { x: x1, y: y1 } = this.drawStart;
     const { x: x2, y: y2 } = this.drawCurrent;
+
+    if (this.activeTool === 'measure') {
+      return;
+    }
 
     if (this.activeTool === 'box-select') {
       if (Math.abs(x2 - x1) < 5 && Math.abs(y2 - y1) < 5) {
