@@ -409,6 +409,11 @@ export const App: React.FC = () => {
           break;
         }
 
+        case 'discord-webhook-updated': {
+          setSession((prev) => (prev ? { ...prev, discordWebhookUrl: msg.webhookUrl } : prev));
+          break;
+        }
+
         case 'player-updated': {
           if (net.isGm && msg.updates.dndBeyondCharacter) {
             saveCharacterToStorage(msg.updates.dndBeyondCharacter, true);
@@ -1368,6 +1373,10 @@ export const App: React.FC = () => {
             saveCharacterToStorage(dndBeyondCharacter, isGm);
           }}
           messages={chatMessages}
+          onConfigureDiscordWebhook={(url) => {
+            networkRef.current?.send({ type: 'discord-webhook-update', webhookUrl: url });
+            setSession((prev) => (prev ? { ...prev, discordWebhookUrl: url } : prev));
+          }}
           onSendMessage={(m) => {
             if (m.roll) {
               handleRecordRoll(m.roll);

@@ -13,6 +13,7 @@ export interface ChatPanelProps {
   onSyncToken?: (tokenId: string, updates: Partial<Token>) => void;
   onUpdatePlayerChar?: (char: DnDCharacter) => void;
   fetchCharacterFn?: (charIdOrUrl: string) => Promise<DnDCharacter>;
+  onConfigureDiscordWebhook?: (webhookUrl?: string) => void;
   isOpen: boolean;
   onToggleOpen: () => void;
 }
@@ -69,6 +70,7 @@ export interface ProcessSlashCommandContext {
   onSyncToken?: (tokenId: string, updates: Partial<Token>) => void;
   onUpdatePlayerChar?: (char: DnDCharacter) => void;
   fetchCharacterFn?: (charIdOrUrl: string) => Promise<DnDCharacter>;
+  onConfigureDiscordWebhook?: (webhookUrl?: string) => void;
 }
 
 export function processSlashCommand(
@@ -101,7 +103,67 @@ export function processSlashCommand(
   // 1. /help
   if (cmd === 'help') {
     sendPrivateSystemMessage(
-      `Available commands:\n• /roll [count]d[sides][+/-mod] [adv|dis] - Roll any dice (e.g. /roll 1d20+5 adv)\n• /attack [weapon or index] [adv|dis] - Roll to-hit & damage from sheet (e.g. /attack 1 or /attack Longsword)\n• /skill [skill or index] [adv|dis] - Roll a character skill check (e.g. /skill 1 or /skill Stealth dis)\n• /spell [spell or index] [adv|dis] - Roll a spell attack from character sheet (e.g. /spell 1)\n• /item [item or index] - Use/inspect item from inventory (e.g. /item 1)\n• /sync [url or id] [token index] - Sync character sheet and token with D&D Beyond\n• /tokens - List all tokens and their index number available to sync`
+      `Available commands:\n• /roll [count]d[sides][+/-mod] [adv|dis] - Roll any dice (e.g. /roll 1d20+5 adv)\n• /attack [weapon or index] [adv|dis] - Roll to-hit & damage from sheet (e.g. /attack 1 or /attack Longsword)\n• /skill [skill or index] [adv|dis] - Roll a character skill check (e.g. /skill 1 or /skill Stealth dis)\n• /spell [spell or index] [adv|dis] - Roll a spell attack from character sheet (e.g. /spell 1)\n• /item [item or index] - Use/inspect item from inventory (e.g. /item 1)\n• /sync [url or id] [token index] - Sync character sheet and token with D&D Beyond\n• /tokens - List all tokens and their index number available to sync\n• /discord webhook <url> - Configure Discord one-way sync (GM only)\n• /discord webhook none - Disable Discord sync (GM only)`
+    );
+    return true;
+  }
+
+  // 1b. /discord
+  if (cmd === 'discord') {
+    if (player.role !== 'gm') {
+      sendPrivateSystemMessage(
+        '⚠️ Only the Game Master (GM) can configure Discord webhook settings.',
+        'Discord Sync',
+        '#f43f5e'
+      );
+      return true;
+    }
+
+    const sub = args[0]?.toLowerCase();
+    if (sub === 'webhook') {
+      const urlArg = args[1]?.trim();
+      if (!urlArg) {
+        sendPrivateSystemMessage(
+          'Usage: `/discord webhook <webhook_url>` or `/discord webhook none` to disable.',
+          'Discord Sync',
+          '#f59e0b'
+        );
+        return true;
+      }
+
+      if (urlArg.toLowerCase() === 'none') {
+        context.onConfigureDiscordWebhook?.(undefined);
+        sendPrivateSystemMessage(
+          '✅ Discord webhook sync has been disabled.',
+          'Discord Sync',
+          '#10b981'
+        );
+        return true;
+      }
+
+      if (!urlArg.startsWith('http://') && !urlArg.startsWith('https://')) {
+        sendPrivateSystemMessage(
+          '⚠️ Invalid webhook URL. URL must start with https://discord.com/api/webhooks/...',
+          'Discord Sync',
+          '#f43f5e'
+        );
+        return true;
+      }
+
+      context.onConfigureDiscordWebhook?.(urlArg);
+      sendPrivateSystemMessage(
+        `✅ Discord webhook configured successfully! Chat messages and dice rolls will now sync to Discord.\n• Target: \`${urlArg.slice(0, 45)}...\``,
+        'Discord Sync',
+        '#10b981'
+      );
+      return true;
+    }
+
+    // Default or no params: show instructions
+    sendPrivateSystemMessage(
+      `**Discord Integration Commands (GM Only):**\n• \`/discord webhook <webhook_url>\` - Configure one-way sync to a Discord text channel\n• \`/discord webhook none\` - Disable Discord webhook sync\n\nWhen enabled, all public chat messages and dice rolls will automatically post to your Discord channel.`,
+      'Discord Sync',
+      '#5865F2'
     );
     return true;
   }
@@ -661,6 +723,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
   onSyncToken,
   onUpdatePlayerChar,
   fetchCharacterFn,
+  onConfigureDiscordWebhook,
   isOpen,
   onToggleOpen,
 }) => {
@@ -691,6 +754,7 @@ export const ChatPanel: React.FC<ChatPanelProps> = ({
         onSyncToken,
         onUpdatePlayerChar,
         fetchCharacterFn,
+        onConfigureDiscordWebhook,
       });
       return;
     }

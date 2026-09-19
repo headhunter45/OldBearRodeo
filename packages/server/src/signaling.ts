@@ -67,6 +67,27 @@ function sendToPeer(roomId: string, targetPeerId: string, message: ServerToClien
   }
 }
 
+export async function sendDiscordWebhook(
+  webhookUrl: string,
+  payload: { username?: string; content: string }
+): Promise<boolean> {
+  try {
+    if (!webhookUrl || typeof fetch !== 'function') return false;
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: payload.username ? `${payload.username} (Old Bear)` : 'Old Bear Rodeo',
+        content: payload.content.slice(0, 2000),
+      }),
+    });
+    return res.ok;
+  } catch (err) {
+    console.warn('[Discord Webhook] Failed to post message:', err);
+    return false;
+  }
+}
+
 function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
   switch (msg.type) {
     case 'join': {
@@ -401,6 +422,17 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
       if (session) {
         session.diceHistory.push(msg.roll);
         if (session.diceHistory.length > 50) session.diceHistory.shift();
+
+        if (session.discordWebhookUrl) {
+          const r = msg.roll;
+          const modStr = r.modifier ? (r.modifier >= 0 ? `+${r.modifier}` : `${r.modifier}`) : '';
+          const advStr = r.advantageMode && r.advantageMode !== 'normal' ? ` (${r.advantageMode})` : '';
+          const content = `🎲 **${r.userName}** rolled **${r.count}${r.diceType}${modStr}${advStr}**: **${r.total}** [${r.rolls.join(', ')}]`;
+          sendDiscordWebhook(session.discordWebhookUrl, {
+            username: `${r.userName} (Dice)`,
+            content,
+          });
+        }
       }
       broadcastToRoom(ws.roomId, { type: 'dice-rolled', roll: msg.roll });
       break;
@@ -422,6 +454,26 @@ function handleMessage(ws: ClientSocket, msg: ClientToServerMessage) {
         broadcastToRoom(ws.roomId, {
           type: 'chat-message',
           message: msg.message,
+        });
+
+        if (session?.discordWebhookUrl) {
+          sendDiscordWebhook(session.discordWebhookUrl, {
+            username: msg.message.senderName,
+            content: msg.message.text,
+          });
+        }
+      }
+      break;
+    }
+
+    case 'discord-webhook-update': {
+      if (!ws.roomId) return;
+      const session = getSession(ws.roomId);
+      if (session) {
+        session.discordWebhookUrl = msg.webhookUrl?.trim() || undefined;
+        broadcastToRoom(ws.roomId, {
+          type: 'discord-webhook-updated',
+          webhookUrl: session.discordWebhookUrl,
         });
       }
       break;

@@ -145,7 +145,7 @@ function nameGen(type) {
 102. ✅ I want to create a ci script that builds the container in a production state so I can push it to another registry.
 103. ✅ When I roll initiative in the initiative tracker it doesn't show up as a roll in the dice tool. It does show up in chat which is great, but it doesn't show what the roll and bonus were.
 104. ✅ When I edit in the initiative tracker, make the current number stay and put the input field where the name and hp text are.
-105. - **Discord webhook one-way chat & roll sync** `[AI Credit Cost: ★☆☆☆☆ - Minimal]`:
+105. ✅ - **Discord webhook one-way chat & roll sync** `[AI Credit Cost: ★☆☆☆☆ - Minimal]`:
     - *Cost Drivers*: Minimal context footprint; simple outbound HTTP POST to webhook URL.
     - Add one-way sync from OldBearRodeo to a Discord text channel via a Discord webhook URL.
     - Add `/discord webhook <webhook url>` to configure the webhook URL.

@@ -372,4 +372,60 @@ describe('Dice Parser & Slash Command Utilities', () => {
     processSlashCommand('/item 1', ctx);
     assert.ok(sentMessages[7].text.includes('Smoke Bomb'));
   });
+
+  it('manages Discord webhook configuration via /discord (Task #105)', () => {
+    const regularPlayer = {
+      id: 'p-1',
+      name: 'Fighter',
+      role: 'player' as const,
+      color: '#ef4444',
+      connected: true,
+      assignedTokenIds: [],
+    };
+    const gmPlayer = {
+      id: 'gm-1',
+      name: 'Dungeon Master',
+      role: 'gm' as const,
+      color: '#f59e0b',
+      connected: true,
+      assignedTokenIds: [],
+    };
+
+    let configuredUrl: string | undefined = undefined;
+    const sentMessages: any[] = [];
+    const createCtx = (player: any) => ({
+      player,
+      onSendMessage: (msg: any) => sentMessages.push(msg),
+      onConfigureDiscordWebhook: (url?: string) => {
+        configuredUrl = url;
+      },
+    });
+
+    // 1. Regular player is blocked
+    processSlashCommand('/discord', createCtx(regularPlayer));
+    assert.strictEqual(sentMessages.length, 1);
+    assert.ok(sentMessages[0].text.includes('Only the Game Master'));
+    assert.strictEqual(sentMessages[0].isEphemeral, true);
+
+    // 2. GM running /discord with no args receives instructions
+    processSlashCommand('/discord', createCtx(gmPlayer));
+    assert.strictEqual(sentMessages.length, 2);
+    assert.ok(sentMessages[1].text.includes('Discord Integration Commands'));
+    assert.strictEqual(sentMessages[1].isEphemeral, true);
+
+    // 3. GM configures webhook URL
+    const validUrl = 'https://discord.com/api/webhooks/123456789/abcdefgh';
+    processSlashCommand(`/discord webhook ${validUrl}`, createCtx(gmPlayer));
+    assert.strictEqual(configuredUrl, validUrl);
+    assert.strictEqual(sentMessages.length, 3);
+    assert.ok(sentMessages[2].text.includes('Discord webhook configured successfully'));
+    assert.strictEqual(sentMessages[2].isEphemeral, true);
+
+    // 4. GM clears/disables webhook
+    processSlashCommand('/discord webhook none', createCtx(gmPlayer));
+    assert.strictEqual(configuredUrl, undefined);
+    assert.strictEqual(sentMessages.length, 4);
+    assert.ok(sentMessages[3].text.includes('Discord webhook sync has been disabled'));
+    assert.strictEqual(sentMessages[3].isEphemeral, true);
+  });
 });

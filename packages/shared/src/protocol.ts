@@ -31,7 +31,8 @@ export type ClientToServerMessage =
   | { type: 'player-update'; updates: Partial<Player> }
   | { type: 'voice-force-mute'; targetPlayerId: string }
   | { type: 'audio-action'; trackId: string; action: 'play' | 'pause' | 'stop' | 'volume'; volume?: number; isLooping?: boolean }
-  | { type: 'chat-send'; message: ChatMessage };
+  | { type: 'chat-send'; message: ChatMessage }
+  | { type: 'discord-webhook-update'; webhookUrl?: string };
 
 export interface ChatMessage {
   id: string;
@@ -71,4 +72,5 @@ export type ServerToClientMessage =
   | { type: 'player-updated'; playerId: string; updates: Partial<Player> }
   | { type: 'voice-force-mute'; targetPlayerId: string }
   | { type: 'audio-action'; trackId: string; action: 'play' | 'pause' | 'stop' | 'volume'; volume?: number; isLooping?: boolean }
-  | { type: 'chat-message'; message: ChatMessage };
+  | { type: 'chat-message'; message: ChatMessage }
+  | { type: 'discord-webhook-updated'; webhookUrl?: string };

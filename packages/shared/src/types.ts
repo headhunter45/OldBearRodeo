@@ -304,4 +304,5 @@ export interface GameSession {
   markers: ScreenMarker[];
   diceHistory: DiceRollResult[];
   soundtracks: SoundTrack[];
+  discordWebhookUrl?: string;
 }
