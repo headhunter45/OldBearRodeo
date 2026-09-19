@@ -115,7 +115,7 @@ export const TopBar: React.FC<TopBarProps> = ({
               WebkitTextFillColor: 'transparent',
             }}
           >
-            OldBearRodeo
+            Old Bear Rodeo
           </span>
         </div>
 
