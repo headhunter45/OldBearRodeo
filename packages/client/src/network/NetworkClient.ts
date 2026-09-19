@@ -59,7 +59,7 @@ export class NetworkClient {
 
   connect(roomId: string, playerName: string, playerColor: string, gmKey?: string, playerId?: string) {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.port === '3000' ? `${window.location.hostname}:3001` : window.location.host;
+    const host = window.location.host;
     const wsUrl = `${protocol}//${host}/ws`;
 
     this.notifyStatus('connecting');
