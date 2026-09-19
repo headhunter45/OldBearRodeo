@@ -15,6 +15,7 @@ import {
   Coins,
   Flame,
 } from 'lucide-react';
+import { useDraggableWindow } from '../hooks/useDraggableWindow.js';
 
 interface CharacterFlyoutProps {
   player: Player;
@@ -120,6 +121,11 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
   const [savedCharacters, setSavedCharacters] = useState<SavedCharacterRecord[]>(() =>
     getSavedCharacters(isGm)
   );
+  const [isMinimized, setIsMinimized] = useState(false);
+
+  const { windowRef, position, isDragging, handleMouseDown } = useDraggableWindow({
+    storageKey: 'obr_character_sheet_pos',
+  });
 
   // Manual fallback HP
   const [localHp, setLocalHp] = useState(targetToken?.currentHp || 25);
@@ -256,41 +262,82 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
 
   return (
     <div
-      className="glass-panel-elevated animate-slide-right"
+      ref={windowRef}
+      className="glass-panel-elevated animate-fade-in draggable-window"
       style={{
         position: 'fixed',
-        right: 0,
-        top: 0,
-        bottom: 0,
-        width: '100%',
-        maxWidth: '420px',
-        zIndex: 40,
+        left: position ? `${position.x}px` : undefined,
+        top: position ? `${position.y}px` : '4.5rem',
+        right: position ? 'auto' : '1rem',
         display: 'flex',
         flexDirection: 'column',
-        borderLeft: '1px solid var(--border-strong)',
-        boxShadow: '-10px 0 30px rgba(0,0,0,0.6)',
+        height: isMinimized ? '52px' : '100%',
+        maxHeight: isMinimized ? '52px' : 'calc(100vh - 6rem)',
+        width: '420px',
+        maxWidth: 'calc(100vw - 1.5rem)',
+        zIndex: 46,
+        boxShadow: isDragging ? '0 24px 48px rgba(0,0,0,0.8)' : '0 16px 36px rgba(0,0,0,0.6)',
+        transition: isDragging ? 'none' : 'max-height 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+        overflow: 'hidden',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
       }}
     >
       {/* Header */}
       <div
+        onMouseDown={handleMouseDown}
         style={{
-          padding: '1.25rem',
-          borderBottom: '1px solid var(--border-subtle)',
+          padding: '0.85rem 1.15rem',
+          borderBottom: isMinimized ? 'none' : '1px solid var(--border-subtle)',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          cursor: isDragging ? 'grabbing' : 'grab',
+          userSelect: 'none',
+          backgroundColor: 'var(--bg-surface)',
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-          <User size={22} color="var(--accent-primary)" />
-          <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.2rem' }}>
-            Character Sheet
+          <User size={20} color="var(--accent-primary)" />
+          <h2 style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: '1.1rem', margin: 0 }}>
+            {character ? character.name : 'Character Sheet'}
           </h2>
+          {character && character.level && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+              (Lv {character.level})
+            </span>
+          )}
         </div>
-        <button className="btn-icon" onClick={onClose}>
-          <X size={18} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+          <button
+            className="btn-icon"
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsMinimized((v) => !v);
+            }}
+            title={isMinimized ? 'Expand window' : 'Minimize window'}
+            style={{ width: '26px', height: '26px' }}
+          >
+            <ChevronDown
+              size={16}
+              className={`chevron-minimize ${isMinimized ? 'minimized' : ''}`}
+            />
+          </button>
+          <button className="btn-icon" onClick={onClose} style={{ width: '26px', height: '26px' }}>
+            <X size={16} />
+          </button>
+        </div>
       </div>
+
+      <div
+        className={`draggable-window-body ${isMinimized ? 'minimized' : ''}`}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          flex: 1,
+          overflow: 'hidden',
+        }}
+      >
 
       {/* D&D Beyond Link Input */}
       <div style={{ padding: '1rem', borderBottom: '1px solid var(--border-subtle)', backgroundColor: 'var(--bg-surface)' }}>
@@ -1242,6 +1289,7 @@ export const CharacterFlyout: React.FC<CharacterFlyoutProps> = ({
           Select a token on the map to sync this character to it.
         </div>
       )}
+      </div>
     </div>
   );
 };
