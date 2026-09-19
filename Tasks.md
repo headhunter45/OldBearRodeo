@@ -160,7 +160,7 @@ function nameGen(type) {
     - local history so up lets you go back through the commands and messages you typed.
     - use python or something reliably multi platform but not java.
     - call the executable "oldbearchat" and let us join by running `oldbearchat <invite url>` or `oldbearchat` and then in the chat context `/join <invite url>`. Take inspiration from irc/mirc for the ui and commands. We don't need to support multiple rooms or channels yet.
-107. Props should be tracked like tokens in the asset manager.
+107. ✅ Props should be tracked like tokens in the asset manager.
 108. Reorganize the hamburger menu.
   1. Sound status. The bar that's already there.
   2. Chat

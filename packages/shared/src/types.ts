@@ -89,6 +89,9 @@ export interface Token {
   elevation?: number; // e.g. flying +10ft
   initiativeBonus?: number;
   character?: DnDCharacter;
+  propWidth?: number; // custom decimal width in grid units (e.g. 1.5)
+  propHeight?: number; // custom decimal height in grid units (e.g. 3.24)
+  locked?: boolean; // locked tokens/props can be selected but not moved
 }
 
 export interface FogPoint {

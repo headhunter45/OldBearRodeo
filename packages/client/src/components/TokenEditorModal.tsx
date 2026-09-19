@@ -245,8 +245,10 @@ export const TokenEditorModal: React.FC<TokenEditorModalProps> = ({
       await saveAsset({
         id: crypto.randomUUID(),
         name: file.name,
-        type: 'token',
+        type: isProp ? 'prop' : 'token',
         dataUrl,
+        isProp,
+        layer: isProp ? 'prop' : 'token',
         createdAt: Date.now(),
       });
     };

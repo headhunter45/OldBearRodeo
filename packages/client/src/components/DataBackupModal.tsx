@@ -206,31 +206,35 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
     const mapId = activeMapId || session?.activeMapId || (session?.maps[0]?.id) || 'map-default';
     const spawnX = 350 + (existingList.length % 5) * 60;
     const spawnY = 350 + (existingList.length % 5) * 60;
+    const isProp = asset.type === 'prop' || Boolean(asset.isProp);
     const newToken: Token = {
       id: `token-${crypto.randomUUID()}`,
       mapId,
-      name: asset.name || 'Token',
+      name: asset.name || (isProp ? 'Prop' : 'Token'),
       imageUrl: asset.dataUrl,
       x: Math.round(spawnX),
       y: Math.round(spawnY),
       size: asset.size || 1,
-      rotation: 0,
-      ringColor: asset.ringColor || '#3b82f6',
-      fillColor: asset.fillColor || '#1e3a8a',
-      clipCircle: true,
-      clipShape: 'circle',
-      currentHp: asset.maxHp || 20,
-      maxHp: asset.maxHp || 20,
+      rotation: asset.rotation || 0,
+      ringColor: isProp ? (asset.ringColor || '#94a3b8') : (asset.ringColor || '#3b82f6'),
+      fillColor: asset.fillColor || (isProp ? '#1e293b' : '#1e3a8a'),
+      clipCircle: !isProp,
+      clipShape: isProp ? 'square' : (asset.ringColor ? 'circle' : 'circle'),
+      currentHp: isProp ? (asset.maxHp || 0) : (asset.maxHp || 20),
+      maxHp: isProp ? (asset.maxHp || 0) : (asset.maxHp || 20),
       tempHp: 0,
-      speed: asset.speed || 30,
+      speed: isProp ? (asset.speed || 0) : (asset.speed || 30),
       conditions: [],
-      isProp: asset.type === 'prop',
-      layer: asset.type === 'prop' ? 'prop' : 'token',
+      isProp,
+      layer: isProp ? 'prop' : 'token',
+      propWidth: asset.propWidth,
+      propHeight: asset.propHeight,
+      locked: asset.locked,
     };
     onAddToken(newToken);
     setResultMessage({
       type: 'success',
-      text: `Spawned token "${newToken.name}" onto the battlemap!`,
+      text: `Spawned ${isProp ? 'prop' : 'token'} "${newToken.name}" onto the battlemap!`,
     });
   };
 
@@ -337,9 +341,10 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
           return;
         }
 
-        let assetType: 'map' | 'token' | 'audio' = 'token';
+        let assetType: 'map' | 'token' | 'prop' | 'audio' = 'token';
         if (activeTab === 'maps' || file.name.includes('map')) assetType = 'map';
         else if (activeTab === 'audio' || file.type.startsWith('audio/')) assetType = 'audio';
+        else if ((activeTab as string) === 'props' || file.name.toLowerCase().includes('prop')) assetType = 'prop';
 
         await saveAsset({
           id: crypto.randomUUID(),
@@ -348,6 +353,10 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
           dataUrl,
           fileSize: file.size,
           fileHash: hash,
+          isProp: assetType === 'prop',
+          layer: assetType === 'prop' ? 'prop' : 'token',
+          ringColor: assetType === 'prop' ? '#94a3b8' : undefined,
+          clipCircle: assetType !== 'prop',
           monsterData: activeTab === 'monsters' ? { name: file.name.replace(/\.[^/.]+$/, '') } : undefined,
           createdAt: Date.now(),
         });
@@ -409,9 +418,10 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
           return;
         }
 
-        let assetType: 'map' | 'token' | 'audio' = 'token';
+        let assetType: 'map' | 'token' | 'prop' | 'audio' = 'token';
         if (activeTab === 'maps' || file.name.includes('map')) assetType = 'map';
         else if (activeTab === 'audio' || file.type.startsWith('audio/')) assetType = 'audio';
+        else if ((activeTab as string) === 'props' || file.name.toLowerCase().includes('prop')) assetType = 'prop';
 
         await saveAsset({
           id: crypto.randomUUID(),
@@ -420,6 +430,10 @@ export const DataBackupModal: React.FC<DataBackupModalProps> = ({
           dataUrl,
           fileSize: file.size,
           fileHash: hash,
+          isProp: assetType === 'prop',
+          layer: assetType === 'prop' ? 'prop' : 'token',
+          ringColor: assetType === 'prop' ? '#94a3b8' : undefined,
+          clipCircle: assetType !== 'prop',
           createdAt: Date.now(),
         });
         await loadAssets();

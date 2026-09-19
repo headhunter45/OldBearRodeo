@@ -17,6 +17,14 @@ export interface StoredAsset {
   size?: number;
   monsterData?: any;
   character?: any;
+  isProp?: boolean;
+  layer?: 'token' | 'prop';
+  propWidth?: number;
+  propHeight?: number;
+  rotation?: number;
+  locked?: boolean;
+  clipCircle?: boolean;
+  clipShape?: string;
   createdAt: number;
 }
 
