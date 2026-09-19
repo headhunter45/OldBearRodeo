@@ -205,6 +205,7 @@ function nameGen(type) {
 124. ✅ Store the version somewhere we can use it in ci when building and tagging containers. If we have to manually update it I want to do it in one place. If possible include the short git hash when displaying it in the app something like `v0.1.0-alpha5 (c292e59)` where the version number in our file is `0.1.0-alpha5`.
 125. ✅ Add a feedback link to `https://forms.gle/zD9Rmqj4c3Dffpw39`, and a github link to `https://github.com/headhunter45/OldBearRodeo`. 
 126. ✅ Add an MIT license file. Use `Tom Hicks` as the name and `headhunter3@gmail.com` as the email.
+127. When dragging a window put it on top of the other floating windows.
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
 - On mobile selecting a character with the arrow or moving them is nearly impossible. It feels like the cursor is the bottom right of my finger instead of the middle. The place I have to tap on the token is tiny. Even after using the box to select the token when I use the arrow to move it it deselects everything and pans the map.
