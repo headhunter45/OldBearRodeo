@@ -208,9 +208,6 @@ function nameGen(type) {
 127. When dragging a window put it on top of the other floating windows.
 
 ## Future Ideas AGENTS DO NOT IMPLEMENT YET
-- On mobile selecting a character with the arrow or moving them is nearly impossible. It feels like the cursor is the bottom right of my finger instead of the middle. The place I have to tap on the token is tiny. Even after using the box to select the token when I use the arrow to move it it deselects everything and pans the map.
-- On mobile the bar to interact with my token is off screen in portrait and slightly cut off in landscape.
-- On mobile in landscape the left button menu is still slightly cut off. The bottom icon is clipped on the bottom, but the next icon does wrap to a second column. The token interaction bar overlaps the menu icons as well.
 
 
 ## Breakdown of Future Ideas & Cost-Reduction Strategy
@@ -271,27 +268,13 @@ To minimize AI token/credit consumption while maximizing development speed, we s
 
 - **Advice**: Keep these deferred until the core mobile touch UX and content ingestion are rock solid. When ready, implement them strictly through phased spikes (e.g. WebRTC 1-to-1 video before attempting a full N-way video grid).
 
----
 
 ### Suggested Next Immediate Step
 Would you like to tackle **Phase 1.1 (Mobile Touch Slop & Token Drag vs. Pan Lock)** next?
 
+---
+
 ### AI Credit Usage Difficulty Ranking (Lowest to Highest)
-
-| Rank  | Feature                               | AI Credit Cost      | Primary Cost Driver                                          |
-| :---: | :------------------------------------ | :------------------ | :----------------------------------------------------------- |
-|   3   | Direct JSON Paste / Drop Import       | ★★☆☆☆ (Low)         | Pure client-side schema mapping, zero network auth.          |
-|   4   | `/item` Command with Lookup & Cache   | ★★☆☆☆ (Low-Med)     | Straightforward endpoint fetch & chat rendering.             |
-|   5   | Direct Token Creation from DDB        | ★★☆☆☆ (Low-Med)     | Reuses entity fetchers; spawns token on map.                 |
-|   6   | DDB Monster/Item/Character by URL     | ★★★☆☆ (Medium)      | Extensive parsing, statblock formatting, and local caching.  |
-|   7   | Pathbuilder 2e Import & PF2e Ruleset  | ★★★☆☆ (Medium)      | Public schema, but significant UI additions (MAP, TEML).     |
-|   8   | Live Video Feed Tokens                | ★★★☆☆ (Medium-High) | Canvas render loop integration and stream track sync.        |
-|   9   | WebRTC Webcam Video                   | ★★★★☆ (High)        | Multi-peer video mesh renegotiation, UI tiles, bandwidth.    |
-|  10   | Discord Two-Way Bot Sync              | ★★★★☆ (High)        | Long-running gateway bot daemon, room routing, rate limits.  |
-|  11   | DDB Auth / Cobalt / Browser Extension | ★★★★☆ (Very High)   | Cloudflare WAF, MV3 extension architecture, auth cookies.    |
-|  12   | Discord Activity (Embedded App SDK)   | ★★★★★ (Extreme)     | Untestable in local isolation; requires OAuth & iframe RPCs. |
-|  13   | System-Agnostic Manifest & Schema     | ★★★★★ (Extreme)     | Full architectural refactor of sheets, tokens, & rules.      |
-
 
 #### Direct JSON Paste / Drop Import
 
@@ -384,3 +367,6 @@ Would you like to tackle **Phase 1.1 (Mobile Touch Slop & Token Drag vs. Pan Loc
 #### Tutorial
 #### Help
 #### ? icons with tooltips and tiny help text.
+#### On mobile selecting a character with the arrow or moving them is nearly impossible. It feels like the cursor is the bottom right of my finger instead of the middle. The place I have to tap on the token is tiny. Even after using the box to select the token when I use the arrow to move it it deselects everything and pans the map.
+#### On mobile the bar to interact with my token is off screen in portrait and slightly cut off in landscape.
+#### On mobile in landscape the left button menu is still slightly cut off. The bottom icon is clipped on the bottom, but the next icon does wrap to a second column. The token interaction bar overlaps the menu icons as well.

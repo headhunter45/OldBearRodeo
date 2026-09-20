@@ -1,0 +1,138 @@
+{
+  "tools": {
+    "select": "",
+    "boxSelect": "",
+    "pan": "",
+    "measure": "",
+    "laser": "",
+    "pingArrow": "",
+    "pingTarget": "",
+    "pingCircle": "",
+    "pingRect": "",
+    "pingCone": "",
+    "fogHide": "",
+    "fogReveal": "",
+    "persistToggle": "",
+    "colorPicker": "",
+    "shapeDelete": "",
+    "coneSpreadPresets": "",
+    "rotationDial": ""
+  },
+  "tokens": {
+    "hpBar": "",
+    "acShield": "",
+    "conditions": "",
+    "resize": "",
+    "duplicate": "",
+    "delete": "",
+    "lock": "",
+    "flipHorizontal": "",
+    "flipVertical": "",
+    "ringColor": "",
+    "dndBeyondSync": "",
+    "nameEdit": "",
+    "propDimensions": ""
+  },
+  "initiative": {
+    "trackerOverview": "",
+    "roundCounter": "",
+    "turnNavigation": "",
+    "rerollItem": "",
+    "editScore": "",
+    "dragReorder": "",
+    "addSelectedToken": "",
+    "addCustomCombatant": "",
+    "minimize": ""
+  },
+  "diceRoller": {
+    "overview": "",
+    "diceTypes": "",
+    "countModifier": "",
+    "advantageMode": "",
+    "rollHistoryFilter": ""
+  },
+  "characterSheet": {
+    "overview": "",
+    "dndBeyondSync": "",
+    "hpAdjustment": "",
+    "statsAndModifiers": "",
+    "spellsAndSlots": "",
+    "actionsAndAttacks": "",
+    "tokenAssignment": "",
+    "savedCharacters": ""
+  },
+  "chat": {
+    "overview": "",
+    "slashCommands": "",
+    "rollCommand": "",
+    "attackCommand": "",
+    "spellCommand": "",
+    "skillCommand": "",
+    "syncCommand": "",
+    "tokensCommand": "",
+    "discordWebhook": ""
+  },
+  "soundboard": {
+    "overview": "",
+    "presetSfx": "",
+    "customUpload": "",
+    "volumeSlider": "",
+    "loopToggle": "",
+    "roomBroadcast": ""
+  },
+  "assetManager": {
+    "overview": "",
+    "mapLibrary": "",
+    "tokenLibrary": "",
+    "monsterLibrary": "",
+    "propLibrary": "",
+    "audioLibrary": "",
+    "backupExport": "",
+    "backupImport": "",
+    "sceneManager": "",
+    "gridAlignment": ""
+  },
+  "voiceAndAudio": {
+    "overview": "",
+    "micToggle": "",
+    "deafenToggle": "",
+    "transmissionMode": "",
+    "pushToTalkKey": "",
+    "voiceActivationThreshold": "",
+    "peerVolumeSliders": "",
+    "gmForceMute": ""
+  },
+  "topBar": {
+    "brandAndVersion": "",
+    "activeMapSelector": "",
+    "playerList": "",
+    "feedbackLink": "",
+    "githubLink": "",
+    "inviteLink": "",
+    "hamburgerMenu": ""
+  },
+  "hotkeysCheatSheet": {
+    "selectTool": "",
+    "boxSelectTool": "",
+    "panTool": "",
+    "measureTool": "",
+    "laserPointer": "",
+    "arrowMarker": "",
+    "targetCrosshair": "",
+    "circleArea": "",
+    "rectangleZone": "",
+    "coneTemplate": "",
+    "fogHide": "",
+    "fogReveal": "",
+    "duplicateToken": "",
+    "deleteSelected": "",
+    "deselectAll": ""
+  },
+  "quickStartTutorial": {
+    "step1_loadMap": "",
+    "step2_addTokens": "",
+    "step3_invitePlayers": "",
+    "step4_combatInitiative": "",
+    "step5_diceAndChat": ""
+  }
+}
