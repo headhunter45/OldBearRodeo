@@ -57,7 +57,7 @@ export const RotationCompass: React.FC<{
     setIsDragging(false);
     try {
       (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-    } catch (_) {}
+    } catch (_) { }
   };
 
   return (
@@ -162,7 +162,7 @@ export const TokenControls: React.FC<TokenControlsProps> = ({
         display: 'flex',
         alignItems: 'center',
         gap: '1rem',
-        maxWidth: '92vw',
+        maxWidth: '75vw',
         overflowX: 'auto',
       }}
     >
